@@ -1,0 +1,16 @@
+{
+  "search": ["any recent trials on a drug for a condition?", "systematic reviews about a topic", "plan how a PubMed query will be parsed"],
+  "article_details": ["abstract and authors of PMID <n>", "how often is this paper cited?", "do these references really exist?"],
+  "citation_network": ["papers similar to PMID <n>", "who cited this article?", "reference list of this paper"],
+  "fulltext": ["open-access full text of PMC<n>", "figures and captions of the article", "genes and chemicals mined from the text"],
+  "export": ["export PMIDs to BibTeX / RIS / EndNote", "save found papers as markdown notes"],
+  "gene": ["look up a gene symbol such as TP53", "details of NCBI gene id <n>", "literature linked to a gene"],
+  "compound": ["PubChem record of a drug", "molecular formula or structure of a compound", "literature linked to CID <n>"],
+  "variant": ["is rs<n> pathogenic?", "clinical significance of a c. variant in ClinVar"],
+  "chronicle": ["build a versioned research history of a question", "what changed in my saved chronicle?"],
+  "images": ["find open-i pictures of a disease", "use a figure image to find its source study"],
+  "institutional": ["set up my library link resolver", "library proxy link to read an article", "why does the library link fail?"],
+  "icd": ["ICD-10 code to MeSH term", "MeSH term to ICD code"],
+  "pipeline": ["save / load / list / delete a search pipeline", "schedule a pipeline weekly", "what did the last run find?"],
+  "session": ["which PMIDs are in this session?"]
+}

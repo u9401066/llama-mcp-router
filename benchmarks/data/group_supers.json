@@ -1,0 +1,6 @@
+{
+  "literature": {"label": "find and analyse literature", "groups": ["search", "article_details", "citation_network", "chronicle"]},
+  "documents": {"label": "get, export or access documents", "groups": ["fulltext", "export", "images", "institutional"]},
+  "bio_data": {"label": "genes, compounds, variants, codes", "groups": ["gene", "compound", "variant", "icd"]},
+  "workflow": {"label": "saved pipelines and session", "groups": ["pipeline", "session"]}
+}

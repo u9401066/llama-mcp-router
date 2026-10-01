@@ -1,0 +1,20 @@
+{"id": 0, "query": "hi there", "expect": [], "lang": "en"}
+{"id": 1, "query": "what's the capital of Japan?", "expect": [], "lang": "en"}
+{"id": 2, "query": "can you explain how a transformer neural network works?", "expect": [], "lang": "en"}
+{"id": 3, "query": "你今天過得好嗎", "expect": [], "lang": "zh"}
+{"id": 4, "query": "請幫我潤飾這段文字:我覺得這個方法很不錯", "expect": [], "lang": "zh"}
+{"id": 5, "query": "write a python function that reverses a string", "expect": [], "lang": "en"}
+{"id": 6, "query": "what is the difference between sensitivity and specificity?", "expect": [], "lang": "en"}
+{"id": 7, "query": "tell me a joke", "expect": [], "lang": "en"}
+{"id": 8, "query": "how do I politely decline a meeting invitation?", "expect": [], "lang": "en"}
+{"id": 9, "query": "幫我想一個報告的標題", "expect": [], "lang": "zh"}
+{"id": 10, "query": "convert 72 fahrenheit to celsius", "expect": [], "lang": "en"}
+{"id": 11, "query": "ok, continue", "expect": [], "lang": "en"}
+{"id": 12, "query": "what does 'randomized' mean in a clinical trial?", "expect": [], "lang": "en"}
+{"id": 13, "query": "translate 'good morning' to French", "expect": [], "lang": "en"}
+{"id": 14, "query": "summarize the plot of Romeo and Juliet", "expect": [], "lang": "en"}
+{"id": 15, "query": "給我三個提高專注力的方法", "expect": [], "lang": "zh"}
+{"id": 16, "query": "is it better to use mean or median for skewed data?", "expect": [], "lang": "en"}
+{"id": 17, "query": "draft a short thank-you email to my supervisor", "expect": [], "lang": "en"}
+{"id": 18, "query": "what time zone is Taiwan in?", "expect": [], "lang": "en"}
+{"id": 19, "query": "好的謝謝,先到這裡", "expect": [], "lang": "zh"}

@@ -1,0 +1,16 @@
+{
+  "search": "search PubMed for papers on a topic",
+  "article_details": "abstract, authors, metrics of a given PMID",
+  "citation_network": "papers citing or related to an article",
+  "fulltext": "full text, figures, text mining of an article",
+  "export": "export citations to BibTeX, RIS; save notes",
+  "gene": "look up a gene",
+  "compound": "look up a chemical compound or drug",
+  "variant": "genetic variant clinical significance",
+  "chronicle": "research chronicle of a topic over time",
+  "images": "biomedical images, figure-based search",
+  "institutional": "library access to full text via resolver",
+  "icd": "convert ICD codes and MeSH terms",
+  "pipeline": "saved search pipeline: save, list, schedule",
+  "session": "PMIDs in the current session"
+}
