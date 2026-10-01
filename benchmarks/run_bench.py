@@ -91,6 +91,7 @@ def make_selectors(a, cfg):
         "bm25": Cfg(BM25Selector(top_k=a.top_k)),
         "v0.1 laya+bm25": Cfg(UnionSelector([old, BM25Selector(top_k=3)])),
         "v0.2 laya+bm25": Cfg(v2()),
+        "v0.2 top3+bm25": Cfg(UnionSelector([LayaSelector(url=U, groups=cfg, top_p=1.0, max_groups=3), BM25Selector(top_k=3)])),
         "v0.2 +none(0.7)": Cfg(v2(none_threshold=0.7)),
         "v0.2 reorder": Cfg(v2(), "reorder"),
         "v0.2 all+hint": Cfg(v2(), "all", True),
