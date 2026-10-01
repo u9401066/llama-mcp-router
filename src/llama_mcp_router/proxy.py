@@ -36,6 +36,8 @@ class RouterConfig:
     use_server_tools: bool = True  # merge llama-server's GET /tools into the candidate pool
     exclude: List[str] = field(default_factory=list)  # fnmatch patterns of tools never offered
     fallback: str = "all"  # when the selector fails: "all" tools or "none"
+    apply: str = "select"  # "select": send only the selection; "reorder": send ALL tools, most relevant first; "all": send all tools unchanged
+    hint: bool = False  # append the selector's routing hint to the last user message
     sticky: bool = False  # opt-in: keep a conversation's tool list append-only so llama-server's prompt cache can keep hitting
     sticky_conversations: int = 512  # how many conversations to remember
     tools_ttl: float = 60.0
@@ -65,6 +67,34 @@ def conversation_key(messages: Sequence[Dict[str, Any]]) -> Optional[str]:
         if m.get("role") == "user":
             return hashlib.sha1("\0".join(parts).encode()).hexdigest()
     return None
+
+
+def arrange(pool: Sequence[Tool], sel: Any, mode: str, max_tools: int, always: Sequence[str] = (), extra: Set[str] = frozenset()) -> List[Tool]:
+    """Turn a Selection into the tool list that is actually sent (shared with the benchmarks)."""
+    if mode == "all":
+        return list(pool)
+    if mode == "reorder":
+        order = {n: i for i, n in enumerate(list(sel.ranking) or list(sel.names))}
+        return sorted(pool, key=lambda t: order.get(tool_name(t), len(order)))
+    keep = set(sel.names[:max_tools]) | set(always) | set(extra)
+    return [t for t in pool if tool_name(t) in keep]
+
+
+def add_hint(messages: List[Dict[str, Any]], hint: str) -> List[Dict[str, Any]]:
+    """Append a routing hint to the last user message (late in the prompt, so the cached prefix is untouched)."""
+    if not hint:
+        return messages
+    out = [dict(m) for m in messages]
+    for m in reversed(out):
+        if m.get("role") == "user":
+            note = "\n\n[Routing hint from a fast classifier: this request most likely concerns: %s. Prefer tools for that; ignore the hint if it clearly does not fit.]" % hint
+            c = m.get("content")
+            if isinstance(c, str):
+                m["content"] = c + note
+            elif isinstance(c, list):
+                m["content"] = list(c) + [{"type": "text", "text": note}]
+            break
+    return out
 
 
 def called_tool_names(messages: Sequence[Dict[str, Any]]) -> Set[str]:
@@ -112,19 +142,20 @@ class Router:
     async def choose(self, query: str, pool: Sequence[Tool], extra: Set[str], conv_key: Optional[str] = None) -> Dict[str, Any]:
         t0 = time.perf_counter()
         info: Dict[str, Any] = {}
+        hint = ""
         try:
             sel = await self.cfg.selector.select(query, pool)
-            names = sel.names[: self.cfg.max_tools]
             info = sel.info
+            chosen = arrange(pool, sel, self.cfg.apply, self.cfg.max_tools, self.cfg.always, extra)
+            hint = sel.hint if self.cfg.hint else ""
         except Exception as e:
             log.warning("selector %s failed (%s: %s); fallback=%s", self.cfg.selector.name, type(e).__name__, e, self.cfg.fallback)
-            names = [tool_name(t) for t in pool] if self.cfg.fallback == "all" else []
+            keep = set(self.cfg.always) | extra
+            chosen = list(pool) if self.cfg.fallback == "all" else [t for t in pool if tool_name(t) in keep]
             info = {"error": type(e).__name__}
-        keep = set(names) | set(self.cfg.always) | extra
-        chosen = [t for t in pool if tool_name(t) in keep]
-        if conv_key and self.cfg.sticky:
+        if conv_key and self.cfg.sticky and self.cfg.apply == "select":
             chosen = self._stabilise(conv_key, chosen, {tool_name(t): t for t in pool})
-        return {"tools": chosen, "info": info, "ms": round((time.perf_counter() - t0) * 1000, 1), "pool": len(pool)}
+        return {"tools": chosen, "info": info, "hint": hint, "ms": round((time.perf_counter() - t0) * 1000, 1), "pool": len(pool)}
 
     def _stabilise(self, key: str, chosen: List[Tool], lookup: Dict[str, Tool]) -> List[Tool]:
         """Reuse the previous turn's tool list when it already covers this turn's choice.
@@ -164,6 +195,8 @@ class Router:
         if isinstance(tc, dict) and (tc.get("function") or {}).get("name"):
             extra.add(tc["function"]["name"])
         choice = await self.choose(last_user_query(body.get("messages") or []), pool, extra, conversation_key(body.get("messages") or []))
+        if choice["hint"]:
+            body["messages"] = add_hint(body.get("messages") or [], choice["hint"])
         if choice["tools"]:
             body["tools"] = choice["tools"]
         else:  # nothing selected: send a tool-free prompt (also drop tool_choice, which would force a call)

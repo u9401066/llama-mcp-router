@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT.parent / "src"))
 
 from llama_mcp_router import AllSelector, BM25Selector, LayaSelector, UnionSelector  # noqa: E402
 from llama_mcp_router.selectors import build_groups, load_groups_config  # noqa: E402
+from llama_mcp_router.proxy import add_hint, arrange  # noqa: E402
 from llama_mcp_router.tools import tool_name  # noqa: E402
 
 SYSTEM = ("You are a biomedical literature research assistant with access to tools. "
@@ -38,32 +39,66 @@ class OracleSelector:
 
     name = "oracle"
 
-    def __init__(self, cfg):
-        self.cfg, self.expect = cfg, []
+    def __init__(self, cfg, hint=False):
+        self.cfg, self.expect, self.use_hint = cfg, [], hint
 
     async def select(self, query, tools):
         from llama_mcp_router.selectors import Selection
 
-        names = []
+        names, hint = [], ""
         for g in build_groups(self.cfg, tools):
             if any(e in g.tools for e in self.expect):
                 names += g.tools
-        return Selection(names)
+                hint = hint or "%s (100%%)" % g.description
+        by = [n for n in (tool_name(t) for t in tools)]
+        return Selection(names, abstain=not self.expect, ranking=names + [n for n in by if n not in names], hint=hint if self.use_hint else hint)
 
     async def aclose(self):
         return None
 
 
+class Cfg:
+    """A selector plus how its output is applied (see RouterConfig.apply / hint)."""
+
+    def __init__(self, selector, apply="select", hint=False):
+        self.selector, self.apply, self.hint = selector, apply, hint
+        self.name = selector.name
+
+    async def select(self, query, tools):
+        return await self.selector.select(query, tools)
+
+    async def aclose(self):
+        return await self.selector.aclose()
+
+    @property
+    def expect(self):
+        return getattr(self.selector, "expect", None)
+
+    @expect.setter
+    def expect(self, v):
+        self.selector.expect = v
+
+
 def make_selectors(a, cfg):
-    laya = dict(url=a.laya_url, top_p=a.top_p, max_groups=a.max_groups)
-    return {
-        "all": AllSelector(),
-        "bm25": BM25Selector(top_k=a.top_k),
-        "laya-groups": LayaSelector(groups=cfg, **laya),
-        "laya-per-tool": LayaSelector(groups=None, **laya),
-        "laya-groups+bm25": UnionSelector([LayaSelector(groups=cfg, **laya), BM25Selector(top_k=3)]),
-        "oracle": OracleSelector(cfg),
+    U = a.laya_url
+    old = LayaSelector(url=U, groups=cfg, state_mode="raw", labels="description", top_p=0.95, max_groups=4)  # what v0.1.0 did
+
+    def v2(**kw):
+        return UnionSelector([LayaSelector(url=a.laya_url if not kw.get("url") else kw["url"], groups=cfg, top_p=a.top_p, max_groups=a.max_groups, **{k: v for k, v in kw.items() if k != "url"}), BM25Selector(top_k=3)], **({"abstain": "any"} if kw.get("none_threshold") else {}))
+
+    sels = {
+        "all": Cfg(AllSelector()),
+        "bm25": Cfg(BM25Selector(top_k=a.top_k)),
+        "v0.1 laya+bm25": Cfg(UnionSelector([old, BM25Selector(top_k=3)])),
+        "v0.2 laya+bm25": Cfg(v2()),
+        "v0.2 +none(0.7)": Cfg(v2(none_threshold=0.7)),
+        "v0.2 reorder": Cfg(v2(), "reorder"),
+        "v0.2 all+hint": Cfg(v2(), "all", True),
+        "v0.2 select+hint": Cfg(v2(), "select", True),
+        "oracle": Cfg(OracleSelector(cfg)),
+        "oracle all+hint": Cfg(OracleSelector(cfg, hint=True), "all", True),
     }
+    return sels
 
 
 async def phase1(selectors, tools, queries):
@@ -75,20 +110,23 @@ async def phase1(selectors, tools, queries):
             if name == "oracle":
                 sel.expect = q["expect"]
             t0 = time.perf_counter()
+            err = None
             try:
                 res = await sel.select(q["query"], tools)
-                names, err = res.names, None
+                names, err, abst = res.names, None, bool(res.abstain)
             except Exception as e:  # noqa: BLE001
-                names, err = [], repr(e)
+                names, err, abst = [], repr(e), False
             ms = (time.perf_counter() - t0) * 1000
-            rows.append({"id": q["id"], "names": names, "hit": any(e in names for e in q["expect"]), "bytes": sum(len(json.dumps(by_name[n])) for n in names if n in by_name), "ms": ms, "err": err})
+            rows.append({"id": q["id"], "ranking": (res.ranking if not err else []), "hint": (res.hint if not err else ""), "names": names, "hit": (any(e in names for e in q["expect"]) if q["expect"] else not names), "bytes": sum(len(json.dumps(by_name[n])) for n in names if n in by_name), "ms": ms, "err": err, "abstain": abst})
         out[name] = rows
     return out
 
 
-async def ask(client, url, q, tools, effort, max_tokens):
-    body = {"model": "m", "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": q["query"]}],
-            "tools": tools, "temperature": 0, "max_tokens": max_tokens, "chat_template_kwargs": {"reasoning_effort": effort}}
+async def ask(client, url, q, tools, effort, max_tokens, hint=""):
+    body = {"model": "m", "messages": add_hint([{"role": "system", "content": SYSTEM}, {"role": "user", "content": q["query"]}], hint),
+            "temperature": 0, "max_tokens": max_tokens, "chat_template_kwargs": {"reasoning_effort": effort}}
+    if tools:
+        body["tools"] = tools
     t0 = time.perf_counter()
     r = await client.post(url + "/v1/chat/completions", json=body)
     dt = time.perf_counter() - t0
@@ -101,7 +139,7 @@ async def ask(client, url, q, tools, effort, max_tokens):
         valid = bool(calls)
     except ValueError:
         valid = False
-    return {"id": q["id"], "first": first, "ok": first in q["expect"], "valid_args": valid, "prompt_tokens": d["usage"]["prompt_tokens"], "completion_tokens": d["usage"]["completion_tokens"], "s": dt, "finish": d["choices"][0]["finish_reason"]}
+    return {"id": q["id"], "first": first, "ok": (first in q["expect"]) if q["expect"] else first is None, "neg": not q["expect"], "valid_args": valid, "prompt_tokens": d["usage"]["prompt_tokens"], "completion_tokens": d["usage"]["completion_tokens"], "s": dt, "finish": d["choices"][0]["finish_reason"]}
 
 
 async def phase2(a, selectors, tools, queries, p1):
@@ -114,8 +152,14 @@ async def phase2(a, selectors, tools, queries, p1):
 
             async def one(q):
                 async with sem:
-                    sent = [by_name[n] for n in sel_by_id[q["id"]]["names"] if n in by_name] or tools
-                    return await ask(client, a.llm, q, sent, a.effort, a.max_tokens)
+                    row = sel_by_id[q["id"]]
+                    c = selectors[name]
+                    from llama_mcp_router import Selection
+
+                    sent = arrange(tools, Selection(row["names"], ranking=row["ranking"]), c.apply, 10 ** 6)
+                    if not sent and not name.startswith("oracle") and not row.get("abstain"):
+                        sent = tools  # selector returned nothing and did not abstain: fail open like the router
+                    return await ask(client, a.llm, q, sent, a.effort, a.max_tokens, row["hint"] if c.hint else "")
 
             t0 = time.time()
             results[name] = await asyncio.gather(*[one(q) for q in queries])
@@ -127,7 +171,9 @@ async def phase2(a, selectors, tools, queries, p1):
 
 async def prefill_one(client, url, q, tools, cold):
     body = {"model": "m", "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": q["query"]}],
-            "tools": tools, "temperature": 0, "max_tokens": 1, "cache_prompt": not cold}
+            "temperature": 0, "max_tokens": 1, "cache_prompt": not cold}
+    if tools:
+        body["tools"] = tools
     t0 = time.perf_counter()
     d = (await client.post(url + "/v1/chat/completions", json=body)).json()
     wall = (time.perf_counter() - t0) * 1000
@@ -145,7 +191,9 @@ async def phase3(a, selectors, tools, queries, p1):
             res[name] = {"cold": [], "warm": []}
             for mode in ("cold", "warm"):
                 for q in queries:
-                    sent = [by_name[n] for n in sel_by_id[q["id"]]["names"] if n in by_name] or tools
+                    sent = [by_name[n] for n in sel_by_id[q["id"]]["names"] if n in by_name]
+                    if not sent and name != "oracle" and not sel_by_id[q["id"]].get("abstain"):
+                        sent = tools
                     r = await prefill_one(client, a.llm, q, sent, mode == "cold")
                     r["select_ms"] = sel_by_id[q["id"]]["ms"]
                     res[name][mode].append(r)
@@ -169,18 +217,27 @@ def pct(x, n):
 
 
 def report(queries, p1, p2):
-    n = len(queries)
-    lines = ["| selector | recall (expected tool offered) | tools sent (avg) | schema KB (avg) | selector ms (median) |", "|---|---|---|---|---|"]
+    qs = {q["id"]: q for q in queries}
+    npos = sum(bool(q["expect"]) for q in queries)
+    nneg = len(queries) - npos
+    lines = ["| selector | recall on tool requests | tools sent (tool requests) | tools sent (no-tool requests) | no-tool requests sent zero tools | schema KB (avg, all) | selector ms (median) |", "|---|---|---|---|---|---|---|"]
     for name, rows in p1.items():
-        lines.append("| %s | %s | %.1f | %.1f | %.0f |" % (name, pct(sum(r["hit"] for r in rows), n), statistics.mean(len(r["names"]) for r in rows), statistics.mean(r["bytes"] for r in rows) / 1000, statistics.median(r["ms"] for r in rows)))
-    out = ["### Selection (no LLM)", ""] + lines
+        pos = [r for r in rows if qs[r["id"]]["expect"]]
+        neg = [r for r in rows if not qs[r["id"]]["expect"]]
+        lines.append("| %s | %s | %.1f | %s | %s | %.1f | %.0f |" % (
+            name, pct(sum(r["hit"] for r in pos), len(pos)), statistics.mean(len(r["names"]) for r in pos),
+            ("%.1f" % statistics.mean(len(r["names"]) for r in neg)) if neg else "-",
+            ("%d/%d" % (sum(not r["names"] for r in neg), len(neg))) if neg else "-",
+            statistics.mean(r["bytes"] for r in rows) / 1000, statistics.median(r["ms"] for r in rows)))
+    out = ["### Selection (no LLM): %d tool requests, %d no-tool requests" % (npos, nneg), ""] + lines
     if p2:
-        out += ["", "### First tool call by the model", "", "| selector | correct tool | correct (EN) | correct (ZH) | no tool call | valid JSON args | prompt tokens (avg) | seconds/query (avg) |", "|---|---|---|---|---|---|---|---|"]
-        lang = {q["id"]: q["lang"] for q in queries}
+        out += ["", "### First tool call by the 27B model", "", "| selector | correct (all) | tool requests | no-tool requests (answered without a tool call) | EN | 中文 | prompt tokens (avg) | seconds/query (avg) |", "|---|---|---|---|---|---|---|---|"]
         for name, rows in p2.items():
-            en = [r for r in rows if lang[r["id"]] == "en"]
-            zh = [r for r in rows if lang[r["id"]] == "zh"]
-            out.append("| %s | %s | %s | %s | %d | %s | %.0f | %.1f |" % (name, pct(sum(r["ok"] for r in rows), n), pct(sum(r["ok"] for r in en), len(en)), pct(sum(r["ok"] for r in zh), len(zh)), sum(r["first"] is None for r in rows), pct(sum(r["valid_args"] for r in rows), n), statistics.mean(r["prompt_tokens"] for r in rows), statistics.mean(r["s"] for r in rows)))
+            pos = [r for r in rows if not r["neg"]]
+            neg = [r for r in rows if r["neg"]]
+            en = [r for r in rows if qs[r["id"]]["lang"] == "en"]
+            zh = [r for r in rows if qs[r["id"]]["lang"] == "zh"]
+            out.append("| %s | %s | %s | %s | %s | %s | %.0f | %.1f |" % (name, pct(sum(r["ok"] for r in rows), len(rows)), pct(sum(r["ok"] for r in pos), len(pos)), (pct(sum(r["ok"] for r in neg), len(neg)) if neg else "-"), pct(sum(r["ok"] for r in en), len(en)), pct(sum(r["ok"] for r in zh), len(zh)), statistics.mean(r["prompt_tokens"] for r in rows), statistics.mean(r["s"] for r in rows)))
     return "\n".join(out)
 
 
@@ -199,6 +256,7 @@ async def main():
     ap.add_argument("--concurrency", type=int, default=2)
     ap.add_argument("--distractors", action="store_true", help="add ~100 synthetic tools from other domains (bigger pool)")
     ap.add_argument("--prefill", action="store_true", help="with --llm: measure prefill time (max_tokens=1) instead of answer accuracy")
+    ap.add_argument("--sample", type=int, help="evenly sample this many queries (prefill runs)")
     ap.add_argument("--only", help="comma-separated selector names")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--out", default=str(ROOT / "results"))
@@ -207,6 +265,8 @@ async def main():
 
     tools = json.load(open(a.tools))
     queries = [json.loads(l) for l in open(a.queries) if l.strip()][: a.limit]
+    if a.sample and a.sample < len(queries):
+        queries = [queries[int(i * len(queries) / a.sample)] for i in range(a.sample)]
     cfg = load_groups_config(a.groups)
     if a.distractors:
         tools += json.load(open(ROOT / "data/distractor_tools.json"))

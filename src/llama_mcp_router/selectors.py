@@ -26,6 +26,8 @@ class Selection:
     names: List[str]
     info: Dict[str, Any] = field(default_factory=dict)
     abstain: bool = False  # "no tool is needed for this request"
+    ranking: List[str] = field(default_factory=list)  # every tool name, most relevant first (for reordering)
+    hint: str = ""  # a short human-readable routing hint for the LLM
 
 
 class Selector:
@@ -72,7 +74,7 @@ class BM25Selector(Selector):
         scores = self._bm25(tools).scores(query)
         order = sorted(range(len(tools)), key=lambda i: -scores[i])
         picked = [i for i in order[: self.top_k] if scores[i] > self.min_score]
-        return Selection([tool_name(tools[i]) for i in picked], {"scores": {tool_name(tools[i]): round(scores[i], 3) for i in picked}})
+        return Selection([tool_name(tools[i]) for i in picked], {"scores": {tool_name(tools[i]): round(scores[i], 3) for i in picked}}, ranking=[tool_name(tools[i]) for i in order])
 
 
 # --------------------------------------------------------------------------- groups
@@ -285,10 +287,15 @@ class LayaSelector(Selector):
         names: List[str] = []
         for g in kept:
             names.extend(n for n in members[g] if n not in names)
+        ranking: List[str] = []
+        for g, _ in ranked:
+            ranking.extend(n for n in members[g] if n not in ranking)
+        by_group = {g.name: g for g in groups}
+        hint = "; ".join("%s (%d%%)" % (by_group[g].description, round(100 * probs[g])) for g in kept[:3])
         info: Dict[str, Any] = {"groups": {g: round(probs[g], 3) for g in kept}}
         if none_p is not None:
             info["none"] = round(none_p, 3)
-        return Selection(names, info)
+        return Selection(names, info, ranking=ranking, hint=hint)
 
 
 # --------------------------------------------------------------------------- combinators
@@ -315,6 +322,8 @@ class UnionSelector(Selector):
     async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
         names: List[str] = []
         info: Dict[str, Any] = {}
+        ranking: List[str] = []
+        hint = ""
         ok = 0
         vetoes = 0
         for s in self.selectors:
@@ -327,11 +336,13 @@ class UnionSelector(Selector):
             info[s.name] = sel.info
             vetoes += bool(sel.abstain)
             names.extend(n for n in sel.names if n not in names)
+            ranking.extend(n for n in (sel.ranking or sel.names) if n not in ranking)
+            hint = hint or sel.hint
         if not ok:
             raise RuntimeError("all selectors failed")
         if vetoes and (self.abstain == "any" or not names):
             return Selection([], info, abstain=True)
-        return Selection(names, info)
+        return Selection(names, info, ranking=ranking, hint=hint)
 
 
 # --------------------------------------------------------------------------- registry

@@ -1,0 +1,4361 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_unified_search",
+   "description": "\n        🔍 Unified Search - Single entry point for multi-source academic search.\n\n        Automatically analyzes your query and searches the best sources.\n        No need to choose between PubMed, OpenAlex, CrossRef, etc.\n\n        ═══════════════════════════════════════════════════════════════════\n        WHAT IT DOES:\n        ═══════════════════════════════════════════════════════════════════\n        1. Analyzes your query (complexity, intent, PICO elements)\n        2. Automatically selects best sources based on query type\n        3. Searches multiple sources in parallel\n        4. Deduplicates and merges results\n        5. Ranks by configurable criteria\n        6. Enriches with OA links (Unpaywall)\n        7. Auto-detects ICD-9/10 codes and expands to MeSH terms\n        8. Optionally searches preprints (arXiv, medRxiv, bioRxiv)\n\n        ═══════════════════════════════════════════════════════════════════\n        EXAMPLES (most calls only need 1-2 params):\n        ═══════════════════════════════════════════════════════════════════\n\n        Simple (1 param):\n            unified_search(\"remimazolam ICU sedation\")\n\n        With limit (2 params):\n            unified_search(\"machine learning in anesthesia\", limit=20)\n\n        Specify sources:\n            unified_search(\"CRISPR gene therapy\", sources=\"pubmed,openalex\")\n\n        Auto minus one source:\n            unified_search(\"sepsis biomarkers\", sources=\"auto,-semantic_scholar\")\n\n        Search all enabled sources except enrichment-only CrossRef:\n            unified_search(\"icu sedation\", sources=\"all,-crossref\")\n\n        Clinical filters:\n            unified_search(\"diabetes treatment\",\n                          filters=\"year:2020-2025,age_group:aged,clinical_query:therapy\")\n\n        Include preprints + shallow search:\n            unified_search(\"COVID-19 vaccine\", options=\"preprints,shallow\")\n\n        Provider-native semantic retrieval (OpenAlex capability):\n            unified_search(\"mechanisms of treatment resistance\",\n                          sources=\"openalex\", options=\"native_semantic\")\n\n        Reproducible systematic retrieval (bulk/cursor where supported):\n            unified_search(\"melanoma AND immunotherapy\",\n                          sources=\"openalex,semantic_scholar\",\n                          options=\"systematic\")\n\n        Full control:\n            unified_search(\"propofol vs remimazolam\",\n                          sources=\"pubmed,semantic_scholar,europe_pmc\",\n                          ranking=\"impact\",\n                          filters=\"year:2020-,sex:female,species:humans\",\n                          options=\"preprints,no_relax\")\n\n        ICD Code Auto-Detection:\n            unified_search(\"E11 complications\")\n            → Auto-expands E11 to \"Diabetes Mellitus, Type 2\"[MeSH]\n\n        Args:\n            query: Search query (natural language, ICD codes, or structured).\n                   Required unless pipeline is provided.\n            limit: Maximum results per source (default 10, max 100)\n            sources: Comma-separated list of sources to search.\n                     Available: \"pubmed\", \"openalex\", \"semantic_scholar\",\n                     \"europe_pmc\", \"crossref\", \"core\".\n                     Commercial connectors may also appear when enabled via env,\n                     e.g. \"scopus\" when `SCOPUS_ENABLED=true` and\n                     `SCOPUS_API_KEY` are configured, or \"web_of_science\"\n                     when `WEB_OF_SCIENCE_ENABLED=true` and\n                     `WEB_OF_SCIENCE_API_KEY` are configured.\n                     Default: auto-select based on query complexity.\n                     Supports \"auto\" and \"all\" with exclusions.\n                     Source keys are exact and canonical; legacy hyphenated,\n                     spaced, abbreviated, or case-folded aliases are rejected.\n                     Examples: \"pubmed,openalex\", \"auto,-semantic_scholar\",\n                     or \"all,-crossref\"\n                     Global disable env: `PUBMED_SEARCH_DISABLED_SOURCES`\n                     Example: `PUBMED_SEARCH_DISABLED_SOURCES=semantic_scholar,core`\n            ranking: Ranking strategy:\n                - \"balanced\": Default, considers all factors\n                - \"impact\": Prioritize high-citation papers\n                - \"recency\": Prioritize recent publications\n                - \"quality\": Prioritize publication-type heuristics (RCTs, meta-analyses); not a quality assessment\n            output_format: \"markdown\" (human-readable), \"json\", or \"toon\" (programmatic)\n            filters: Comma-separated key:value pairs for filtering results.\n                     Supported keys:\n                       year:2020-2025    → publication year range\n                       year:2020-        → from 2020 onwards\n                       year:-2025        → up to 2025\n                       year:2024         → from 2024 onwards\n                       age_group:<value> → age group filter (PubMed).\n                                           Values: newborn, infant, preschool, child,\n                                           adolescent, young_adult, adult, middle_aged,\n                                           aged, aged_80\n                       sex:<value>       → sex filter: male, female\n                       species:<value>   → species filter: humans, animals\n                       language:<value>  → language filter: english, chinese, etc.\n                       clinical_query:<value>\n                                        → clinical query filter (PubMed EBM).\n                                           Values: therapy, therapy_narrow, diagnosis,\n                                           diagnosis_narrow, prognosis, prognosis_narrow,\n                                           etiology, etiology_narrow,\n                                           clinical_prediction, clinical_prediction_narrow\n                     Tokens, keys, and values use exact canonical spelling with\n                     no surrounding whitespace.\n                     Example: \"year:2020-2025,age_group:aged,sex:female,clinical_query:therapy\"\n            options: Comma-separated flags to toggle behaviors.\n                     Supported flags:\n                       preprints      → also search arXiv, medRxiv, bioRxiv\n                       include_detected_preprints\n                                      → retain records identified by the preprint\n                                        heuristic in otherwise selected sources;\n                                        this does not establish peer-review status\n                       clinical_trials → add a bounded ClinicalTrials.gov adjunct\n                                        section to Markdown output (explicit opt-in)\n                       no_oa          → skip Unpaywall OA link enrichment\n                       no_analysis    → hide query analysis section in output\n                       no_scores      → hide ranking scores and rank percentiles\n                       compact        → compact structured JSON/TOON output\n                       no_next        → hide next-tool suggestions in structured output\n                       no_provenance  → hide section provenance in structured output\n                       no_relax       → disable auto-relaxation on 0 results\n                       native_semantic → use provider-native semantic retrieval;\n                                         currently OpenAlex, max 50 results\n                       systematic     → use deterministic bulk/cursor retrieval where\n                                         supported (for example S2 and OpenAlex)\n                       shallow        → disable deep search (faster, keyword-only)\n                     `native_semantic` and `systematic` are mutually exclusive\n                     Option tokens use exact canonical spelling with no\n                     surrounding whitespace.\n                     and automatically disable multi-strategy query expansion.\n                     Tokens use exact canonical spelling without surrounding\n                     whitespace or duplicates.\n                     Example: \"preprints,shallow\" or \"no_analysis,no_scores\"\n            pipeline: YAML/JSON string defining a multi-step search pipeline.\n                     When provided, other parameters (except output_format) are\n                     ignored and the pipeline DAG is executed instead.\n\n                     Accepts **YAML** (recommended, human-friendly) or **JSON** format.\n\n                     **Template mode — YAML** (shortcut for common workflows):\n                       template: pico\n                       template_params:\n                         P: ICU patients\n                         I: remimazolam\n                         C: propofol\n                         O: sedation\n\n                     Other templates:\n                       template: comprehensive\n                       template_params:\n                         query: CRISPR gene therapy\n\n                       template: exploration\n                       template_params:\n                         pmid: \"12345678\"\n\n                       template: gene_drug\n                       template_params:\n                         term: BRCA1\n\n                     **Custom pipeline — YAML** (full DAG control, max 20 steps):\n                       name: My Custom Search\n                       steps:\n                         - id: s1\n                           action: search\n                           params:\n                             query: remimazolam ICU\n                             sources: [pubmed, europe_pmc]\n                             limit: 50\n                         - id: s2\n                           action: search\n                           params:\n                             query: propofol ICU\n                             sources: [pubmed]\n                             limit: 50\n                         - id: merged\n                           action: merge\n                           inputs: [s1, s2]\n                           params:\n                             method: rrf\n                         - id: enriched\n                           action: metrics\n                           inputs: [merged]\n                       output:\n                         format: markdown\n                         limit: 20\n                         ranking: impact\n\n                     Shared params:\n                       globals: default params inherited only by actions that\n                                declare the same canonical parameter key\n                       variables: typed values available as ${name} placeholders;\n                                  embedded replacements must be strings\n\n                     Debugging controls:\n                       dry_run: validate/preview the pipeline without searches\n                       stop_at: execute through one step id, e.g. \"merged\"\n\n                     **JSON also supported** (for programmatic use):\n                       {\"template\": \"pico\", \"template_params\": {\"P\": \"ICU patients\", \"I\": \"remimazolam\"}}\n\n                     Available actions:\n                       search      — literature search (params: query, sources, limit, min_year, max_year)\n                       pico        — PICO elements (params: P, I, C, O)\n                       expand      — MeSH/synonym expansion (params: topic)\n                       details     — fetch article details (params: pmids)\n                       related     — find related articles (params: pmid, limit)\n                       citing      — find citing articles (params: pmid, limit)\n                       references  — get article references (params: pmid, limit)\n                       metrics     — enrich with iCite citation metrics (inputs only)\n                       merge       — combine results (params: method=union|intersection|rrf)\n                       filter      — post-filter (params: min_year, max_year, article_types, min_citations, has_abstract)\n\n        Returns:\n            Formatted search results with:\n            - Query analysis (complexity, intent, PICO)\n            - ICD code expansions (if detected)\n            - Search statistics (sources, dedup count)\n            - Ranked articles with metadata\n            - Open access links where available\n            - Preprints (if options includes \"preprints\")\n            - Relaxation info (if auto_relax triggered)\n            - Pipeline step summary (if pipeline mode)\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "default": "",
+      "maxLength": 4096,
+      "title": "Query",
+      "type": "string"
+     },
+     "limit": {
+      "default": 10,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "sources": {
+      "anyOf": [
+       {
+        "maxLength": 1024,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sources"
+     },
+     "ranking": {
+      "default": "balanced",
+      "enum": [
+       "balanced",
+       "impact",
+       "recency",
+       "quality"
+      ],
+      "title": "Ranking",
+      "type": "string"
+     },
+     "output_format": {
+      "default": "markdown",
+      "enum": [
+       "markdown",
+       "json",
+       "toon"
+      ],
+      "title": "Output Format",
+      "type": "string"
+     },
+     "filters": {
+      "anyOf": [
+       {
+        "maxLength": 4096,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Filters"
+     },
+     "options": {
+      "anyOf": [
+       {
+        "maxLength": 2048,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Options"
+     },
+     "pipeline": {
+      "anyOf": [
+       {
+        "maxLength": 100000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pipeline"
+     },
+     "dry_run": {
+      "default": false,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "stop_at": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Stop At",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "title": "unified_searchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_analyze_search_query",
+   "description": "\n        Analyze a search query without executing the search.\n\n        Useful for understanding how unified_search will process your query\n        before actually running it.\n\n        Args:\n            query: The search query to analyze\n\n        Returns:\n            Analysis including:\n            - Complexity level (SIMPLE/MODERATE/COMPLEX/AMBIGUOUS)\n            - Intent (LOOKUP/EXPLORATION/COMPARISON/SYSTEMATIC)\n            - PICO elements (if detected)\n            - Recommended sources\n            - Recommended strategies\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "analyze_search_queryArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_validate_pico_plan",
+   "description": "Validate agent-provided P/I/C/O and return a runnable PICO pipeline.\n\n        ``question_type`` and ``profile`` are closed enums. ``sources`` is an\n        explicit array of supported unified-search providers; malformed values\n        fail instead of being silently replaced. When ``question_type`` is\n        omitted, the application service infers it from the clinical question.\n        ",
+   "parameters": {
+    "properties": {
+     "description": {
+      "default": "",
+      "maxLength": 5000,
+      "title": "Description",
+      "type": "string"
+     },
+     "p": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "P"
+     },
+     "i": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "I"
+     },
+     "c": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "C"
+     },
+     "o": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "O"
+     },
+     "p_query": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "P Query"
+     },
+     "i_query": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "I Query"
+     },
+     "c_query": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "C Query"
+     },
+     "o_query": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "O Query"
+     },
+     "question_type": {
+      "anyOf": [
+       {
+        "enum": [
+         "therapy",
+         "diagnosis",
+         "prognosis",
+         "etiology"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Question Type"
+     },
+     "profile": {
+      "default": "balanced",
+      "enum": [
+       "precision",
+       "balanced",
+       "recall"
+      ],
+      "title": "Profile",
+      "type": "string"
+     },
+     "sources": {
+      "anyOf": [
+       {
+        "items": {
+         "enum": [
+          "pubmed",
+          "europe_pmc",
+          "openalex",
+          "semantic_scholar",
+          "core"
+         ],
+         "type": "string"
+        },
+        "maxItems": 5,
+        "minItems": 1,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sources"
+     },
+     "limit": {
+      "default": 20,
+      "maximum": 33,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "title": "validate_pico_planArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_generate_search_queries",
+   "description": "\n        Gather search intelligence for a topic - returns RAW MATERIALS for Agent to decide.\n\n        This tool provides the BUILDING BLOCKS for search, not finished queries.\n        The Agent decides how to use them.\n\n        ══════════════════════════════════════════════════════════════════════\n        TWO USAGE MODES:\n        ══════════════════════════════════════════════════════════════════════\n\n        MODE 1: KEYWORD SEARCH (single topic)\n        ─────────────────────────────────────\n        User: \"搜尋 remimazolam 的文獻\"\n\n        Step 1: generate_search_queries(\"remimazolam\")\n        Step 2: Build a Boolean query from returned materials\n        Step 3: analyze_search_query(query=\"<combined_boolean_query>\")\n        Step 4: unified_search(query=\"<combined_boolean_query>\")\n\n        ══════════════════════════════════════════════════════════════════════\n\n        MODE 2: PICO SEARCH (clinical question)\n        ───────────────────────────────────────\n        User: \"remimazolam 在 ICU 鎮靜比 propofol 好嗎？會減少 delirium 嗎？\"\n\n        Step 1: Agent extracts P/I/C/O from the clinical question, then calls\n                validate_pico_plan(description=..., p=..., i=..., c=..., o=...) to\n                validate the structured handoff and get a runnable PICO pipeline.\n\n        Step 2: For EACH PICO element, call generate_search_queries() IN PARALLEL:\n                - generate_search_queries(\"ICU patients\")     → P materials\n                - generate_search_queries(\"remimazolam\")      → I materials\n                - generate_search_queries(\"propofol\")         → C materials\n                - generate_search_queries(\"delirium\")         → O materials\n\n        Step 3: Combine materials using Boolean logic:\n                High precision: (P_terms) AND (I_terms) AND (C_terms) AND (O_terms)\n                Recall-oriented: (P_terms) AND (I_terms OR C_terms); validate against eligible seed papers\n\n        Step 4: Add Clinical Query filter if appropriate:\n                - filters=\"clinical_query:therapy\"   → 治療效果比較\n                - filters=\"clinical_query:diagnosis\" → 診斷相關\n                - filters=\"clinical_query:prognosis\" → 預後相關\n                - filters=\"clinical_query:etiology\"  → 病因相關\n\n            Step 5: Validate the final query with analyze_search_query()\n            Step 6: Execute unified_search() with the final Boolean query\n\n        ══════════════════════════════════════════════════════════════════════\n\n        Features:\n        - Spelling correction via NCBI ESpell\n        - MeSH term lookup for standardized vocabulary\n        - Synonym expansion from MeSH database\n        - **Query analysis**: Shows how PubMed actually interprets each query\n          (Agent's understanding vs PubMed's actual interpretation)\n\n        Args:\n            topic: Search topic - can be a single keyword or PICO element\n            strategy: Affects suggested_queries (if included)\n                - \"comprehensive\": Multiple angles, includes reviews (default)\n                - \"focused\": Adds RCT publication-type filter; study quality still requires appraisal\n                - \"exploratory\": Broader search with more synonyms\n            check_spelling: Whether to check/correct spelling (default: True)\n            include_suggestions: Include pre-built query suggestions (default: True)\n\n        Returns:\n            JSON with RAW MATERIALS:\n            - corrected_topic: Spell-checked topic\n            - keywords: Extracted significant keywords\n            - mesh_terms: MeSH data with preferred terms and synonyms\n            - all_synonyms: Flattened list of all synonyms\n            - suggested_queries: Optional pre-built queries with:\n              - estimated_count: How many results PubMed would return\n              - pubmed_translation: How PubMed actually interprets the query\n        ",
+   "parameters": {
+    "properties": {
+     "topic": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Topic",
+      "type": "string"
+     },
+     "strategy": {
+      "default": "comprehensive",
+      "enum": [
+       "comprehensive",
+       "focused",
+       "exploratory"
+      ],
+      "title": "Strategy",
+      "type": "string"
+     },
+     "check_spelling": {
+      "default": true,
+      "title": "Check Spelling",
+      "type": "boolean"
+     },
+     "include_suggestions": {
+      "default": true,
+      "title": "Include Suggestions",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "topic"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "generate_search_queriesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_find_related_articles",
+   "description": "\n        Find articles related to a given PubMed article.\n        Uses PubMed's \"Related Articles\" feature to find similar papers.\n\n        ═══════════════════════════════════════════════════════════════\n        🔗 CITATION NETWORK EXPLORATION WORKFLOW\n        ═══════════════════════════════════════════════════════════════\n\n        This is ONE of THREE tools for exploring citation networks:\n\n        1️⃣ find_related_articles() ← YOU ARE HERE\n           │  📌 Algorithm-based similarity (like PubMed \"Similar Articles\")\n           │  📌 Finds papers with similar topics, MeSH terms, authors\n           │  📌 Good for: Discovering related research you might have missed\n           └─► Returns: Similar papers (not based on citations)\n\n        2️⃣ find_citing_articles()\n           │  📌 Forward citation search (who cited THIS paper?)\n           │  📌 Finds papers published AFTER the source article\n           │  📌 Good for: Tracking impact, finding follow-up studies\n           └─► Returns: Papers that cite this article\n\n        3️⃣ get_article_references()\n           │  📌 Backward citation search (what did THIS paper cite?)\n           │  📌 Finds papers published BEFORE the source article\n           │  📌 Good for: Finding foundational papers, methodology sources\n           └─► Returns: This article's bibliography\n\n        ═══════════════════════════════════════════════════════════════\n        EXAMPLE WORKFLOW:\n        ═══════════════════════════════════════════════════════════════\n\n        Step 1: Start with a key paper\n            find_related_articles(pmid=\"23132851\")\n            → Find similar research directions\n\n        Step 2: Explore backward (foundations)\n            get_article_references(pmid=\"23132851\")\n            → Find the foundational papers it builds on\n\n        Step 3: Explore forward (impact)\n            find_citing_articles(pmid=\"23132851\")\n            → Find how the field developed after this paper\n\n        Args:\n            pmid: PubMed ID of the source article (\"12345678\" or \"PMID:12345678\").\n            limit: Maximum number of related articles to return (1-50, default: 5).\n\n        Returns:\n            List of related articles with details.\n        ",
+   "parameters": {
+    "properties": {
+     "pmid": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Pmid",
+      "type": "string"
+     },
+     "limit": {
+      "default": 5,
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "pmid"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "find_related_articlesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_find_citing_articles",
+   "description": "\n        Find articles that cite a given PubMed article.\n        Uses PubMed Central's citation data to find papers that reference this article.\n\n        ═══════════════════════════════════════════════════════════════\n        📈 FORWARD CITATION SEARCH (Impact Tracking)\n        ═══════════════════════════════════════════════════════════════\n\n        Direction: Source Paper → Papers that cite it (FORWARD in time)\n\n        USE CASES:\n        ──────────\n        - 🔬 Track research impact: Who built on this work?\n        - 📊 Find follow-up studies: What happened after this discovery?\n        - 🔄 Identify controversies: Papers that challenge or refute findings\n        - 📚 Literature review: Ensure you have the latest developments\n\n        COMPLEMENTARY TOOLS:\n        ────────────────────\n        - get_article_references(): BACKWARD search (what this paper cited)\n        - find_related_articles(): Similar papers (topic-based, not citation-based)\n\n        ═══════════════════════════════════════════════════════════════\n        EXAMPLE:\n        ═══════════════════════════════════════════════════════════════\n\n        # Find papers that cite a landmark CRISPR paper\n        find_citing_articles(pmid=\"23287718\", limit=20)\n        → Returns papers published AFTER 2012 that reference this work\n\n        # Then analyze citation metrics\n        get_citation_metrics(pmids=\"last\")\n        → See which citing papers are most influential\n\n        Args:\n            pmid: PubMed ID of the source article (\"12345678\" or \"PMID:12345678\").\n            limit: Maximum number of citing articles to return (1-100, default: 10).\n\n        Returns:\n            List of citing articles with details.\n        ",
+   "parameters": {
+    "properties": {
+     "pmid": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Pmid",
+      "type": "string"
+     },
+     "limit": {
+      "default": 10,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "pmid"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "find_citing_articlesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_article_references",
+   "description": "\n        Get the references (bibliography) of a PubMed article.\n\n        Returns the list of articles that this paper cites in its bibliography.\n        This is the OPPOSITE of find_citing_articles:\n        - get_article_references: Papers THIS article cites (backward in time)\n        - find_citing_articles: Papers that cite THIS article (forward in time)\n\n        ═══════════════════════════════════════════════════════════════\n        📚 BACKWARD CITATION SEARCH (Foundation Discovery)\n        ═══════════════════════════════════════════════════════════════\n\n        Direction: Source Paper → Papers it cited (BACKWARD in time)\n\n        USE CASES:\n        ──────────\n        - 🏛️ Find foundational papers: Core works the field builds on\n        - ⚗️ Methodology sources: Papers describing techniques used\n        - 📖 Background reading: Build understanding of a topic\n        - 🔍 Verify claims: Check sources for specific assertions\n\n        ═══════════════════════════════════════════════════════════════\n        EXAMPLE WORKFLOW:\n        ═══════════════════════════════════════════════════════════════\n\n        # Start with a recent review article\n        get_article_references(pmid=\"38123456\", limit=50)\n        → Get the bibliography of this review\n\n        # Find most-cited foundational papers\n        get_citation_metrics(pmids=\"last\", sort_by=\"citation_count\")\n        → Identify which references are the most influential\n\n        # Read a foundational paper\n        fetch_article_details(pmids=\"12345678\")\n        → Get full details of an important reference\n\n        Args:\n            pmid: PubMed ID of the source article (\"12345678\" or \"PMID:12345678\").\n            limit: Maximum number of references to return (1-100, default: 20).\n\n        Returns:\n            List of referenced articles with details.\n        ",
+   "parameters": {
+    "properties": {
+     "pmid": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Pmid",
+      "type": "string"
+     },
+     "limit": {
+      "default": 20,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "pmid"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "get_article_referencesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_fetch_article_details",
+   "description": "\n        Fetch detailed information for one or more PubMed articles.\n\n        Args:\n            pmids: PubMed IDs - accepts multiple formats:\n                   - \"12345678\" (single)\n                   - \"12345678,87654321\" (comma-separated)\n                   - \"PMID:12345678\" (with prefix)\n                   - [\"12345678\", \"87654321\"] (list)\n                   Inputs are string-only and fail as a complete batch when any PMID is invalid.\n\n        Returns:\n            Detailed information for each article.\n        ",
+   "parameters": {
+    "properties": {
+     "pmids": {
+      "anyOf": [
+       {
+        "maxLength": 100000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "items": {
+         "maxLength": 512,
+         "minLength": 1,
+         "type": "string"
+        },
+        "maxItems": 1000,
+        "minItems": 1,
+        "type": "array"
+       }
+      ],
+      "title": "Pmids"
+     },
+     "output_format": {
+      "default": "markdown",
+      "enum": [
+       "markdown",
+       "json",
+       "toon"
+      ],
+      "title": "Output Format",
+      "type": "string"
+     }
+    },
+    "required": [
+     "pmids"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "fetch_article_detailsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_citation_metrics",
+   "description": "\n        Get citation metrics from NIH iCite for articles.\n\n        Returns field-normalized citation data including:\n        - citation_count: Total number of citations\n        - relative_citation_ratio (RCR): Field-normalized metric (1.0 = average)\n        - nih_percentile: Percentile ranking (0-100)\n        - citations_per_year: Citation velocity\n        - apt: Approximate Potential to Translate (clinical relevance 0-1)\n\n        Can sort and filter results by citation metrics.\n\n        Args:\n            pmids: PubMed IDs - accepts multiple formats:\n                   - \"12345678,87654321\" (comma-separated)\n                   - [\"12345678\", \"87654321\"] (list)\n                   - \"PMID:12345678\" (with prefix)\n                   - \"last\" to use PMIDs from the last search\n                   Batches are fail-closed and limited to 1,000 unique PMIDs.\n            sort_by: Metric to sort by:\n                - \"citation_count\": Raw citation count (default)\n                - \"relative_citation_ratio\": Field-normalized (recommended)\n                - \"nih_percentile\": Percentile ranking\n                - \"citations_per_year\": Citation velocity\n            min_citations: Filter out articles with fewer citations\n            min_rcr: Filter out articles with RCR below threshold (e.g., 1.0 = average)\n            min_percentile: Filter out articles below percentile (e.g., 50 = top half)\n\n        Returns:\n            Articles with citation metrics, sorted and filtered as requested.\n            iCite transport or response failures return an explicit retryable\n            error and are never rendered as an empty/unindexed result.\n        ",
+   "parameters": {
+    "properties": {
+     "pmids": {
+      "anyOf": [
+       {
+        "maxLength": 100000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "items": {
+         "maxLength": 512,
+         "minLength": 1,
+         "type": "string"
+        },
+        "maxItems": 1000,
+        "minItems": 1,
+        "type": "array"
+       }
+      ],
+      "title": "Pmids"
+     },
+     "sort_by": {
+      "default": "citation_count",
+      "enum": [
+       "citation_count",
+       "relative_citation_ratio",
+       "nih_percentile",
+       "citations_per_year"
+      ],
+      "title": "Sort By",
+      "type": "string"
+     },
+     "min_citations": {
+      "anyOf": [
+       {
+        "maximum": 2000000000,
+        "minimum": 0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Min Citations"
+     },
+     "min_rcr": {
+      "anyOf": [
+       {
+        "maximum": 1000000.0,
+        "minimum": 0,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Min Rcr"
+     },
+     "min_percentile": {
+      "anyOf": [
+       {
+        "maximum": 100,
+        "minimum": 0,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Min Percentile"
+     },
+     "output_format": {
+      "default": "markdown",
+      "enum": [
+       "markdown",
+       "json",
+       "toon"
+      ],
+      "title": "Output Format",
+      "type": "string"
+     }
+    },
+    "required": [
+     "pmids"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "get_citation_metricsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_verify_reference_list",
+   "description": "Verify a plain-text reference list against PubMed evidence.\n\n        First version scope:\n            - Reference-list verification only\n            - Client supplies the extracted reference list text\n            - Backend parses entries and resolves them via PMID / DOI / ECitMatch\n\n        Second version scope:\n            - Adds unresolved review workflow for ``partial_match`` and ``unresolved`` rows\n            - Returns a manual-review queue with retry queries and review checklist\n            - Supports human-in-the-loop acceptance/rejection in client-side workflows\n\n        Args:\n            reference_text: Plain-text references, ideally one per line or a\n                numbered reference list extracted from a file. Limited to\n                200,000 characters / 400,000 UTF-8 bytes; each entry is limited\n                to 4,000 characters / 8,000 UTF-8 bytes.\n            source_name: Optional single-line file label for reporting (up to\n                255 characters / 512 UTF-8 bytes).\n            max_references: Hard input-entry limit from 1 through 200. Inputs\n                above the selected limit are rejected instead of truncated.\n\n        Returns:\n            JSON verification report with parsed fields, matched PubMed evidence,\n            per-reference verification status, and explicit\n            ``source_unavailable`` / ``not_checked`` rows when evidence could\n            not be assessed.\n        ",
+   "parameters": {
+    "properties": {
+     "reference_text": {
+      "maxLength": 200000,
+      "minLength": 1,
+      "title": "Reference Text",
+      "type": "string"
+     },
+     "source_name": {
+      "default": "",
+      "maxLength": 255,
+      "title": "Source Name",
+      "type": "string"
+     },
+     "max_references": {
+      "default": 100,
+      "maximum": 200,
+      "minimum": 1,
+      "title": "Max References",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "reference_text"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "verify_reference_listArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_prepare_export",
+   "description": "\n        Export citations to reference manager formats.\n\n        ╔═══════════════════════════════════════════════════════════════════╗\n        ║  RECOMMENDED: Use source=\"official\" (default) for best quality   ║\n        ╚═══════════════════════════════════════════════════════════════════╝\n\n        ## When to Use\n        - Exporting references to EndNote, Zotero, Mendeley\n        - Creating BibTeX for LaTeX documents\n        - Generating citation lists for manuscripts\n\n        ## Source Options\n        | Source     | Formats            | Quality    | Speed  |\n        |------------|--------------------|------------|--------|\n        | official   | ris, medline, csl  | ★★★★★     | Fast   |\n        | local      | ris, bibtex, csv, medline, json | ★★★★ | Fast |\n\n        ## Format Selection Guide\n        - ris: EndNote, Zotero, Mendeley (official recommended)\n        - medline: NBIB format for PubMed tools\n        - csl: JSON for programmatic citation styling\n        - bibtex: LaTeX documents (local only)\n        - csv: Data analysis, Excel (local only)\n\n        Args:\n            pmids: Articles to export. Accepts:\n                   - \"last\" → results from previous search\n                   - \"12345678,87654321\" → comma-separated PMIDs\n                   - [\"12345678\", \"87654321\"] → list of PMIDs\n                   - \"PMID:12345678\" → with prefix\n            format: Export format (default: \"ris\")\n                   - official API: ris, medline, csl\n                   - local only: bibtex, csv, json\n            include_abstract: Include abstracts in output (default: True).\n                False requires source=\"local\"; official payloads are returned unmodified.\n            source: Citation source (default: \"official\")\n                   - \"official\": NCBI Citation API (recommended, best quality)\n                   - \"local\": Local formatting (more formats, offline capable)\n\n        Returns:\n            JSON with status and export_text containing formatted citations.\n\n        Examples:\n            # Export last search results (recommended)\n            prepare_export(pmids=\"last\", format=\"ris\")\n\n            # Export specific PMIDs to BibTeX\n            prepare_export(pmids=\"12345678,87654321\", format=\"bibtex\", source=\"local\")\n\n            # Get CSL-JSON for programmatic use\n            prepare_export(pmids=\"last\", format=\"csl\", source=\"official\")\n        ",
+   "parameters": {
+    "properties": {
+     "pmids": {
+      "anyOf": [
+       {
+        "maxLength": 100000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "items": {
+         "maxLength": 512,
+         "minLength": 1,
+         "type": "string"
+        },
+        "maxItems": 1000,
+        "minItems": 1,
+        "type": "array"
+       }
+      ],
+      "title": "Pmids"
+     },
+     "format": {
+      "default": "ris",
+      "enum": [
+       "ris",
+       "medline",
+       "csl",
+       "bibtex",
+       "csv",
+       "json"
+      ],
+      "title": "Format",
+      "type": "string"
+     },
+     "include_abstract": {
+      "default": true,
+      "title": "Include Abstract",
+      "type": "boolean"
+     },
+     "source": {
+      "default": "official",
+      "enum": [
+       "official",
+       "local"
+      ],
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "required": [
+     "pmids"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "prepare_exportArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_save_literature_notes",
+   "description": "\n        Save searched articles as guided local wiki/Foam/Markdown notes.\n\n        ## When to Use\n        - After unified_search, persist the selected literature into a local note library.\n        - Give agents a structured alternative to generic write_file calls.\n        - Create wiki notes with Foam-compatible wikilinks, MedPaper-like reference notes, and frontmatter.\n        - Use stable wiki/Foam link targets and return wiki_validation for unresolved-link checks.\n\n        ## Local Directory Resolution\n        1. output_dir argument, if provided\n        2. PUBMED_NOTES_DIR environment variable\n        3. PUBMED_WORKSPACE_DIR/references\n        4. PUBMED_DATA_DIR/references\n\n        ## Authenticated Service Boundary\n        Remote authenticated callers cannot choose output_dir or template_file.\n        Their notes always go to references/ under the current tenant's installed\n        SessionManager data root; process-wide notes/workspace environment paths\n        are intentionally ignored.\n\n        Args:\n            pmids: Articles to save. Accepts \"last\", a PMID string, or a JSON array of PMID strings.\n            output_dir: Optional target folder for notes.\n            note_format: \"wiki\" (default, Foam-compatible), \"foam\", \"markdown\", or \"medpaper\".\n            include_abstract: Include abstracts in article notes.\n            overwrite: Overwrite existing per-article notes when filenames collide.\n            create_index: Create a collection index note linking saved articles.\n            collection_name: Optional title/file stem for the index note.\n            template_file: Optional Markdown template with placeholders like {title}, {pmid}, {citation_key}.\n            include_csl_json: Write references.csl.json beside notes for citation-manager handoff.\n\n        Returns:\n            JSON with written/skipped files, index information, and wiki_validation.\n            Local callers receive filesystem paths. Authenticated callers receive\n            tenant-relative logical locators and never receive server host paths.\n\n        Examples:\n            save_literature_notes(pmids=\"last\")\n            save_literature_notes(pmids=\"last\", note_format=\"medpaper\", output_dir=\"./references\")\n            save_literature_notes(pmids=\"12345678,87654321\", template_file=\"./ref-template.md\")\n        ",
+   "parameters": {
+    "properties": {
+     "pmids": {
+      "anyOf": [
+       {
+        "maxLength": 100000,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "items": {
+         "maxLength": 512,
+         "minLength": 1,
+         "type": "string"
+        },
+        "maxItems": 1000,
+        "minItems": 1,
+        "type": "array"
+       }
+      ],
+      "default": "last",
+      "title": "Pmids"
+     },
+     "output_dir": {
+      "anyOf": [
+       {
+        "maxLength": 4096,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Dir"
+     },
+     "note_format": {
+      "default": "wiki",
+      "enum": [
+       "wiki",
+       "foam",
+       "markdown",
+       "medpaper"
+      ],
+      "title": "Note Format",
+      "type": "string"
+     },
+     "include_abstract": {
+      "default": true,
+      "title": "Include Abstract",
+      "type": "boolean"
+     },
+     "overwrite": {
+      "default": false,
+      "title": "Overwrite",
+      "type": "boolean"
+     },
+     "create_index": {
+      "default": true,
+      "title": "Create Index",
+      "type": "boolean"
+     },
+     "collection_name": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Name"
+     },
+     "template_file": {
+      "anyOf": [
+       {
+        "maxLength": 4096,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Template File"
+     },
+     "include_csl_json": {
+      "default": true,
+      "title": "Include Csl Json",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "title": "save_literature_notesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_fulltext",
+   "description": "\n        🔥 Enhanced multi-source fulltext retrieval.\n\n        Automatically tries multiple sources to find the best fulltext:\n        1. Europe PMC (if PMC ID available)\n        2. Unpaywall (finds OA versions via DOI)\n        3. Institutional direct/EZproxy fetch (when DOI-backed and enabled)\n        4. CORE (open-access repository metadata and available text)\n\n        With extended_sources=True, also searches:\n        5. CrossRef (publisher links)\n        6. DOAJ (Gold OA journals)\n        7. Zenodo (research repository)\n        8. PubMed LinkOut (external providers)\n        9. Semantic Scholar, OpenAlex, arXiv, bioRxiv, medRxiv\n\n        ``source`` is a discriminated identifier object, so the schema itself\n        requires exactly one explicit PMID, PMCID, or DOI kind.\n\n        Args:\n            source: One object such as {\"kind\":\"pmid\",\"value\":\"12345678\"},\n                    {\"kind\":\"pmcid\",\"value\":\"PMC7096777\"}, or\n                    {\"kind\":\"doi\",\"value\":\"10.1001/jama.2024.1234\"}.\n            sections: Filter sections (e.g., \"introduction,methods,results\")\n            include_pdf_links: Include PDF download links (default: True)\n            include_figures: Include figure metadata with image URLs (default: False)\n            extended_sources: Search the extended downloader chain after the standard policy (default: False)\n            output_format: Response format - \"markdown\" (default), \"json\", or \"toon\"\n            allow_browser_session: Control browser-session fallback.\n                - True: force broker fallback when configured\n                - False: disable broker fallback\n                - None: use auto mode from broker configuration\n\n        Returns:\n            Fulltext content with PDF links from all available sources.\n\n        Example:\n            get_fulltext(source={\"kind\":\"pmcid\",\"value\":\"PMC7096777\"})\n            get_fulltext(source={\"kind\":\"doi\",\"value\":\"10.1038/s41586-021-03819-2\"})\n        ",
+   "parameters": {
+    "properties": {
+     "source": {
+      "discriminator": {
+       "mapping": {
+        "doi": "#/$defs/DOISource",
+        "pmcid": "#/$defs/PMCIDSource",
+        "pmid": "#/$defs/PMIDSource"
+       },
+       "propertyName": "kind"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/PMIDSource"
+       },
+       {
+        "$ref": "#/$defs/PMCIDSource"
+       },
+       {
+        "$ref": "#/$defs/DOISource"
+       }
+      ],
+      "title": "Source"
+     },
+     "sections": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sections"
+     },
+     "include_pdf_links": {
+      "default": true,
+      "title": "Include Pdf Links",
+      "type": "boolean"
+     },
+     "include_figures": {
+      "default": false,
+      "title": "Include Figures",
+      "type": "boolean"
+     },
+     "extended_sources": {
+      "default": false,
+      "title": "Extended Sources",
+      "type": "boolean"
+     },
+     "output_format": {
+      "default": "markdown",
+      "enum": [
+       "markdown",
+       "json",
+       "toon"
+      ],
+      "title": "Output Format",
+      "type": "string"
+     },
+     "allow_browser_session": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Allow Browser Session"
+     }
+    },
+    "required": [
+     "source"
+    ],
+    "type": "object",
+    "$defs": {
+     "DOISource": {
+      "additionalProperties": false,
+      "description": "An explicit DOI.",
+      "properties": {
+       "kind": {
+        "const": "doi",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 512,
+        "minLength": 7,
+        "pattern": "^10\\.[0-9]{4,9}/",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "DOISource",
+      "type": "object"
+     },
+     "PMCIDSource": {
+      "additionalProperties": false,
+      "description": "An explicit PubMed Central identifier.",
+      "properties": {
+       "kind": {
+        "const": "pmcid",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 23,
+        "pattern": "^PMC[1-9][0-9]{0,19}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "PMCIDSource",
+      "type": "object"
+     },
+     "PMIDSource": {
+      "additionalProperties": false,
+      "description": "An explicit PubMed identifier.",
+      "properties": {
+       "kind": {
+        "const": "pmid",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 20,
+        "pattern": "^[1-9][0-9]{0,19}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "PMIDSource",
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "title": "get_fulltextArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_text_mined_terms",
+   "description": "\n        Get text-mined annotations from Europe PMC.\n\n        Returns entities extracted from the article text including genes, diseases,\n        chemicals, organisms, and more. ``source`` is exactly one PMID or PMCID.\n\n        Args:\n            source: {\"kind\":\"pmid\",\"value\":\"12345678\"} or\n                    {\"kind\":\"pmcid\",\"value\":\"PMC7096777\"}.\n            semantic_type: Filter by entity type. Options:\n                - \"GENE_PROTEIN\": Genes and proteins\n                - \"DISEASE\": Diseases and conditions\n                - \"CHEMICAL\": Drugs and chemicals\n                - \"ORGANISM\": Species and organisms\n                - \"GO_TERM\": Gene Ontology terms\n                - None: Return all types (default)\n\n        Returns:\n            List of text-mined entities with counts and sections.\n        ",
+   "parameters": {
+    "properties": {
+     "source": {
+      "discriminator": {
+       "mapping": {
+        "pmcid": "#/$defs/PMCIDSource",
+        "pmid": "#/$defs/PMIDSource"
+       },
+       "propertyName": "kind"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/PMIDSource"
+       },
+       {
+        "$ref": "#/$defs/PMCIDSource"
+       }
+      ],
+      "title": "Source"
+     },
+     "semantic_type": {
+      "anyOf": [
+       {
+        "enum": [
+         "GENE_PROTEIN",
+         "DISEASE",
+         "CHEMICAL",
+         "ORGANISM",
+         "GO_TERM",
+         "EFO"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Semantic Type"
+     },
+     "output_format": {
+      "default": "markdown",
+      "enum": [
+       "markdown",
+       "json",
+       "toon"
+      ],
+      "title": "Output Format",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source"
+    ],
+    "type": "object",
+    "$defs": {
+     "PMCIDSource": {
+      "additionalProperties": false,
+      "description": "An explicit PubMed Central identifier.",
+      "properties": {
+       "kind": {
+        "const": "pmcid",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 23,
+        "pattern": "^PMC[1-9][0-9]{0,19}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "PMCIDSource",
+      "type": "object"
+     },
+     "PMIDSource": {
+      "additionalProperties": false,
+      "description": "An explicit PubMed identifier.",
+      "properties": {
+       "kind": {
+        "const": "pmid",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 20,
+        "pattern": "^[1-9][0-9]{0,19}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "PMIDSource",
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "title": "get_text_mined_termsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_article_figures",
+   "description": "Get structured figure metadata (label, caption, image URL) and PDF links from a PMC Open Access article.\n\n        Returns all figures with their captions and direct image URLs, plus\n        PDF download links for the complete article.\n\n        ``source`` is a discriminated identifier object, so the schema itself\n        requires exactly one explicit PMID or PMCID.\n\n        Args:\n            source: {\"kind\":\"pmcid\",\"value\":\"PMC12086443\"} or\n                    {\"kind\":\"pmid\",\"value\":\"40384072\"}.\n            include_subfigures: Parse sub-figures (e.g., Figure 3A, 3B) as separate entries.\n            include_tables: Also extract tables rendered as images.\n\n        Returns:\n            Structured figure data with image URLs, captions, and PDF links.\n\n        Example:\n            get_article_figures(source={\"kind\":\"pmcid\",\"value\":\"PMC12086443\"})\n        ",
+   "parameters": {
+    "properties": {
+     "source": {
+      "discriminator": {
+       "mapping": {
+        "pmcid": "#/$defs/PMCIDSource",
+        "pmid": "#/$defs/PMIDSource"
+       },
+       "propertyName": "kind"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/PMIDSource"
+       },
+       {
+        "$ref": "#/$defs/PMCIDSource"
+       }
+      ],
+      "title": "Source"
+     },
+     "include_subfigures": {
+      "default": false,
+      "title": "Include Subfigures",
+      "type": "boolean"
+     },
+     "include_tables": {
+      "default": false,
+      "title": "Include Tables",
+      "type": "boolean"
+     },
+     "output_format": {
+      "default": "markdown",
+      "enum": [
+       "markdown",
+       "json",
+       "toon"
+      ],
+      "title": "Output Format",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source"
+    ],
+    "type": "object",
+    "$defs": {
+     "PMCIDSource": {
+      "additionalProperties": false,
+      "description": "An explicit PubMed Central identifier.",
+      "properties": {
+       "kind": {
+        "const": "pmcid",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 23,
+        "pattern": "^PMC[1-9][0-9]{0,19}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "PMCIDSource",
+      "type": "object"
+     },
+     "PMIDSource": {
+      "additionalProperties": false,
+      "description": "An explicit PubMed identifier.",
+      "properties": {
+       "kind": {
+        "const": "pmid",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 20,
+        "pattern": "^[1-9][0-9]{0,19}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "PMIDSource",
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "title": "get_article_figuresArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_search_gene",
+   "description": "\n        Search NCBI Gene database for gene information.\n\n        ═══════════════════════════════════════════════════════════════\n        USE CASES:\n        ═══════════════════════════════════════════════════════════════\n        - Look up gene function and description\n        - Find gene aliases and official symbols\n        - Get chromosome location\n        - Find genes by name or function\n\n        Args:\n            query: Gene name, symbol, or function keyword\n            organism: Filter by organism (e.g., \"human\", \"Homo sapiens\", \"mouse\")\n            limit: Maximum results (1-50)\n\n        Returns:\n            JSON with gene records including symbols, names, locations\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+     },
+     "organism": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Organism"
+     },
+     "limit": {
+      "default": 10,
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "search_geneArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_gene_details",
+   "description": "\n        Get detailed information about a gene by NCBI Gene ID.\n\n        Args:\n            gene_id: NCBI Gene ID (from search results or known)\n\n        Returns:\n            JSON with gene details including symbol, name, summary, location\n        ",
+   "parameters": {
+    "properties": {
+     "gene_id": {
+      "maxLength": 20,
+      "minLength": 1,
+      "pattern": "^[1-9][0-9]{0,19}$",
+      "title": "Gene Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "gene_id"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "get_gene_detailsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_gene_literature",
+   "description": "\n        Get PubMed articles linked to a gene.\n\n        This uses NCBI's curated gene-to-publication links, which are\n        more precise than keyword searches.\n\n        Args:\n            gene_id: NCBI Gene ID\n            limit: Maximum PubMed IDs to return (1-100)\n\n        Returns:\n            JSON with linked PubMed IDs\n        ",
+   "parameters": {
+    "properties": {
+     "gene_id": {
+      "maxLength": 20,
+      "minLength": 1,
+      "pattern": "^[1-9][0-9]{0,19}$",
+      "title": "Gene Id",
+      "type": "string"
+     },
+     "limit": {
+      "default": 20,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "gene_id"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "get_gene_literatureArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_search_compound",
+   "description": "\n        Search PubChem for chemical compounds.\n\n        ═══════════════════════════════════════════════════════════════\n        USE CASES:\n        ═══════════════════════════════════════════════════════════════\n        - Look up drug/compound information\n        - Find molecular formula and structure\n        - Get compound synonyms and identifiers\n        - Research chemical properties\n\n        Args:\n            query: Compound name or description\n            limit: Maximum results (1-50)\n\n        Returns:\n            JSON with compound records including names, formulas, properties\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+     },
+     "limit": {
+      "default": 10,
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "search_compoundArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_compound_details",
+   "description": "\n        Get detailed information about a compound by PubChem CID.\n\n        Args:\n            cid: PubChem Compound ID\n\n        Returns:\n            JSON with compound details including formula, SMILES, properties\n        ",
+   "parameters": {
+    "properties": {
+     "cid": {
+      "maxLength": 20,
+      "minLength": 1,
+      "pattern": "^[1-9][0-9]{0,19}$",
+      "title": "Cid",
+      "type": "string"
+     }
+    },
+    "required": [
+     "cid"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "get_compound_detailsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_compound_literature",
+   "description": "\n        Get PubMed articles linked to a compound.\n\n        Uses NCBI's curated compound-to-publication links.\n\n        Args:\n            cid: PubChem Compound ID\n            limit: Maximum PubMed IDs to return (1-100)\n\n        Returns:\n            JSON with linked PubMed IDs\n        ",
+   "parameters": {
+    "properties": {
+     "cid": {
+      "maxLength": 20,
+      "minLength": 1,
+      "pattern": "^[1-9][0-9]{0,19}$",
+      "title": "Cid",
+      "type": "string"
+     },
+     "limit": {
+      "default": 20,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "cid"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "get_compound_literatureArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_search_clinvar",
+   "description": "\n        Search ClinVar for clinical variants.\n\n        ═══════════════════════════════════════════════════════════════\n        USE CASES:\n        ═══════════════════════════════════════════════════════════════\n        - Look up clinical significance of genetic variants\n        - Find variants associated with diseases\n        - Research gene-disease associations\n        - Get variant pathogenicity classifications\n\n        Args:\n            query: Gene name, variant, or disease condition\n            limit: Maximum results (1-50)\n\n        Returns:\n            JSON with variant records including significance and conditions\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+     },
+     "limit": {
+      "default": 10,
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "search_clinvarArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_build_citation_tree",
+   "description": "\n        Build a citation tree (network) from a single article.\n\n        🌳 Creates a visual citation network showing research lineage:\n        - Forward (citing): Who cites this paper? (newer research)\n        - Backward (references): What does this paper cite? (foundational work)\n\n        ⚠️ IMPORTANT: Only accepts ONE PMID at a time to control API load.\n        For multiple papers, call this tool separately for each.\n\n        📊 Output Formats (output_format parameter):\n        - \"cytoscape\": Cytoscape.js format (default, academic standard)\n        - \"g6\": AntV G6 format (modern, high-performance)\n        - \"d3\": D3.js force graph format (flexible, Observable)\n        - \"vis\": vis-network format (simple, quick prototypes)\n        - \"graphml\": GraphML XML (desktop tools: Gephi, yEd, VOSviewer)\n        - \"mermaid\": Mermaid diagram (VS Code preview, Markdown)\n\n        Args:\n            pmid: Single PubMed ID (e.g., \"12345678\").\n                  Only ONE PMID accepted - do NOT pass multiple.\n            depth: How many levels to traverse (1-3, default 2).\n                   - depth=1: Direct citations/references only\n                   - depth=2: Also get citations of citations (recommended)\n                   - depth=3: Maximum depth (can be slow, ~100+ API calls)\n            direction: Which direction to build the tree:\n                   - \"forward\": Only citing articles (who cites this)\n                   - \"backward\": Only references (what this cites)\n                   - \"both\": Both directions (default, recommended)\n            limit_per_level: Max articles to fetch per node per level (default 5)\n            output_format: Graph format for visualization (default \"cytoscape\")\n                   - \"cytoscape\": Cytoscape.js (academic standard, bioinformatics)\n                   - \"g6\": AntV G6 (modern, TypeScript, great for large graphs)\n                   - \"d3\": D3.js force layout (most flexible, Observable notebooks)\n                   - \"vis\": vis-network (simple and easy)\n                   - \"graphml\": GraphML XML (Gephi, VOSviewer, yEd, Pajek)\n                   - \"mermaid\": Mermaid diagram (preview in VS Code Markdown)\n\n        Returns:\n            Markdown summary followed by JSON with graph data in the requested format.\n            Includes metadata and statistics regardless of format.\n\n        Example usage:\n            # Build 2-level tree for a paper (default Cytoscape.js format)\n            build_citation_tree(pmid=\"33475315\", depth=2, direction=\"both\")\n\n            # Use AntV G6 format for modern web visualization\n            build_citation_tree(pmid=\"33475315\", depth=2, output_format=\"g6\")\n\n            # Export GraphML for Gephi analysis\n            build_citation_tree(pmid=\"33475315\", depth=2, output_format=\"graphml\")\n        ",
+   "parameters": {
+    "properties": {
+     "pmid": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Pmid",
+      "type": "string"
+     },
+     "depth": {
+      "default": 2,
+      "maximum": 3,
+      "minimum": 1,
+      "title": "Depth",
+      "type": "integer"
+     },
+     "direction": {
+      "default": "both",
+      "enum": [
+       "forward",
+       "backward",
+       "both"
+      ],
+      "title": "Direction",
+      "type": "string"
+     },
+     "limit_per_level": {
+      "default": 5,
+      "maximum": 20,
+      "minimum": 1,
+      "title": "Limit Per Level",
+      "type": "integer"
+     },
+     "output_format": {
+      "default": "cytoscape",
+      "enum": [
+       "cytoscape",
+       "g6",
+       "d3",
+       "vis",
+       "graphml",
+       "mermaid"
+      ],
+      "title": "Output Format",
+      "type": "string"
+     }
+    },
+    "required": [
+     "pmid"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "build_citation_treeArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_build_research_chronicle",
+   "description": "\n        Build a persisted, versioned, evidence-backed Research Chronicle.\n\n        A chronicle is the durable record of how a research topic evolved, and\n        the single entry point for research-evolution work (it replaces the older\n        one-shot timeline tools). It is stored with a monotonic revision number,\n        so re-running it later produces revision N+1 and you can diff revisions\n        to see exactly what changed.\n\n        The primary axis is chronological; research branches are a secondary\n        organizing dimension. Both come from the same stored snapshot, and\n        preserve shared provenance in `output=\"timeline\"` and `output=\"tree\"`.\n        Agreement between projections is not independent evidence verification.\n\n        Every entry carries:\n        - a one-sentence claim with inline citations\n        - supporting / contradicting / updating evidence articles\n        - a research branch (lineage) assignment\n        - provenance and a confidence score\n\n        The typed provenance graph links Topic → Branch → Entry → EvidenceArticle\n        and is validated against edge invariants. The audit reports evidence\n        coverage, identifier coverage, branch coverage, graph integrity, and\n        chronology gaps, so you always know how complete the picture is.\n\n        Args:\n            topic: Research topic (drug, gene, disease, intervention).\n                   Required unless `pmids` or a stored `chronicle_id` is supplied.\n            pmids: Comma-separated PMIDs, or \"last\" to chronicle the previous\n                   search results instead of running a new search.\n            max_events: Maximum timeline events to consider (topic mode).\n                        Omit to inherit the continued revision's value, else 30.\n            min_year: Earliest publication year to include (topic mode).\n            max_year: Latest publication year to include (topic mode).\n            chronicle_id: Continue an existing chronicle (creates revision N+1)\n                          instead of deriving the ID from the topic. Passing it\n                          alone re-runs the stored scope, so the resulting diff\n                          shows research movement rather than a changed window.\n            output: \"summary\" (default compact Markdown with the chronological\n                    spine), \"json\", \"chronicle_map\", \"timeline\", \"tree\",\n                    \"graph\", \"evidence\", \"milestones\", \"mermaid\" (horizontal\n                    time spine with lineage branches), or \"narrative\".\n                    \"json\", \"chronicle_map\", \"timeline\", \"tree\", \"graph\",\n                    \"evidence\", and \"milestones\" return JSON; the rest return\n                    Markdown.\n\n        Returns:\n            The requested rendering plus an artifact locator when durable\n            artifact persistence is enabled and succeeds. The artifact contains\n            the full snapshot, projections, evidence table, milestone analysis,\n            and audit regardless of `output`. Artifact failure is reported but\n            does not roll back the already saved Chronicle revision.\n\n        Examples:\n            build_research_chronicle(topic=\"remimazolam\")\n            build_research_chronicle(pmids=\"last\", topic=\"My Reading List\")\n            build_research_chronicle(topic=\"CAR-T therapy\", output=\"mermaid\")\n            build_research_chronicle(chronicle_id=\"remimazolam-9f2b1c4d\")\n        ",
+   "parameters": {
+    "properties": {
+     "topic": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "minLength": 1,
+        "pattern": ".*\\S.*",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Topic"
+     },
+     "pmids": {
+      "anyOf": [
+       {
+        "maxLength": 10000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmids"
+     },
+     "max_events": {
+      "anyOf": [
+       {
+        "description": "Maximum Chronicle events",
+        "maximum": 200,
+        "minimum": 1,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Max Events"
+     },
+     "min_year": {
+      "anyOf": [
+       {
+        "description": "Four-digit publication year",
+        "maximum": 2100,
+        "minimum": 1000,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Min Year"
+     },
+     "max_year": {
+      "anyOf": [
+       {
+        "description": "Four-digit publication year",
+        "maximum": 2100,
+        "minimum": 1000,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Max Year"
+     },
+     "chronicle_id": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Chronicle Id"
+     },
+     "output": {
+      "default": "summary",
+      "enum": [
+       "summary",
+       "json",
+       "chronicle_map",
+       "timeline",
+       "tree",
+       "graph",
+       "evidence",
+       "milestones",
+       "mermaid",
+       "narrative"
+      ],
+      "title": "Output",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "title": "build_research_chronicleArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_read_research_chronicle",
+   "description": "\n        Read stored Research Chronicles: load, list, diff, narrate, analyze, compare.\n\n        This is the read facade over chronicles created by\n        `build_research_chronicle`. Chronicles persist across sessions, so you\n        can revisit a topic weeks later and see precisely what moved. Because the\n        evidence is already stored, analysis and comparison are instant and do\n        not re-run any search.\n\n        Actions:\n        - \"load\": read one revision (defaults to latest) in any output format\n        - \"list\": list stored chronicles, most recently updated first\n        - \"diff\": compare two revisions — added, not observed/removed from the\n          later view, and updated entries, plus evidence churn, branch churn,\n          and the audit status transition. Absence does not prove retirement.\n        - \"narrate\": render evidence-backed Markdown where every claim carries\n          its entry ID and article identifiers\n        - \"milestones\": entry-type and status distribution, per-year activity,\n          evidence quality, and landmark entries for one chronicle\n        - \"compare\": compare 2-5 chronicles side by side, including the evidence\n          articles they share\n\n        The required ``request`` discriminator makes invalid field combinations\n        unrepresentable. ``compare`` takes one typed ``selection`` containing\n        either 2-5 topic strings or 2-5 Chronicle IDs.\n\n        Returns:\n            Markdown or JSON text depending on the action and output format.\n\n        Examples:\n            read_research_chronicle(request={\"action\":\"list\"})\n            read_research_chronicle(request={\"action\":\"load\",\"chronicle_id\":\"remimazolam-9f2b1c4d\",\"output\":\"tree\"})\n            read_research_chronicle(request={\"action\":\"diff\",\"chronicle_id\":\"remimazolam-9f2b1c4d\",\"from_revision\":1})\n            read_research_chronicle(request={\"action\":\"narrate\",\"chronicle_id\":\"remimazolam-9f2b1c4d\",\"mode\":\"full\"})\n            read_research_chronicle(request={\"action\":\"milestones\",\"chronicle_id\":\"remimazolam-9f2b1c4d\"})\n            read_research_chronicle(request={\"action\":\"compare\",\"selection\":{\"kind\":\"topics\",\"values\":[\"remimazolam\",\"propofol\"]}})\n        ",
+   "parameters": {
+    "properties": {
+     "request": {
+      "discriminator": {
+       "mapping": {
+        "compare": "#/$defs/ChronicleCompareRequest",
+        "diff": "#/$defs/ChronicleDiffRequest",
+        "list": "#/$defs/ChronicleListRequest",
+        "load": "#/$defs/ChronicleLoadRequest",
+        "milestones": "#/$defs/ChronicleMilestonesRequest",
+        "narrate": "#/$defs/ChronicleNarrateRequest"
+       },
+       "propertyName": "action"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/ChronicleLoadRequest"
+       },
+       {
+        "$ref": "#/$defs/ChronicleListRequest"
+       },
+       {
+        "$ref": "#/$defs/ChronicleDiffRequest"
+       },
+       {
+        "$ref": "#/$defs/ChronicleNarrateRequest"
+       },
+       {
+        "$ref": "#/$defs/ChronicleMilestonesRequest"
+       },
+       {
+        "$ref": "#/$defs/ChronicleCompareRequest"
+       }
+      ],
+      "title": "Request"
+     }
+    },
+    "required": [
+     "request"
+    ],
+    "type": "object",
+    "$defs": {
+     "ChronicleCompareRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "compare",
+        "title": "Action",
+        "type": "string"
+       },
+       "selection": {
+        "discriminator": {
+         "mapping": {
+          "chronicle_ids": "#/$defs/ChronicleIdsSelection",
+          "topics": "#/$defs/ChronicleTopicsSelection"
+         },
+         "propertyName": "kind"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/ChronicleTopicsSelection"
+         },
+         {
+          "$ref": "#/$defs/ChronicleIdsSelection"
+         }
+        ],
+        "title": "Selection"
+       }
+      },
+      "required": [
+       "action",
+       "selection"
+      ],
+      "title": "ChronicleCompareRequest",
+      "type": "object"
+     },
+     "ChronicleDiffRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "diff",
+        "title": "Action",
+        "type": "string"
+       },
+       "chronicle_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Chronicle Id",
+        "type": "string"
+       },
+       "from_revision": {
+        "description": "Positive Chronicle revision",
+        "maximum": 2000000000,
+        "minimum": 1,
+        "title": "From Revision",
+        "type": "integer"
+       },
+       "to_revision": {
+        "anyOf": [
+         {
+          "description": "Positive Chronicle revision",
+          "maximum": 2000000000,
+          "minimum": 1,
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "To Revision"
+       }
+      },
+      "required": [
+       "action",
+       "chronicle_id",
+       "from_revision"
+      ],
+      "title": "ChronicleDiffRequest",
+      "type": "object"
+     },
+     "ChronicleIdsSelection": {
+      "additionalProperties": false,
+      "properties": {
+       "kind": {
+        "const": "chronicle_ids",
+        "title": "Kind",
+        "type": "string"
+       },
+       "values": {
+        "items": {
+         "maxLength": 200,
+         "minLength": 1,
+         "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+         "type": "string"
+        },
+        "maxItems": 5,
+        "minItems": 2,
+        "title": "Values",
+        "type": "array"
+       }
+      },
+      "required": [
+       "kind",
+       "values"
+      ],
+      "title": "ChronicleIdsSelection",
+      "type": "object"
+     },
+     "ChronicleListRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "list",
+        "title": "Action",
+        "type": "string"
+       },
+       "topic": {
+        "anyOf": [
+         {
+          "maxLength": 500,
+          "minLength": 1,
+          "pattern": ".*\\S.*",
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Topic"
+       },
+       "limit": {
+        "default": 20,
+        "description": "Maximum Chronicle records",
+        "maximum": 100,
+        "minimum": 1,
+        "title": "Limit",
+        "type": "integer"
+       }
+      },
+      "required": [
+       "action"
+      ],
+      "title": "ChronicleListRequest",
+      "type": "object"
+     },
+     "ChronicleLoadRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "load",
+        "title": "Action",
+        "type": "string"
+       },
+       "chronicle_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Chronicle Id",
+        "type": "string"
+       },
+       "revision": {
+        "anyOf": [
+         {
+          "description": "Positive Chronicle revision",
+          "maximum": 2000000000,
+          "minimum": 1,
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Revision"
+       },
+       "output": {
+        "default": "summary",
+        "enum": [
+         "summary",
+         "json",
+         "chronicle_map",
+         "timeline",
+         "tree",
+         "graph",
+         "evidence",
+         "milestones",
+         "mermaid",
+         "narrative"
+        ],
+        "title": "Output",
+        "type": "string"
+       }
+      },
+      "required": [
+       "action",
+       "chronicle_id"
+      ],
+      "title": "ChronicleLoadRequest",
+      "type": "object"
+     },
+     "ChronicleMilestonesRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "milestones",
+        "title": "Action",
+        "type": "string"
+       },
+       "chronicle_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Chronicle Id",
+        "type": "string"
+       },
+       "revision": {
+        "anyOf": [
+         {
+          "description": "Positive Chronicle revision",
+          "maximum": 2000000000,
+          "minimum": 1,
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Revision"
+       }
+      },
+      "required": [
+       "action",
+       "chronicle_id"
+      ],
+      "title": "ChronicleMilestonesRequest",
+      "type": "object"
+     },
+     "ChronicleNarrateRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "narrate",
+        "title": "Action",
+        "type": "string"
+       },
+       "chronicle_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+        "title": "Chronicle Id",
+        "type": "string"
+       },
+       "revision": {
+        "anyOf": [
+         {
+          "description": "Positive Chronicle revision",
+          "maximum": 2000000000,
+          "minimum": 1,
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Revision"
+       },
+       "mode": {
+        "default": "brief",
+        "enum": [
+         "brief",
+         "full"
+        ],
+        "title": "Mode",
+        "type": "string"
+       }
+      },
+      "required": [
+       "action",
+       "chronicle_id"
+      ],
+      "title": "ChronicleNarrateRequest",
+      "type": "object"
+     },
+     "ChronicleTopicsSelection": {
+      "additionalProperties": false,
+      "properties": {
+       "kind": {
+        "const": "topics",
+        "title": "Kind",
+        "type": "string"
+       },
+       "values": {
+        "items": {
+         "maxLength": 500,
+         "minLength": 1,
+         "pattern": ".*\\S.*",
+         "type": "string"
+        },
+        "maxItems": 5,
+        "minItems": 2,
+        "title": "Values",
+        "type": "array"
+       }
+      },
+      "required": [
+       "kind",
+       "values"
+      ],
+      "title": "ChronicleTopicsSelection",
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "title": "read_research_chronicleArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_prepare_figure_search",
+   "description": "\n        Analyze a scientific figure or image for literature search.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🔬 VISION-TO-LITERATURE SEARCH (Experimental)\n        ═══════════════════════════════════════════════════════════════════════\n\n        This tool enables searching for scientific literature based on images.\n\n        WORKFLOW (the host agent performs the analysis and search):\n        ─────────────────────────────────────────────────────────\n        1. Provide an image (URL or base64-encoded)\n        2. This tool returns the image using MCP ImageContent protocol\n        3. YOU (the Agent) analyze the image using your vision capabilities\n        4. Extract relevant ENGLISH search terms from the image\n        5. Call `search_biomedical_images()` or `unified_search()` with extracted\n           terms when literature retrieval is within the user-requested scope\n        6. Return both the analysis and search results to the user\n\n        ⚠️ IMPORTANT RULES:\n        ────────────────\n        - ALL search queries must be in ENGLISH (Open-i requirement)\n        - This tool returns an image and guidance; it does not invoke a vision model\n        - The host agent controls any subsequent search within its permissions\n        - If the image shows a medical condition, extract the medical term in English\n\n        SEARCH TYPES:\n        ─────────────\n        - \"comprehensive\": General analysis, extract all relevant terms (default)\n        - \"methodology\": Focus on methods, equipment, techniques shown\n        - \"results\": Focus on data, graphs, statistical findings\n        - \"structure\": Focus on molecular/chemical structures\n        - \"medical\": Focus on clinical/medical imaging findings\n\n        USE CASES:\n        ──────────\n        - 📊 Scientific figures → Find papers with similar data/charts\n        - 🔬 Microscopy images → Find related research\n        - 🧬 Molecular structures → Find papers about the compound\n        - 📈 Graphs/plots → Find papers with similar analyses\n        - 🏥 Medical images → Find case reports or clinical studies\n        - ⚗️ Lab equipment → Find methodology papers\n\n        IMPORTANT:\n        ──────────\n        Image observations are search hypotheses that require source verification.\n        Follow the user-requested scope and the host agent's execution rules.\n        Use English medical terminology in all search queries.\n\n        Args:\n            source: Exactly one typed image source:\n                    {\"kind\": \"base64\", \"data\": \"data:image/png;base64,...\"}\n                    or {\"kind\": \"url\", \"url\": \"https://example.org/figure.png\"}.\n            context: Optional context about what to look for in the image\n            search_type: Type of analysis focus (comprehensive/methodology/results/structure/medical)\n\n        Returns:\n            List containing:\n            - ImageContent: The image for you to analyze\n            - TextContent: Instructions for next steps\n\n        Example:\n            prepare_figure_search(source={\"kind\": \"url\", \"url\": \"https://example.com/figure1.png\"})\n            prepare_figure_search(\n                source={\"kind\": \"base64\", \"data\": \"data:image/png;base64,iVBORw0...\"}\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "source": {
+      "discriminator": {
+       "mapping": {
+        "base64": "#/$defs/InlineImageSource",
+        "url": "#/$defs/URLImageSource"
+       },
+       "propertyName": "kind"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/InlineImageSource"
+       },
+       {
+        "$ref": "#/$defs/URLImageSource"
+       }
+      ],
+      "title": "Source"
+     },
+     "context": {
+      "anyOf": [
+       {
+        "maxLength": 4000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Context"
+     },
+     "search_type": {
+      "default": "comprehensive",
+      "enum": [
+       "comprehensive",
+       "methodology",
+       "results",
+       "structure",
+       "medical"
+      ],
+      "title": "Search Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source"
+    ],
+    "type": "object",
+    "$defs": {
+     "InlineImageSource": {
+      "additionalProperties": false,
+      "description": "A bounded inline image payload.",
+      "properties": {
+       "kind": {
+        "const": "base64",
+        "title": "Kind",
+        "type": "string"
+       },
+       "data": {
+        "maxLength": 13981080,
+        "minLength": 1,
+        "title": "Data",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "data"
+      ],
+      "title": "InlineImageSource",
+      "type": "object"
+     },
+     "URLImageSource": {
+      "additionalProperties": false,
+      "description": "A bounded public image URL.",
+      "properties": {
+       "kind": {
+        "const": "url",
+        "title": "Kind",
+        "type": "string"
+       },
+       "url": {
+        "maxLength": 8192,
+        "minLength": 1,
+        "title": "Url",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "url"
+      ],
+      "title": "URLImageSource",
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "title": "prepare_figure_searchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_configure_institutional_access",
+   "description": "\n        Configure your institution's link resolver for full-text access.\n\n        ═══════════════════════════════════════════════════════════════════════════════\n        🏛️ INSTITUTIONAL ACCESS CONFIGURATION\n        ═══════════════════════════════════════════════════════════════════════════════\n\n        This tool configures OpenURL link resolver integration, allowing you to\n        access paywalled articles through your institution's library subscription.\n\n        Remote service callers may call this tool with no configuration\n        arguments to inspect the operator-installed configuration, but cannot\n        mutate the server-owned, deployment-wide OpenURL settings. Configure\n        those at deployment time or from a trusted local server instead.\n\n        ═══════════════════════════════════════════════════════════════════════════════\n        HOW IT WORKS:\n        ═══════════════════════════════════════════════════════════════════════════════\n\n        1. Your library subscribes to journals through publishers\n        2. Library provides a \"Link Resolver\" service (SFX, 360 Link, Primo, etc.)\n        3. OpenURL passes article metadata to the resolver\n        4. Resolver checks your subscriptions and provides full-text access\n\n        ═══════════════════════════════════════════════════════════════════════════════\n        USAGE:\n        ═══════════════════════════════════════════════════════════════════════════════\n\n        Option 1: Use a preset (easiest)\n        ─────────────────────────────────\n        configure_institutional_access(preset=\"ntu\")\n\n        Available presets:\n        - 台灣: \"ntu\" (台大), \"ncku\" (成大), \"nthu\" (清大), \"nycu\" (陽明交大)\n        - 美國: \"harvard\", \"stanford\", \"mit\", \"yale\"\n        - 英國: \"oxford\", \"cambridge\"\n        - 通用: \"sfx\", \"360link\", \"primo\" (需要 resolver_url)\n\n        Option 2: Custom URL\n        ─────────────────────\n        configure_institutional_access(\n            resolver_url=\"https://your.library.edu/openurl\"\n        )\n\n        Option 3: Disable\n        ─────────────────────\n        configure_institutional_access(enable=False)\n\n        ═══════════════════════════════════════════════════════════════════════════════\n        FINDING YOUR RESOLVER URL:\n        ═══════════════════════════════════════════════════════════════════════════════\n\n        1. Go to your library's website\n        2. Look for \"Find Full Text\", \"Link Resolver\", or \"OpenURL\"\n        3. Or search: \"[Your University] link resolver\"\n        4. The URL usually looks like:\n           - https://resolver.library.edu/openurl\n           - https://library.primo.exlibrisgroup.com/openurl/...\n           - https://sfx.library.edu/sfx_local\n\n        Args:\n            resolver_url: Your institution's link resolver URL\n            preset: Use a known institution's preset configuration\n            enable: Whether to enable OpenURL links (default: True)\n        Returns:\n            Configuration status message\n        ",
+   "parameters": {
+    "properties": {
+     "resolver_url": {
+      "anyOf": [
+       {
+        "maxLength": 8192,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Resolver Url"
+     },
+     "preset": {
+      "anyOf": [
+       {
+        "enum": [
+         "ntu",
+         "ncku",
+         "nthu",
+         "nycu",
+         "harvard",
+         "stanford",
+         "mit",
+         "yale",
+         "oxford",
+         "cambridge",
+         "sfx",
+         "360link",
+         "primo",
+         "test_free"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Preset"
+     },
+     "enable": {
+      "default": true,
+      "title": "Enable",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "title": "configure_institutional_accessArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_institutional_link",
+   "description": "\n        Generate institutional access link (OpenURL) for an article.\n\n        ═══════════════════════════════════════════════════════════════════════════════\n        🔗 GET LIBRARY ACCESS LINK\n        ═══════════════════════════════════════════════════════════════════════════════\n\n        Generate an OpenURL that will take you through your library's link resolver\n        to access the full text of an article.\n\n        PREREQUISITES:\n        ─────────────────\n        Must first call configure_institutional_access() to set up your resolver.\n\n        USAGE:\n        ─────────────────\n\n        With PMID (easiest):\n            get_institutional_link(\n                source={\"kind\": \"pmid\", \"value\": \"38353755\"}\n            )\n\n        With DOI:\n            get_institutional_link(\n                source={\"kind\": \"doi\", \"value\": \"10.1001/jama.2024.1234\"}\n            )\n\n        With full metadata (most reliable):\n            get_institutional_link(\n                source={\n                    \"kind\": \"metadata\",\n                    \"title\": \"Some Article Title\",\n                    \"journal\": \"JAMA\",\n                    \"year\": 2024,\n                    \"volume\": \"331\",\n                    \"issue\": \"1\",\n                    \"pages\": \"45-52\"\n                }\n            )\n\n        Args:\n            source: Exactly one explicit PMID, DOI, or bounded metadata object.\n\n        Returns:\n            OpenURL link or error message\n        ",
+   "parameters": {
+    "properties": {
+     "source": {
+      "discriminator": {
+       "mapping": {
+        "doi": "#/$defs/DOISource",
+        "metadata": "#/$defs/InstitutionalMetadataSource",
+        "pmid": "#/$defs/PMIDSource"
+       },
+       "propertyName": "kind"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/PMIDSource"
+       },
+       {
+        "$ref": "#/$defs/DOISource"
+       },
+       {
+        "$ref": "#/$defs/InstitutionalMetadataSource"
+       }
+      ],
+      "title": "Source"
+     }
+    },
+    "required": [
+     "source"
+    ],
+    "type": "object",
+    "$defs": {
+     "DOISource": {
+      "additionalProperties": false,
+      "description": "An explicit DOI.",
+      "properties": {
+       "kind": {
+        "const": "doi",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 512,
+        "minLength": 7,
+        "pattern": "^10\\.[0-9]{4,9}/",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "DOISource",
+      "type": "object"
+     },
+     "InstitutionalMetadataSource": {
+      "additionalProperties": false,
+      "description": "Bounded journal metadata used to construct an OpenURL.",
+      "properties": {
+       "kind": {
+        "const": "metadata",
+        "title": "Kind",
+        "type": "string"
+       },
+       "title": {
+        "maxLength": 1000,
+        "minLength": 1,
+        "title": "Title",
+        "type": "string"
+       },
+       "journal": {
+        "anyOf": [
+         {
+          "maxLength": 300,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Journal"
+       },
+       "year": {
+        "anyOf": [
+         {
+          "maximum": 9999,
+          "minimum": 1000,
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Year"
+       },
+       "volume": {
+        "anyOf": [
+         {
+          "maxLength": 50,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Volume"
+       },
+       "issue": {
+        "anyOf": [
+         {
+          "maxLength": 50,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Issue"
+       },
+       "pages": {
+        "anyOf": [
+         {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Pages"
+       }
+      },
+      "required": [
+       "kind",
+       "title"
+      ],
+      "title": "InstitutionalMetadataSource",
+      "type": "object"
+     },
+     "PMIDSource": {
+      "additionalProperties": false,
+      "description": "An explicit PubMed identifier.",
+      "properties": {
+       "kind": {
+        "const": "pmid",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 20,
+        "pattern": "^[1-9][0-9]{0,19}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "PMIDSource",
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "title": "get_institutional_linkArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_list_resolver_presets",
+   "description": "\n        List available institutional link resolver presets.\n\n        ═══════════════════════════════════════════════════════════════════════════════\n        📚 AVAILABLE RESOLVER PRESETS\n        ═══════════════════════════════════════════════════════════════════════════════\n\n        These presets contain pre-configured URLs for common institutions.\n        Use them with configure_institutional_access(preset=\"name\").\n\n        Returns:\n            List of available presets with URLs\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "additionalProperties": false,
+    "title": "list_resolver_presetsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_test_institutional_access",
+   "description": "\n        Test your institutional link resolver configuration.\n\n        ═══════════════════════════════════════════════════════════════════════════════\n        🧪 TEST INSTITUTIONAL ACCESS\n        ═══════════════════════════════════════════════════════════════════════════════\n\n        Tests if your configured link resolver is:\n        1. Properly configured\n        2. Reachable (network connection)\n        3. Returns a valid response\n\n        NOTE: This only tests if the resolver endpoint is reachable.\n        Actual full-text access depends on your institution's subscriptions.\n\n        ═══════════════════════════════════════════════════════════════════════════════\n        FREE TEST OPTIONS:\n        ═══════════════════════════════════════════════════════════════════════════════\n\n        If you don't have institutional access, you can test with:\n\n        1. Use \"test_free\" preset (EBSCO public resolver):\n           configure_institutional_access(preset=\"test_free\")\n           test_institutional_access()\n\n        2. Most university resolvers will respond even without VPN,\n           they just won't provide full-text (shows \"Access options\" page)\n\n        Args:\n            pmid: PMID to use for testing (default: 38353755)\n\n        Returns:\n            Test results including:\n            - Configuration status\n            - Network reachability\n            - Generated OpenURL\n            - Link to test manually\n        ",
+   "parameters": {
+    "properties": {
+     "pmid": {
+      "default": "38353755",
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Pmid",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "title": "test_institutional_accessArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_diagnose_institutional_access",
+   "description": "\n        Diagnose why institutional fulltext access succeeds or fails for an article.\n\n        Runs up to three probes and reports each path's outcome:\n\n        1. **Direct fetch** (Phase 1, IP-aware) — follows ``https://doi.org/<doi>``\n           and classifies whether the publisher served fulltext, a paywall, or a\n           login page. Works automatically when your network IP is on the\n           publisher's institutional allow-list (campus / VPN).\n\n        2. **EZproxy fetch** (Phase 2, BYO-cookie) — rewrites the publisher\n           hostname to your library's EZproxy host and replays your exported\n           browser session cookie. Configured via env vars:\n           - ``EZPROXY_HOST`` (e.g. ``ezproxy.lib.ntu.edu.tw``)\n           - ``EZPROXY_COOKIE_FILE`` (path to browser-exported cookies.json)\n           - ``EZPROXY_ENABLED=1``\n\n        3. **OpenURL handoff** — generated for you to open manually in a browser\n           when the automated paths fail.\n\n        Usage:\n            diagnose_institutional_access(\n                source={\"kind\": \"doi\", \"value\": \"10.1097/ALN.0000000000003599\"}\n            )\n\n            diagnose_institutional_access(\n                source={\"kind\": \"pmid\", \"value\": \"38353755\"},\n                try_ezproxy=False\n            )\n\n        Args:\n            source: Exactly one PMID or DOI. A PMID is resolved to a DOI when\n                possible so direct and EZproxy probes can run.\n            try_direct: Run the Phase 1 direct probe (default True).\n            try_ezproxy: Run the Phase 2 EZproxy probe (default True).\n\n        Returns:\n            Markdown report listing every probe's status, classification, and\n            advice on the next action to take.\n        ",
+   "parameters": {
+    "properties": {
+     "source": {
+      "discriminator": {
+       "mapping": {
+        "doi": "#/$defs/DOISource",
+        "pmid": "#/$defs/PMIDSource"
+       },
+       "propertyName": "kind"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/PMIDSource"
+       },
+       {
+        "$ref": "#/$defs/DOISource"
+       }
+      ],
+      "title": "Source"
+     },
+     "try_direct": {
+      "default": true,
+      "title": "Try Direct",
+      "type": "boolean"
+     },
+     "try_ezproxy": {
+      "default": true,
+      "title": "Try Ezproxy",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "source"
+    ],
+    "type": "object",
+    "$defs": {
+     "DOISource": {
+      "additionalProperties": false,
+      "description": "An explicit DOI.",
+      "properties": {
+       "kind": {
+        "const": "doi",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 512,
+        "minLength": 7,
+        "pattern": "^10\\.[0-9]{4,9}/",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "DOISource",
+      "type": "object"
+     },
+     "PMIDSource": {
+      "additionalProperties": false,
+      "description": "An explicit PubMed identifier.",
+      "properties": {
+       "kind": {
+        "const": "pmid",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 20,
+        "pattern": "^[1-9][0-9]{0,19}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "PMIDSource",
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "title": "diagnose_institutional_accessArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_convert_icd_mesh",
+   "description": "Query the curated ICD/MeSH crosswalk in one explicit direction.\n\n        Use ``icd_to_mesh`` with one complete ICD-9-CM or ICD-10-CM code, or\n        ``mesh_to_icd`` with a MeSH term. The returned mapping is a limited\n        convenience crosswalk, not a substitute for a current licensed UMLS\n        terminology service.\n        ",
+   "parameters": {
+    "properties": {
+     "direction": {
+      "enum": [
+       "icd_to_mesh",
+       "mesh_to_icd"
+      ],
+      "title": "Direction",
+      "type": "string"
+     },
+     "value": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "direction",
+     "value"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "convert_icd_meshArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_search_biomedical_images",
+   "description": "\n        🖼️ Search biomedical images from NLM Open-i.\n\n        Searches medical/scientific images from Open-i and returns\n        image URLs with metadata (caption, article info, MeSH terms).\n\n        ═══════════════════════════════════════════════════════════════        ⚠️ CRITICAL - LANGUAGE REQUIREMENT:\n        ═══════════════════════════════════════════════════════════\n        Open-i ONLY supports English queries. If the user queries in\n        non-English (Chinese, Japanese, Korean, etc.), you MUST:\n        1. Translate the query to English medical terminology first\n        2. Then call this tool with the English query\n        Example: \"喉頭水腫\" → \"laryngeal edema\"\n                 \"胸部X光肺炎\" → \"chest X-ray pneumonia\"\n        The tool has built-in translation hints for common CJK medical\n        terms, but YOU should always verify the translation is correct.\n\n        ═══════════════════════════════════════════════════════════        SOURCES:\n        ═══════════════════════════════════════════════════════════════\n        - Open-i (NLM): X-ray, microscopy, clinical images\n\n        ═══════════════════════════════════════════════════════════════\n        EXAMPLES:\n        ═══════════════════════════════════════════════════════════════\n\n        General image search:\n            search_biomedical_images(\"chest pneumonia CT scan\")\n\n        X-ray only:\n            search_biomedical_images(\"fracture\", image_type=\"x\")\n\n        Microscopy images:\n            search_biomedical_images(\"histology liver\", image_type=\"mc\")\n\n        Clinical teaching images (MedPix):\n            search_biomedical_images(\"pneumothorax\", collection=\"mpx\")\n\n        Case reports with CC-BY license, sorted by date:\n            search_biomedical_images(\n                \"lung cancer\",\n                article_type=\"cr\",\n                license_type=\"by\",\n                sort_by=\"d\"\n            )\n\n        Cardiology specialty images:\n            search_biomedical_images(\"echocardiogram\", specialty=\"c\")\n\n        Video content only:\n            search_biomedical_images(\"surgery technique\", video_only=True)\n\n        ═══════════════════════════════════════════════════════════════\n\n        Args:\n            query: Search query (e.g., \"chest X-ray pneumonia\")\n            image_type: Filter by image type (Open-i only):\n                Positive filters:\n                - \"c\": CT scan images\n                - \"g\": Graphics / line art / diagrams\n                - \"m\": MRI images\n                - \"mc\": Microscopy / histology images\n                - \"p\": PET scan images\n                - \"ph\": Photographs / clinical photos\n                - \"u\": Ultrasound images\n                - \"x\": X-ray images\n                Exclusion filters:\n                - \"xg\": Exclude Graphics (removes graphic images from results)\n                - \"xm\": Exclude Multipanel (removes multipanel images)\n                - None: All types (default)\n            collection: Filter by collection (Open-i only):\n                - \"pmc\": PubMed Central articles\n                - \"mpx\": MedPix clinical teaching images (high quality)\n                - \"cxr\": Chest X-ray collection\n                - \"hmd\": History of Medicine\n                - \"usc\": USC collection\n                - None: All collections (default)\n            limit: Maximum number of images to return (default 10, max 50)\n            sort_by: Sort results by (Open-i only):\n                - \"r\": Relevance (default)\n                - \"d\": Date (newest first)\n                - \"o\": Oldest first\n                - \"t\": Title\n                - \"e\": Education relevance\n                - \"g\": Graphics priority\n            article_type: Filter by article type (Open-i only):\n                - \"cr\": Case Report\n                - \"or\": Original Research\n                - \"re\": Review\n                - \"sr\": Systematic Review\n                - \"ra\": Research Article\n                - \"ed\": Editorial\n                - \"lt\": Letter\n                - \"bk\": Book\n                - and more... (see API docs)\n            specialty: Filter by medical specialty (Open-i only):\n                - \"r\": Radiology\n                - \"c\": Cardiology\n                - \"ne\": Neurology\n                - \"pu\": Pulmonology\n                - \"d\": Dermatology\n                - \"g\": Gastroenterology\n                - \"or\": Orthopedics\n                - \"o\": Ophthalmology\n                - \"s\": Surgery\n                - \"p\": Pediatrics\n                - \"id\": Infectious Disease\n                - \"i\": Immunology\n                - and more... (see API docs)\n            license_type: Filter by Creative Commons license (Open-i only):\n                - \"by\": CC-BY (Attribution)\n                - \"bync\": CC-BY-NC (Attribution-NonCommercial)\n                - \"byncnd\": CC-BY-NC-ND (Attribution-NonCommercial-NoDerivs)\n                - \"byncsa\": CC-BY-NC-SA (Attribution-NonCommercial-ShareAlike)\n            subset: Filter by subject subset (Open-i only):\n                - \"b\": Behavioral Sciences\n                - \"c\": Cancer\n                - \"e\": Ethics\n                - \"s\": Surgery\n                - \"x\": Toxicology\n            search_fields: Search in specific fields (Open-i only):\n                - \"t\": Title only\n                - \"m\": MeSH terms only\n                - \"ab\": Abstract only\n                - \"msh\": MeSH heading only\n                - \"c\": Caption only\n                - \"a\": Author only\n            video_only: If True, only return video content (default False)\n            hmp_type: History of Medicine publication type. Requires collection=\"hmd\".\n\n        Returns:\n            Formatted image results with URLs, captions, and article metadata\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+     },
+     "image_type": {
+      "anyOf": [
+       {
+        "enum": [
+         "xg",
+         "xm",
+         "x",
+         "u",
+         "ph",
+         "p",
+         "mc",
+         "m",
+         "g",
+         "c"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Image Type"
+     },
+     "collection": {
+      "anyOf": [
+       {
+        "enum": [
+         "pmc",
+         "cxr",
+         "usc",
+         "hmd",
+         "mpx"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection"
+     },
+     "limit": {
+      "default": 10,
+      "maximum": 50,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "sort_by": {
+      "anyOf": [
+       {
+        "enum": [
+         "r",
+         "o",
+         "d",
+         "e",
+         "g",
+         "oc",
+         "pr",
+         "pg",
+         "t"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sort By"
+     },
+     "article_type": {
+      "anyOf": [
+       {
+        "enum": [
+         "ab",
+         "bk",
+         "bf",
+         "cr",
+         "dp",
+         "di",
+         "ed",
+         "ib",
+         "in",
+         "lt",
+         "mr",
+         "ma",
+         "ne",
+         "ob",
+         "pr",
+         "or",
+         "re",
+         "ra",
+         "rw",
+         "sr",
+         "rr",
+         "os",
+         "hs",
+         "ot"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Article Type"
+     },
+     "specialty": {
+      "anyOf": [
+       {
+        "enum": [
+         "b",
+         "bc",
+         "c",
+         "ca",
+         "cc",
+         "d",
+         "de",
+         "dt",
+         "e",
+         "en",
+         "f",
+         "eh",
+         "g",
+         "ge",
+         "gr",
+         "gy",
+         "h",
+         "i",
+         "id",
+         "im",
+         "n",
+         "ne",
+         "nu",
+         "o",
+         "or",
+         "ot",
+         "p",
+         "py",
+         "pu",
+         "r",
+         "s",
+         "t",
+         "u",
+         "v",
+         "vi"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Specialty"
+     },
+     "license_type": {
+      "anyOf": [
+       {
+        "enum": [
+         "by",
+         "bync",
+         "byncnd",
+         "byncsa"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "License Type"
+     },
+     "subset": {
+      "anyOf": [
+       {
+        "enum": [
+         "b",
+         "c",
+         "e",
+         "s",
+         "x"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Subset"
+     },
+     "search_fields": {
+      "anyOf": [
+       {
+        "enum": [
+         "t",
+         "m",
+         "ab",
+         "msh",
+         "c",
+         "a"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Search Fields"
+     },
+     "video_only": {
+      "default": false,
+      "title": "Video Only",
+      "type": "boolean"
+     },
+     "hmp_type": {
+      "anyOf": [
+       {
+        "enum": [
+         "ad",
+         "ar",
+         "at",
+         "bi",
+         "br",
+         "cr",
+         "ca",
+         "ch",
+         "cg",
+         "cd",
+         "dr",
+         "ep",
+         "ex",
+         "hr",
+         "hu",
+         "lt",
+         "mp",
+         "nw",
+         "pn",
+         "ph",
+         "pi",
+         "po",
+         "pt",
+         "pc",
+         "ps"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Hmp Type"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "search_biomedical_imagesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_save_pipeline",
+   "description": "Save a pipeline configuration for later reuse.\n\n        The config format is identical to unified_search's pipeline parameter\n        (YAML or JSON). Saved pipelines can be loaded later by name:\n            unified_search(pipeline=\"saved:weekly_remimazolam\")\n\n        Args:\n            name: Unique identifier (alphanumeric + hyphens/underscores, max 64 chars).\n                  Overwrites if name already exists (upsert semantics).\n            config: Pipeline YAML/JSON string. Same format as unified_search pipeline param.\n            tags: Bounded array of canonical tags (e.g., [\"anesthesia\", \"sedation\"]).\n            description: Human-readable description of the pipeline's purpose.\n            scope: Storage scope - \"workspace\" (project-level, git-trackable),\n                   \"global\" (user-level, cross-project), or \"auto\" (workspace if\n                   available, otherwise global). Default: \"auto\".\n\n        Returns:\n            Confirmation with pipeline metadata.\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z0-9](?:[a-z0-9_-]{0,63})$",
+      "title": "Name",
+      "type": "string"
+     },
+     "config": {
+      "maxLength": 100000,
+      "minLength": 1,
+      "title": "Config",
+      "type": "string"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "maxLength": 64,
+         "minLength": 1,
+         "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,63})$",
+         "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "description": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Description",
+      "type": "string"
+     },
+     "scope": {
+      "default": "auto",
+      "enum": [
+       "auto",
+       "workspace",
+       "global"
+      ],
+      "title": "Scope",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "config"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "save_pipelineArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_list_pipelines",
+   "description": "List all saved pipeline configurations.\n\n        Args:\n            tag: Filter by tag (e.g., \"sedation\"). Empty = show all.\n            scope: Filter by scope: \"workspace\", \"global\", or \"\" (show all).\n\n        Returns:\n            Table of saved pipelines with name, scope, description, tags.\n        ",
+   "parameters": {
+    "properties": {
+     "tag": {
+      "default": "",
+      "maxLength": 100,
+      "title": "Tag",
+      "type": "string"
+     },
+     "scope": {
+      "default": "",
+      "enum": [
+       "",
+       "workspace",
+       "global"
+      ],
+      "title": "Scope",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "title": "list_pipelinesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_load_pipeline",
+   "description": "Load a pipeline configuration for review or editing.\n\n        Loads from either source:\n        - Saved name: \"weekly_remimazolam\" or \"saved:weekly_remimazolam\"\n        - Local-only file: \"file:path/to/pipeline.yaml\" (disabled for authenticated service callers)\n\n        The returned YAML can be reviewed, modified, and then:\n        - Executed directly: unified_search(pipeline=\"<yaml>\")\n        - Saved with changes: save_pipeline(name=\"...\", config=\"<yaml>\")\n\n        Args:\n            source: Pipeline source identifier (see above).\n\n        Returns:\n            Full pipeline YAML content + metadata.\n        ",
+   "parameters": {
+    "properties": {
+     "source": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "load_pipelineArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_delete_pipeline",
+   "description": "Permanently delete a saved pipeline configuration and execution history.\n\n        For the default tenant, any process-level schedule is removed only\n        after the stored pipeline deletion succeeds. Isolated tenants never\n        mutate the shared process scheduler.\n\n        Args:\n            name: Name of the saved pipeline to delete.\n\n        Returns:\n            Confirmation of deletion.\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z0-9](?:[a-z0-9_-]{0,63})$",
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "delete_pipelineArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_get_pipeline_history",
+   "description": "Get execution history for a saved pipeline.\n\n        Shows past execution results with diff analysis: which articles are new\n        compared to the previous run.\n\n        Args:\n            name: Name of the saved pipeline.\n            limit: Maximum number of history entries to return (default: 5).\n\n        Returns:\n            Execution history with date, article count, new/removed articles, status.\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z0-9](?:[a-z0-9_-]{0,63})$",
+      "title": "Name",
+      "type": "string"
+     },
+     "limit": {
+      "default": 5,
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "get_pipeline_historyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_schedule_pipeline",
+   "description": "Schedule a saved pipeline for periodic execution.\n\n        Args:\n            name: Saved pipeline name.\n            cron: Required 5-field cron expression. Example: \"0 9 * * 1\" (Mon 9am).\n            diff_mode: When True, store diff-mode preference with the schedule.\n            notify: When True, store notify preference with the schedule.\n\n        Returns:\n            Schedule confirmation or removal result.\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z0-9](?:[a-z0-9_-]{0,63})$",
+      "title": "Name",
+      "type": "string"
+     },
+     "cron": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Cron",
+      "type": "string"
+     },
+     "diff_mode": {
+      "default": true,
+      "title": "Diff Mode",
+      "type": "boolean"
+     },
+     "notify": {
+      "default": true,
+      "title": "Notify",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "name",
+     "cron"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "schedule_pipelineArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_unschedule_pipeline",
+   "description": "Remove the active schedule for a saved pipeline.\n\n        Args:\n            name: Saved pipeline name whose schedule will be removed.\n\n        Returns:\n            Removed schedule metadata, or a native MCP error when none exists.\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z0-9](?:[a-z0-9_-]{0,63})$",
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object",
+    "additionalProperties": false,
+    "title": "unschedule_pipelineArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pubmed_read_session",
+   "description": "Read session data through one schema-exact discriminated request.\n\n        Actions:\n        - pmids: return PMIDs for one recorded search\n        - article: return one cached article payload\n        - summary: return current session summary and optional history\n        - list_artifacts: list persistent MCP output artifact manifests\n        - artifact: read one persistent artifact by artifact_id or artifact_uri\n        - search_runs: list durable unified_search run envelopes\n        - search_run: read one run by stable run_id\n        - replay_search: return credential-free unified_search replay arguments\n\n        Each action accepts only its own fields. For remote artifact reads, select\n        an artifact_id or artifact_uri locator and use artifact_file plus\n        offset/max_chars to page through large files. Local paths remain redacted\n        unless both include_local_paths and the server setting allow them.\n        ",
+   "parameters": {
+    "properties": {
+     "request": {
+      "discriminator": {
+       "mapping": {
+        "article": "#/$defs/SessionArticleRequest",
+        "artifact": "#/$defs/SessionArtifactRequest",
+        "list_artifacts": "#/$defs/SessionListArtifactsRequest",
+        "log": "#/$defs/SessionLogRequest",
+        "pmids": "#/$defs/SessionPmidsRequest",
+        "replay_search": "#/$defs/SessionReplaySearchRequest",
+        "search_run": "#/$defs/SessionSearchRunRequest",
+        "search_runs": "#/$defs/SessionSearchRunsRequest",
+        "summary": "#/$defs/SessionSummaryRequest"
+       },
+       "propertyName": "action"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/$defs/SessionPmidsRequest"
+       },
+       {
+        "$ref": "#/$defs/SessionArticleRequest"
+       },
+       {
+        "$ref": "#/$defs/SessionSummaryRequest"
+       },
+       {
+        "$ref": "#/$defs/SessionLogRequest"
+       },
+       {
+        "$ref": "#/$defs/SessionListArtifactsRequest"
+       },
+       {
+        "$ref": "#/$defs/SessionArtifactRequest"
+       },
+       {
+        "$ref": "#/$defs/SessionSearchRunsRequest"
+       },
+       {
+        "$ref": "#/$defs/SessionSearchRunRequest"
+       },
+       {
+        "$ref": "#/$defs/SessionReplaySearchRequest"
+       }
+      ],
+      "title": "Request"
+     }
+    },
+    "required": [
+     "request"
+    ],
+    "type": "object",
+    "$defs": {
+     "ArtifactIdLocator": {
+      "additionalProperties": false,
+      "properties": {
+       "kind": {
+        "const": "artifact_id",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 512,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,511}$",
+        "title": "Value",
+        "type": "string"
+       },
+       "session_id": {
+        "anyOf": [
+         {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$",
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Session Id"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "ArtifactIdLocator",
+      "type": "object"
+     },
+     "ArtifactUriLocator": {
+      "additionalProperties": false,
+      "properties": {
+       "kind": {
+        "const": "artifact_uri",
+        "title": "Kind",
+        "type": "string"
+       },
+       "value": {
+        "maxLength": 605,
+        "minLength": 13,
+        "pattern": "^artifact://[A-Za-z0-9][A-Za-z0-9_.-]{0,79}/[A-Za-z0-9][A-Za-z0-9_.-]{0,511}$",
+        "title": "Value",
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind",
+       "value"
+      ],
+      "title": "ArtifactUriLocator",
+      "type": "object"
+     },
+     "SessionArticleRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "article",
+        "title": "Action",
+        "type": "string"
+       },
+       "pmid": {
+        "maxLength": 20,
+        "pattern": "^[1-9][0-9]{0,19}$",
+        "title": "Pmid",
+        "type": "string"
+       }
+      },
+      "required": [
+       "action",
+       "pmid"
+      ],
+      "title": "SessionArticleRequest",
+      "type": "object"
+     },
+     "SessionArtifactRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "artifact",
+        "title": "Action",
+        "type": "string"
+       },
+       "locator": {
+        "discriminator": {
+         "mapping": {
+          "artifact_id": "#/$defs/ArtifactIdLocator",
+          "artifact_uri": "#/$defs/ArtifactUriLocator"
+         },
+         "propertyName": "kind"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/$defs/ArtifactIdLocator"
+         },
+         {
+          "$ref": "#/$defs/ArtifactUriLocator"
+         }
+        ],
+        "title": "Locator"
+       },
+       "artifact_file": {
+        "anyOf": [
+         {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,511}$",
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Artifact File"
+       },
+       "include_local_paths": {
+        "default": false,
+        "title": "Include Local Paths",
+        "type": "boolean"
+       },
+       "max_chars": {
+        "default": 200000,
+        "maximum": 200000,
+        "minimum": 1,
+        "title": "Max Chars",
+        "type": "integer"
+       },
+       "offset": {
+        "default": 0,
+        "maximum": 2000000000,
+        "minimum": 0,
+        "title": "Offset",
+        "type": "integer"
+       }
+      },
+      "required": [
+       "action",
+       "locator"
+      ],
+      "title": "SessionArtifactRequest",
+      "type": "object"
+     },
+     "SessionListArtifactsRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "list_artifacts",
+        "title": "Action",
+        "type": "string"
+       },
+       "session_id": {
+        "anyOf": [
+         {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$",
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Session Id"
+       },
+       "tool": {
+        "anyOf": [
+         {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Tool"
+       },
+       "kind": {
+        "anyOf": [
+         {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Kind"
+       },
+       "include_local_paths": {
+        "default": false,
+        "title": "Include Local Paths",
+        "type": "boolean"
+       },
+       "limit": {
+        "default": 10,
+        "maximum": 100,
+        "minimum": 1,
+        "title": "Limit",
+        "type": "integer"
+       }
+      },
+      "required": [
+       "action"
+      ],
+      "title": "SessionListArtifactsRequest",
+      "type": "object"
+     },
+     "SessionLogRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "log",
+        "title": "Action",
+        "type": "string"
+       },
+       "event_limit": {
+        "default": 50,
+        "maximum": 500,
+        "minimum": 1,
+        "title": "Event Limit",
+        "type": "integer"
+       },
+       "kind": {
+        "anyOf": [
+         {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Kind"
+       },
+       "include_history": {
+        "default": true,
+        "title": "Include History",
+        "type": "boolean"
+       },
+       "history_limit": {
+        "default": 10,
+        "maximum": 100,
+        "minimum": 1,
+        "title": "History Limit",
+        "type": "integer"
+       }
+      },
+      "required": [
+       "action"
+      ],
+      "title": "SessionLogRequest",
+      "type": "object"
+     },
+     "SessionPmidsRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "pmids",
+        "title": "Action",
+        "type": "string"
+       },
+       "search_index": {
+        "default": -1,
+        "maximum": 100000,
+        "minimum": -100000,
+        "title": "Search Index",
+        "type": "integer"
+       },
+       "query_filter": {
+        "anyOf": [
+         {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Query Filter"
+       }
+      },
+      "required": [
+       "action"
+      ],
+      "title": "SessionPmidsRequest",
+      "type": "object"
+     },
+     "SessionReplaySearchRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "replay_search",
+        "title": "Action",
+        "type": "string"
+       },
+       "run_id": {
+        "maxLength": 512,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,511}$",
+        "title": "Run Id",
+        "type": "string"
+       },
+       "session_id": {
+        "anyOf": [
+         {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$",
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Session Id"
+       }
+      },
+      "required": [
+       "action",
+       "run_id"
+      ],
+      "title": "SessionReplaySearchRequest",
+      "type": "object"
+     },
+     "SessionSearchRunRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "search_run",
+        "title": "Action",
+        "type": "string"
+       },
+       "run_id": {
+        "maxLength": 512,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,511}$",
+        "title": "Run Id",
+        "type": "string"
+       },
+       "session_id": {
+        "anyOf": [
+         {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$",
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Session Id"
+       }
+      },
+      "required": [
+       "action",
+       "run_id"
+      ],
+      "title": "SessionSearchRunRequest",
+      "type": "object"
+     },
+     "SessionSearchRunsRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "search_runs",
+        "title": "Action",
+        "type": "string"
+       },
+       "session_id": {
+        "anyOf": [
+         {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$",
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Session Id"
+       },
+       "status": {
+        "anyOf": [
+         {
+          "enum": [
+           "started",
+           "planned",
+           "running",
+           "completed",
+           "partial",
+           "failed",
+           "cancelled",
+           "interrupted"
+          ],
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Status"
+       },
+       "limit": {
+        "default": 10,
+        "maximum": 100,
+        "minimum": 1,
+        "title": "Limit",
+        "type": "integer"
+       }
+      },
+      "required": [
+       "action"
+      ],
+      "title": "SessionSearchRunsRequest",
+      "type": "object"
+     },
+     "SessionSummaryRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "action": {
+        "const": "summary",
+        "title": "Action",
+        "type": "string"
+       },
+       "include_history": {
+        "default": false,
+        "title": "Include History",
+        "type": "boolean"
+       },
+       "history_limit": {
+        "default": 10,
+        "maximum": 100,
+        "minimum": 1,
+        "title": "History Limit",
+        "type": "integer"
+       }
+      },
+      "required": [
+       "action"
+      ],
+      "title": "SessionSummaryRequest",
+      "type": "object"
+     }
+    },
+    "additionalProperties": false,
+    "title": "read_sessionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_check_connection",
+   "description": "\n            🔌 Check connection to Zotero\n\n            Verifies that Zotero is running and accessible.\n\n            Returns:\n                Connection status and endpoint info\n            ",
+   "parameters": {
+    "properties": {},
+    "title": "check_connectionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_search_items",
+   "description": "\n        🔍 Search for references in Zotero\n\n        搜尋 Zotero 中的書目資料\n\n        Args:\n            query: Search terms (title, author, year)\n            limit: Maximum results to return (default: 25)\n\n        Returns:\n            List of matching items with metadata\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "title": "search_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_get_item",
+   "description": "\n        📖 Get detailed item by key\n\n        取得單一文獻的完整資料\n\n        Args:\n            key: Zotero item key (e.g., \"ABC12345\")\n\n        Returns:\n            Full item metadata\n        ",
+   "parameters": {
+    "properties": {
+     "key": {
+      "title": "Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key"
+    ],
+    "title": "get_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_list_items",
+   "description": "\n        📋 List recent items\n\n        列出最近的文獻\n\n        Args:\n            limit: Maximum items to return (default: 20)\n            collection_key: Optional - filter by collection\n\n        Returns:\n            List of items with basic metadata\n        ",
+   "parameters": {
+    "properties": {
+     "limit": {
+      "default": 20,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     }
+    },
+    "title": "list_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_list_tags",
+   "description": "\n        🏷️ List all tags\n\n        列出所有標籤\n\n        Returns:\n            List of tags\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "list_tagsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_get_item_types",
+   "description": "\n        📝 Get available item types\n\n        取得可用的文獻類型\n\n        Returns:\n            List of item types (journalArticle, book, etc.)\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "get_item_typesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_list_collections",
+   "description": "\n        📁 List all collections in Zotero library\n\n        列出所有收藏夾\n\n        ⭐ IMPORTANT: Use this tool BEFORE importing articles!\n        Show the user available collections so they can choose where to save.\n\n        💡 WORKFLOW:\n        1. Search articles (search_pubmed_exclude_owned)\n        2. Call list_collections to show options\n        3. Ask user: \"Which collection should I save these to?\"\n        4. Import with collection_name parameter\n\n        Returns:\n            List of collections with item counts\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "list_collectionsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_get_collection",
+   "description": "\n        📁 Get a specific collection by key\n\n        取得特定收藏夾的詳細資訊\n\n        Args:\n            key: Collection key (e.g., \"ABC12345\")\n\n        Returns:\n            Collection details including name and item count\n        ",
+   "parameters": {
+    "properties": {
+     "key": {
+      "title": "Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key"
+    ],
+    "title": "get_collectionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_get_collection_items",
+   "description": "\n        📚 Get items in a specific collection\n\n        取得特定收藏夾內的所有文獻\n\n        Args:\n            collection_key: Collection key (e.g., \"ABC12345\")\n            limit: Maximum items to return (default: 50)\n\n        Returns:\n            List of items in the collection\n        ",
+   "parameters": {
+    "properties": {
+     "collection_key": {
+      "title": "Collection Key",
+      "type": "string"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "collection_key"
+    ],
+    "title": "get_collection_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_get_collection_tree",
+   "description": "\n        🌳 Get collections as a hierarchical tree\n\n        取得收藏夾的樹狀結構（含子收藏夾）\n\n        Returns:\n            Tree structure with nested children\n\n        Example response:\n            {\n                \"count\": 2,\n                \"tree\": [\n                    {\n                        \"key\": \"ABC123\",\n                        \"name\": \"AI Research\",\n                        \"itemCount\": 10,\n                        \"children\": [\n                            {\"key\": \"DEF456\", \"name\": \"Deep Learning\", ...}\n                        ]\n                    }\n                ]\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "get_collection_treeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_find_collection",
+   "description": "\n        🔍 Find a collection by name\n\n        用名稱查找收藏夾（不區分大小寫）\n\n        Args:\n            name: Collection name to search for\n            parent_name: Optional parent collection name to narrow search\n\n        Returns:\n            Collection if found, or suggestions if not found\n\n        Example:\n            find_collection(name=\"AI Research\")\n            find_collection(name=\"Deep Learning\", parent_name=\"AI Research\")\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "parent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Parent Name"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "find_collectionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_interactive_save",
+   "description": "\n        💾 Interactive save with collection selection\n\n        互動式儲存 - 會列出所有收藏夾讓你選擇\n\n        🎯 This tool uses MCP Elicitation to:\n        1. Show all available collections as numbered options\n        2. Highlight suggested collections based on title/tags\n        3. Let you choose by entering a number\n        4. Confirm if duplicates are found\n\n        🔒 DATA INTEGRITY:\n        When DOI or PMID is provided, this tool will **automatically fetch**\n        complete article metadata from external APIs (CrossRef/PubMed).\n\n        Args:\n            item_type: Type (journalArticle, book, etc.)\n            title: Reference title (required)\n            creators: List of author dicts\n            doi: Digital Object Identifier → 自動從 CrossRef 取得完整資料\n            pmid: PubMed ID → 自動從 PubMed 取得完整資料 + RCR\n            skip_collection_prompt: If True, save without asking\n\n        Returns:\n            Success/failure with details\n        ",
+   "parameters": {
+    "properties": {
+     "item_type": {
+      "title": "Item Type",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "creators": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Creators"
+     },
+     "doi": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Doi"
+     },
+     "isbn": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Isbn"
+     },
+     "pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmid"
+     },
+     "publication_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Publication Title"
+     },
+     "date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Date"
+     },
+     "abstract": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Abstract"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Url"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "skip_collection_prompt": {
+      "default": false,
+      "title": "Skip Collection Prompt",
+      "type": "boolean"
+     },
+     "auto_fetch_metadata": {
+      "default": true,
+      "title": "Auto Fetch Metadata",
+      "type": "boolean"
+     },
+     "include_citation_metrics": {
+      "default": true,
+      "title": "Include Citation Metrics",
+      "type": "boolean"
+     },
+     "extra_fields": {
+      "title": "extra_fields",
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_type",
+     "title",
+     "extra_fields"
+    ],
+    "title": "interactive_saveArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_quick_save",
+   "description": "\n        ⚡ Quick save without interactive prompts\n\n        快速儲存（不詢問，直接存）\n\n        Use this when you already know the collection, or want to save\n        without interaction. For interactive collection selection,\n        use `interactive_save` instead.\n\n        🔒 DATA INTEGRITY:\n        When DOI or PMID is provided, this tool will **automatically fetch**\n        complete article metadata from external APIs (CrossRef/PubMed).\n\n        Args:\n            item_type: Type (journalArticle, book, etc.)\n            title: Reference title (required)\n            collection_key: Collection key to save to\n            collection_name: OR collection name (will be looked up)\n            doi: Digital Object Identifier → 自動從 CrossRef 取得完整資料\n            pmid: PubMed ID → 自動從 PubMed 取得完整資料 + RCR\n            force_add: Add even if duplicate found\n\n        Returns:\n            Success/failure with details\n        ",
+   "parameters": {
+    "properties": {
+     "item_type": {
+      "title": "Item Type",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     },
+     "collection_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Name"
+     },
+     "creators": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Creators"
+     },
+     "doi": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Doi"
+     },
+     "isbn": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Isbn"
+     },
+     "pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmid"
+     },
+     "publication_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Publication Title"
+     },
+     "date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Date"
+     },
+     "abstract": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Abstract"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Url"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "force_add": {
+      "default": false,
+      "title": "Force Add",
+      "type": "boolean"
+     },
+     "auto_fetch_metadata": {
+      "default": true,
+      "title": "Auto Fetch Metadata",
+      "type": "boolean"
+     },
+     "include_citation_metrics": {
+      "default": true,
+      "title": "Include Citation Metrics",
+      "type": "boolean"
+     },
+     "extra_fields": {
+      "title": "extra_fields",
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_type",
+     "title",
+     "extra_fields"
+    ],
+    "title": "quick_saveArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_list_saved_searches",
+   "description": "\n        📋 List all saved searches in Zotero\n\n        列出所有已儲存的搜尋條件\n\n        🌟 Local API 獨有功能！\n\n        Returns:\n            List of saved searches with names and keys\n\n        Example response:\n            {\n                \"count\": 3,\n                \"searches\": [\n                    {\"key\": \"ABC123\", \"name\": \"Missing PDF\", \"conditions\": [...]},\n                    {\"key\": \"DEF456\", \"name\": \"Unread Papers\", \"conditions\": [...]},\n                    {\"key\": \"GHI789\", \"name\": \"Recent Additions\", \"conditions\": [...]}\n                ]\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "list_saved_searchesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_run_saved_search",
+   "description": "\n        ▶️ Execute a saved search and return matching items\n\n        執行已儲存的搜尋條件並返回符合的文獻\n\n        🌟 這是 Local API 獨有的功能！Web API 無法做到這點。\n\n        Args:\n            search_key: The saved search key (e.g., \"ABC12345\")\n            search_name: OR the saved search name (e.g., \"Missing PDF\")\n            limit: Maximum items to return (default: 50)\n\n        Returns:\n            List of items matching the saved search conditions\n\n        Example:\n            # By key\n            run_saved_search(search_key=\"ABC12345\")\n\n            # By name (case-insensitive)\n            run_saved_search(search_name=\"Missing PDF\")\n\n        Use cases:\n            - \"Which papers don't have PDFs?\" → run_saved_search(search_name=\"Missing PDF\")\n            - \"What did I add this week?\" → run_saved_search(search_name=\"Recent Additions\")\n            - \"Show unread papers\" → run_saved_search(search_name=\"Unread\")\n        ",
+   "parameters": {
+    "properties": {
+     "search_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Search Key"
+     },
+     "search_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Search Name"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "title": "run_saved_searchArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_get_saved_search_details",
+   "description": "\n        🔍 Get details of a specific saved search\n\n        取得特定已儲存搜尋的詳細條件\n\n        Args:\n            search_key: The saved search key (e.g., \"ABC12345\")\n\n        Returns:\n            Saved search details including all conditions\n\n        Example response:\n            {\n                \"found\": true,\n                \"search\": {\n                    \"key\": \"ABC12345\",\n                    \"name\": \"Missing PDF\",\n                    \"conditions\": [\n                        {\"condition\": \"attachment\", \"operator\": \"isNot\", \"value\": \"PDF\"}\n                    ]\n                }\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "search_key": {
+      "title": "Search Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "search_key"
+    ],
+    "title": "get_saved_search_detailsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_advanced_search",
+   "description": "\n        🔍 Advanced search with multiple conditions in Zotero library\n\n        使用多重條件搜尋 Zotero 書庫\n\n        Args:\n            q: Quick search query (title, creator, year)\n            item_type: Filter by type (journalArticle, book, -attachment, etc.)\n            tag: Single tag filter\n            tags: Multiple tags (AND logic)\n            sort: Sort field (dateModified, dateAdded, title, etc.)\n            direction: Sort direction (desc, asc)\n            qmode: Search mode (titleCreatorYear, everything)\n            limit: Maximum results\n            include_trashed: Include trash items\n\n        Returns:\n            Search results with formatted output\n        ",
+   "parameters": {
+    "properties": {
+     "q": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Q"
+     },
+     "item_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Item Type"
+     },
+     "tag": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tag"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "sort": {
+      "default": "dateModified",
+      "title": "Sort",
+      "type": "string"
+     },
+     "direction": {
+      "default": "desc",
+      "title": "Direction",
+      "type": "string"
+     },
+     "qmode": {
+      "default": "titleCreatorYear",
+      "title": "Qmode",
+      "type": "string"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "include_trashed": {
+      "default": false,
+      "title": "Include Trashed",
+      "type": "boolean"
+     }
+    },
+    "title": "advanced_searchArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_get_library_stats",
+   "description": "\n        📊 Get library statistics and insights\n\n        取得文獻庫統計分析：年份、作者、期刊分布\n\n        Returns:\n            Statistics including:\n            - total_items: Total number of items\n            - by_type: Count by item type (journalArticle, book, etc.)\n            - by_year: Distribution by publication year\n            - top_authors: Most frequent authors\n            - top_journals: Most frequent journals\n            - tag_stats: Tag usage statistics\n            - collection_stats: Collection statistics\n\n        Example:\n            get_library_stats()\n            → {\n                \"total_items\": 150,\n                \"by_type\": {\"journalArticle\": 120, \"book\": 20, \"thesis\": 10},\n                \"by_year\": {\"2024\": 30, \"2023\": 45, \"2022\": 25, ...},\n                \"top_authors\": [[\"Smith J\", 15], [\"Lee K\", 12], ...],\n                \"top_journals\": [[\"Nature\", 10], [\"Science\", 8], ...],\n                ...\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "get_library_statsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_find_orphan_items",
+   "description": "\n        🔍 Find orphan items (no collection or no tags)\n\n        找出「孤兒」文獻：無 Collection 或無標籤的項目\n\n        Helps you organize your library by identifying items that may need attention.\n\n        Args:\n            limit: Maximum items to return per category (default: 50)\n            include_no_collection: Include items without any collection (default: True)\n            include_no_tags: Include items without any tags (default: True)\n\n        Returns:\n            Lists of orphan items:\n            - no_collection: Items not in any collection\n            - no_tags: Items without any tags\n            - completely_orphan: Items with neither collection nor tags\n\n        Example:\n            find_orphan_items()\n            → {\n                \"no_collection\": [{\"key\": \"ABC123\", \"title\": \"Paper 1\", ...}, ...],\n                \"no_tags\": [...],\n                \"completely_orphan\": [...],\n                \"summary\": {\"no_collection\": 25, \"no_tags\": 40, \"completely_orphan\": 15}\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "include_no_collection": {
+      "default": true,
+      "title": "Include No Collection",
+      "type": "boolean"
+     },
+     "include_no_tags": {
+      "default": true,
+      "title": "Include No Tags",
+      "type": "boolean"
+     }
+    },
+    "title": "find_orphan_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "zotero_import_articles",
+   "description": "\n        📥 Unified Import Tool - Import articles from ANY source to Zotero\n\n        統一匯入工具 - 從任何來源匯入文章到 Zotero\n\n        ⭐ THIS IS THE SINGLE TOOL FOR ALL IMPORTS:\n        - Accepts articles from pubmed-search-mcp (any search tool)\n        - Accepts RIS text (from prepare_export or external sources)\n        - Automatically handles format conversion\n        - Supports collection targeting with validation\n\n        🔗 INTEGRATION WITH pubmed-search-mcp:\n        Articles from these tools can be directly imported:\n        - search_literature() → articles\n        - search_europe_pmc() → articles\n        - search_core() → articles  \n        - fetch_article_details() → article\n        - prepare_export(format=\"ris\") → ris_text\n\n        ⚠️ COLLECTION 防呆:\n        - If collection_name/collection_key is specified but not found → ERROR\n        - Returns available collections list for user to choose\n        - If no collection specified → saves to library root (with warning)\n\n        Args:\n            articles: List of article dicts from pubmed-search-mcp\n                     Format: UnifiedArticle.to_dict() or search result format\n            ris_text: Alternative - RIS format text to parse and import\n            collection_name: Target collection name (human-readable, recommended)\n            collection_key: Target collection key (alternative)\n            tags: Additional tags to add to all imported items\n            skip_duplicates: If True (default), skip articles already in Zotero\n\n        Returns:\n            Import result with:\n            - success: bool\n            - imported: number of items imported\n            - skipped: number of duplicates skipped\n            - items: list of imported titles\n            - saved_to: collection info or \"My Library (root)\"\n            - errors: any errors encountered\n\n        Example - From PubMed search:\n            # Step 1: Search with pubmed-search-mcp\n            results = await search_literature(\"machine learning anesthesia\", limit=10)\n            \n            # Step 2: Import to Zotero\n            await import_articles(\n                articles=results[\"articles\"],\n                collection_name=\"ML Anesthesia\",\n                tags=[\"ML\", \"review-2024\"]\n            )\n\n        Example - From Europe PMC:\n            results = await search_europe_pmc(\"CRISPR\", open_access_only=True)\n            await import_articles(articles=results[\"articles\"], collection_name=\"CRISPR OA\")\n\n        Example - From RIS text:\n            ris = await prepare_export(pmids=\"12345678,87654321\", format=\"ris\")\n            await import_articles(ris_text=ris[\"content\"], collection_name=\"My Collection\")\n        ",
+   "parameters": {
+    "properties": {
+     "articles": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Articles"
+     },
+     "ris_text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Ris Text"
+     },
+     "collection_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Name"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "skip_duplicates": {
+      "default": true,
+      "title": "Skip Duplicates",
+      "type": "boolean"
+     }
+    },
+    "title": "import_articlesArguments",
+    "type": "object"
+   }
+  }
+ }
+]

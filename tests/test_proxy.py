@@ -5,7 +5,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from conftest import TOOLS, FakeBackend, call
-from llama_mcp_router import BM25Selector, Selection, Selector
+from llama_mcp_router import BM25Selector, LayaSelector, Selection, Selector
 from llama_mcp_router.proxy import RouterConfig, called_tool_names, create_app, last_user_query
 
 
@@ -183,3 +183,48 @@ def test_abstain_sends_no_tools_and_drops_tool_choice(backend):
         r = c.post("/v1/chat/completions", json={"messages": [user("thanks, that is all for today")], "tool_choice": "auto"})
     assert r.status_code == 200 and "tools" not in backend.requests[0] and "tool_choice" not in backend.requests[0]
     assert r.headers["x-router-tools"] == ""
+
+
+class Ranked(Selector):
+    name = "ranked"
+
+    async def select(self, query, tools):
+        return Selection(["pm_export"], {}, ranking=["pm_gene", "pm_export", "pm_search"], hint="exporting citations (90%)")
+
+
+def test_reorder_sends_all_tools_most_relevant_first(backend):
+    with make(backend, Ranked(), apply="reorder") as c:
+        c.post("/v1/chat/completions", json={"messages": [user("export my citations please")]})
+    names = [t["function"]["name"] for t in backend.requests[0]["tools"]]
+    assert len(names) == 5 and names[:3] == ["pm_gene", "pm_export", "pm_search"]
+
+
+def test_hint_is_appended_to_last_user_message_only(backend):
+    msgs = [{"role": "system", "content": "sys"}, user("first question here"), {"role": "assistant", "content": "a"}, user("export my citations")]
+    with make(backend, Ranked(), hint=True) as c:
+        c.post("/v1/chat/completions", json={"messages": msgs})
+    sent = backend.requests[0]["messages"]
+    assert sent[1]["content"] == "first question here" and sent[0]["content"] == "sys"
+    assert sent[3]["content"].startswith("export my citations") and "exporting citations (90%)" in sent[3]["content"]
+    assert [t["function"]["name"] for t in backend.requests[0]["tools"]] == ["pm_export"]
+
+
+def test_apply_all_with_hint_keeps_every_tool(backend):
+    with make(backend, Ranked(), apply="all", hint=True) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("export my citations please")]})
+    assert len(backend.requests[0]["tools"]) == 5 and "Routing hint" in backend.requests[0]["messages"][0]["content"]
+
+
+def test_laya_selection_carries_ranking_and_hint():
+    import httpx
+
+    def handler(request):
+        return httpx.Response(200, json={"answers": {"tool_group": {"probabilities": {"export": 0.1, "gene": 0.7, "search": 0.2}}}})
+
+    from conftest import GROUPS, TOOLS
+    import asyncio
+
+    sel = LayaSelector(groups=GROUPS, views="single", max_groups=1, transport=httpx.MockTransport(handler))
+    res = asyncio.run(sel.select("brca1", TOOLS))
+    assert res.names == ["pm_gene"] and res.ranking[:3] == ["pm_gene", "pm_search", "pm_export"] and "genes (70%)" in res.hint
+    assert set(res.ranking) == {t["function"]["name"] for t in TOOLS}

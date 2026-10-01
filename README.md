@@ -87,6 +87,17 @@ Skip the router per request with header `X-Router-Bypass: 1` or body field `"rou
 | `inject` (default) | The client runs tool calls, exactly as with plain llama-server. |
 | `agent` | The router also **executes** llama-server tools (`POST /tools`) and loops until the model answers (`--max-iterations`). Tool calls for client-declared tools are returned to the client. Streaming is emulated (the full answer arrives as one chunk). |
 
+### What is sent: `--apply` and `--hint`
+
+| flag | behaviour |
+|---|---|
+| `--apply select` (default) | send only the selected tools |
+| `--apply reorder` | send **all** tools, most relevant first (no recall loss, no prefill saving) |
+| `--apply all --hint` | send all tools unchanged and add a one-line routing hint to the last user message |
+| `--hint` (with `select`) | selection + hint |
+
+The hint is appended to the *last user message*, i.e. late in the prompt, so llama-server's cached prefix is not disturbed. See [benchmarks/HARNESS.md](benchmarks/HARNESS.md) for what each is worth.
+
 ### Tool groups
 
 Groups give the selector a small, meaningful label set instead of 40 raw tools:

@@ -1,0 +1,846 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "check_connection",
+   "description": "\n            🔌 Check connection to Zotero\n\n            Verifies that Zotero is running and accessible.\n\n            Returns:\n                Connection status and endpoint info\n            ",
+   "parameters": {
+    "properties": {},
+    "title": "check_connectionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "search_items",
+   "description": "\n        🔍 Search for references in Zotero\n\n        搜尋 Zotero 中的書目資料\n\n        Args:\n            query: Search terms (title, author, year)\n            limit: Maximum results to return (default: 25)\n\n        Returns:\n            List of matching items with metadata\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "title": "search_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item",
+   "description": "\n        📖 Get detailed item by key\n\n        取得單一文獻的完整資料\n\n        Args:\n            key: Zotero item key (e.g., \"ABC12345\")\n\n        Returns:\n            Full item metadata\n        ",
+   "parameters": {
+    "properties": {
+     "key": {
+      "title": "Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key"
+    ],
+    "title": "get_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_items",
+   "description": "\n        📋 List recent items\n\n        列出最近的文獻\n\n        Args:\n            limit: Maximum items to return (default: 20)\n            collection_key: Optional - filter by collection\n\n        Returns:\n            List of items with basic metadata\n        ",
+   "parameters": {
+    "properties": {
+     "limit": {
+      "default": 20,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     }
+    },
+    "title": "list_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_tags",
+   "description": "\n        🏷️ List all tags\n\n        列出所有標籤\n\n        Returns:\n            List of tags\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "list_tagsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item_types",
+   "description": "\n        📝 Get available item types\n\n        取得可用的文獻類型\n\n        Returns:\n            List of item types (journalArticle, book, etc.)\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "get_item_typesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_collections",
+   "description": "\n        📁 List all collections in Zotero library\n\n        列出所有收藏夾\n\n        ⭐ IMPORTANT: Use this tool BEFORE importing articles!\n        Show the user available collections so they can choose where to save.\n\n        💡 WORKFLOW:\n        1. Search articles (search_pubmed_exclude_owned)\n        2. Call list_collections to show options\n        3. Ask user: \"Which collection should I save these to?\"\n        4. Import with collection_name parameter\n\n        Returns:\n            List of collections with item counts\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "list_collectionsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_collection",
+   "description": "\n        📁 Get a specific collection by key\n\n        取得特定收藏夾的詳細資訊\n\n        Args:\n            key: Collection key (e.g., \"ABC12345\")\n\n        Returns:\n            Collection details including name and item count\n        ",
+   "parameters": {
+    "properties": {
+     "key": {
+      "title": "Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key"
+    ],
+    "title": "get_collectionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_collection_items",
+   "description": "\n        📚 Get items in a specific collection\n\n        取得特定收藏夾內的所有文獻\n\n        Args:\n            collection_key: Collection key (e.g., \"ABC12345\")\n            limit: Maximum items to return (default: 50)\n\n        Returns:\n            List of items in the collection\n        ",
+   "parameters": {
+    "properties": {
+     "collection_key": {
+      "title": "Collection Key",
+      "type": "string"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "collection_key"
+    ],
+    "title": "get_collection_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_collection_tree",
+   "description": "\n        🌳 Get collections as a hierarchical tree\n\n        取得收藏夾的樹狀結構（含子收藏夾）\n\n        Returns:\n            Tree structure with nested children\n\n        Example response:\n            {\n                \"count\": 2,\n                \"tree\": [\n                    {\n                        \"key\": \"ABC123\",\n                        \"name\": \"AI Research\",\n                        \"itemCount\": 10,\n                        \"children\": [\n                            {\"key\": \"DEF456\", \"name\": \"Deep Learning\", ...}\n                        ]\n                    }\n                ]\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "get_collection_treeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "find_collection",
+   "description": "\n        🔍 Find a collection by name\n\n        用名稱查找收藏夾（不區分大小寫）\n\n        Args:\n            name: Collection name to search for\n            parent_name: Optional parent collection name to narrow search\n\n        Returns:\n            Collection if found, or suggestions if not found\n\n        Example:\n            find_collection(name=\"AI Research\")\n            find_collection(name=\"Deep Learning\", parent_name=\"AI Research\")\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "parent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Parent Name"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "find_collectionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "interactive_save",
+   "description": "\n        💾 Interactive save with collection selection\n\n        互動式儲存 - 會列出所有收藏夾讓你選擇\n\n        🎯 This tool uses MCP Elicitation to:\n        1. Show all available collections as numbered options\n        2. Highlight suggested collections based on title/tags\n        3. Let you choose by entering a number\n        4. Confirm if duplicates are found\n\n        🔒 DATA INTEGRITY:\n        When DOI or PMID is provided, this tool will **automatically fetch**\n        complete article metadata from external APIs (CrossRef/PubMed).\n\n        Args:\n            item_type: Type (journalArticle, book, etc.)\n            title: Reference title (required)\n            creators: List of author dicts\n            doi: Digital Object Identifier → 自動從 CrossRef 取得完整資料\n            pmid: PubMed ID → 自動從 PubMed 取得完整資料 + RCR\n            skip_collection_prompt: If True, save without asking\n\n        Returns:\n            Success/failure with details\n        ",
+   "parameters": {
+    "properties": {
+     "item_type": {
+      "title": "Item Type",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "creators": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Creators"
+     },
+     "doi": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Doi"
+     },
+     "isbn": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Isbn"
+     },
+     "pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmid"
+     },
+     "publication_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Publication Title"
+     },
+     "date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Date"
+     },
+     "abstract": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Abstract"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Url"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "skip_collection_prompt": {
+      "default": false,
+      "title": "Skip Collection Prompt",
+      "type": "boolean"
+     },
+     "auto_fetch_metadata": {
+      "default": true,
+      "title": "Auto Fetch Metadata",
+      "type": "boolean"
+     },
+     "include_citation_metrics": {
+      "default": true,
+      "title": "Include Citation Metrics",
+      "type": "boolean"
+     },
+     "extra_fields": {
+      "title": "extra_fields",
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_type",
+     "title",
+     "extra_fields"
+    ],
+    "title": "interactive_saveArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "quick_save",
+   "description": "\n        ⚡ Quick save without interactive prompts\n\n        快速儲存（不詢問，直接存）\n\n        Use this when you already know the collection, or want to save\n        without interaction. For interactive collection selection,\n        use `interactive_save` instead.\n\n        🔒 DATA INTEGRITY:\n        When DOI or PMID is provided, this tool will **automatically fetch**\n        complete article metadata from external APIs (CrossRef/PubMed).\n\n        Args:\n            item_type: Type (journalArticle, book, etc.)\n            title: Reference title (required)\n            collection_key: Collection key to save to\n            collection_name: OR collection name (will be looked up)\n            doi: Digital Object Identifier → 自動從 CrossRef 取得完整資料\n            pmid: PubMed ID → 自動從 PubMed 取得完整資料 + RCR\n            force_add: Add even if duplicate found\n\n        Returns:\n            Success/failure with details\n        ",
+   "parameters": {
+    "properties": {
+     "item_type": {
+      "title": "Item Type",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     },
+     "collection_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Name"
+     },
+     "creators": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Creators"
+     },
+     "doi": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Doi"
+     },
+     "isbn": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Isbn"
+     },
+     "pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmid"
+     },
+     "publication_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Publication Title"
+     },
+     "date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Date"
+     },
+     "abstract": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Abstract"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Url"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "force_add": {
+      "default": false,
+      "title": "Force Add",
+      "type": "boolean"
+     },
+     "auto_fetch_metadata": {
+      "default": true,
+      "title": "Auto Fetch Metadata",
+      "type": "boolean"
+     },
+     "include_citation_metrics": {
+      "default": true,
+      "title": "Include Citation Metrics",
+      "type": "boolean"
+     },
+     "extra_fields": {
+      "title": "extra_fields",
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_type",
+     "title",
+     "extra_fields"
+    ],
+    "title": "quick_saveArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_saved_searches",
+   "description": "\n        📋 List all saved searches in Zotero\n\n        列出所有已儲存的搜尋條件\n\n        🌟 Local API 獨有功能！\n\n        Returns:\n            List of saved searches with names and keys\n\n        Example response:\n            {\n                \"count\": 3,\n                \"searches\": [\n                    {\"key\": \"ABC123\", \"name\": \"Missing PDF\", \"conditions\": [...]},\n                    {\"key\": \"DEF456\", \"name\": \"Unread Papers\", \"conditions\": [...]},\n                    {\"key\": \"GHI789\", \"name\": \"Recent Additions\", \"conditions\": [...]}\n                ]\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "list_saved_searchesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_saved_search",
+   "description": "\n        ▶️ Execute a saved search and return matching items\n\n        執行已儲存的搜尋條件並返回符合的文獻\n\n        🌟 這是 Local API 獨有的功能！Web API 無法做到這點。\n\n        Args:\n            search_key: The saved search key (e.g., \"ABC12345\")\n            search_name: OR the saved search name (e.g., \"Missing PDF\")\n            limit: Maximum items to return (default: 50)\n\n        Returns:\n            List of items matching the saved search conditions\n\n        Example:\n            # By key\n            run_saved_search(search_key=\"ABC12345\")\n\n            # By name (case-insensitive)\n            run_saved_search(search_name=\"Missing PDF\")\n\n        Use cases:\n            - \"Which papers don't have PDFs?\" → run_saved_search(search_name=\"Missing PDF\")\n            - \"What did I add this week?\" → run_saved_search(search_name=\"Recent Additions\")\n            - \"Show unread papers\" → run_saved_search(search_name=\"Unread\")\n        ",
+   "parameters": {
+    "properties": {
+     "search_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Search Key"
+     },
+     "search_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Search Name"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "title": "run_saved_searchArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_saved_search_details",
+   "description": "\n        🔍 Get details of a specific saved search\n\n        取得特定已儲存搜尋的詳細條件\n\n        Args:\n            search_key: The saved search key (e.g., \"ABC12345\")\n\n        Returns:\n            Saved search details including all conditions\n\n        Example response:\n            {\n                \"found\": true,\n                \"search\": {\n                    \"key\": \"ABC12345\",\n                    \"name\": \"Missing PDF\",\n                    \"conditions\": [\n                        {\"condition\": \"attachment\", \"operator\": \"isNot\", \"value\": \"PDF\"}\n                    ]\n                }\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "search_key": {
+      "title": "Search Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "search_key"
+    ],
+    "title": "get_saved_search_detailsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "advanced_search",
+   "description": "\n        🔍 Advanced search with multiple conditions in Zotero library\n\n        使用多重條件搜尋 Zotero 書庫\n\n        Args:\n            q: Quick search query (title, creator, year)\n            item_type: Filter by type (journalArticle, book, -attachment, etc.)\n            tag: Single tag filter\n            tags: Multiple tags (AND logic)\n            sort: Sort field (dateModified, dateAdded, title, etc.)\n            direction: Sort direction (desc, asc)\n            qmode: Search mode (titleCreatorYear, everything)\n            limit: Maximum results\n            include_trashed: Include trash items\n\n        Returns:\n            Search results with formatted output\n        ",
+   "parameters": {
+    "properties": {
+     "q": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Q"
+     },
+     "item_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Item Type"
+     },
+     "tag": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tag"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "sort": {
+      "default": "dateModified",
+      "title": "Sort",
+      "type": "string"
+     },
+     "direction": {
+      "default": "desc",
+      "title": "Direction",
+      "type": "string"
+     },
+     "qmode": {
+      "default": "titleCreatorYear",
+      "title": "Qmode",
+      "type": "string"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "include_trashed": {
+      "default": false,
+      "title": "Include Trashed",
+      "type": "boolean"
+     }
+    },
+    "title": "advanced_searchArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_library_stats",
+   "description": "\n        📊 Get library statistics and insights\n\n        取得文獻庫統計分析：年份、作者、期刊分布\n\n        Returns:\n            Statistics including:\n            - total_items: Total number of items\n            - by_type: Count by item type (journalArticle, book, etc.)\n            - by_year: Distribution by publication year\n            - top_authors: Most frequent authors\n            - top_journals: Most frequent journals\n            - tag_stats: Tag usage statistics\n            - collection_stats: Collection statistics\n\n        Example:\n            get_library_stats()\n            → {\n                \"total_items\": 150,\n                \"by_type\": {\"journalArticle\": 120, \"book\": 20, \"thesis\": 10},\n                \"by_year\": {\"2024\": 30, \"2023\": 45, \"2022\": 25, ...},\n                \"top_authors\": [[\"Smith J\", 15], [\"Lee K\", 12], ...],\n                \"top_journals\": [[\"Nature\", 10], [\"Science\", 8], ...],\n                ...\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "title": "get_library_statsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "find_orphan_items",
+   "description": "\n        🔍 Find orphan items (no collection or no tags)\n\n        找出「孤兒」文獻：無 Collection 或無標籤的項目\n\n        Helps you organize your library by identifying items that may need attention.\n\n        Args:\n            limit: Maximum items to return per category (default: 50)\n            include_no_collection: Include items without any collection (default: True)\n            include_no_tags: Include items without any tags (default: True)\n\n        Returns:\n            Lists of orphan items:\n            - no_collection: Items not in any collection\n            - no_tags: Items without any tags\n            - completely_orphan: Items with neither collection nor tags\n\n        Example:\n            find_orphan_items()\n            → {\n                \"no_collection\": [{\"key\": \"ABC123\", \"title\": \"Paper 1\", ...}, ...],\n                \"no_tags\": [...],\n                \"completely_orphan\": [...],\n                \"summary\": {\"no_collection\": 25, \"no_tags\": 40, \"completely_orphan\": 15}\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "include_no_collection": {
+      "default": true,
+      "title": "Include No Collection",
+      "type": "boolean"
+     },
+     "include_no_tags": {
+      "default": true,
+      "title": "Include No Tags",
+      "type": "boolean"
+     }
+    },
+    "title": "find_orphan_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "import_articles",
+   "description": "\n        📥 Unified Import Tool - Import articles from ANY source to Zotero\n\n        統一匯入工具 - 從任何來源匯入文章到 Zotero\n\n        ⭐ THIS IS THE SINGLE TOOL FOR ALL IMPORTS:\n        - Accepts articles from pubmed-search-mcp (any search tool)\n        - Accepts RIS text (from prepare_export or external sources)\n        - Automatically handles format conversion\n        - Supports collection targeting with validation\n\n        🔗 INTEGRATION WITH pubmed-search-mcp:\n        Articles from these tools can be directly imported:\n        - search_literature() → articles\n        - search_europe_pmc() → articles\n        - search_core() → articles  \n        - fetch_article_details() → article\n        - prepare_export(format=\"ris\") → ris_text\n\n        ⚠️ COLLECTION 防呆:\n        - If collection_name/collection_key is specified but not found → ERROR\n        - Returns available collections list for user to choose\n        - If no collection specified → saves to library root (with warning)\n\n        Args:\n            articles: List of article dicts from pubmed-search-mcp\n                     Format: UnifiedArticle.to_dict() or search result format\n            ris_text: Alternative - RIS format text to parse and import\n            collection_name: Target collection name (human-readable, recommended)\n            collection_key: Target collection key (alternative)\n            tags: Additional tags to add to all imported items\n            skip_duplicates: If True (default), skip articles already in Zotero\n\n        Returns:\n            Import result with:\n            - success: bool\n            - imported: number of items imported\n            - skipped: number of duplicates skipped\n            - items: list of imported titles\n            - saved_to: collection info or \"My Library (root)\"\n            - errors: any errors encountered\n\n        Example - From PubMed search:\n            # Step 1: Search with pubmed-search-mcp\n            results = await search_literature(\"machine learning anesthesia\", limit=10)\n            \n            # Step 2: Import to Zotero\n            await import_articles(\n                articles=results[\"articles\"],\n                collection_name=\"ML Anesthesia\",\n                tags=[\"ML\", \"review-2024\"]\n            )\n\n        Example - From Europe PMC:\n            results = await search_europe_pmc(\"CRISPR\", open_access_only=True)\n            await import_articles(articles=results[\"articles\"], collection_name=\"CRISPR OA\")\n\n        Example - From RIS text:\n            ris = await prepare_export(pmids=\"12345678,87654321\", format=\"ris\")\n            await import_articles(ris_text=ris[\"content\"], collection_name=\"My Collection\")\n        ",
+   "parameters": {
+    "properties": {
+     "articles": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Articles"
+     },
+     "ris_text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Ris Text"
+     },
+     "collection_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Name"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "skip_duplicates": {
+      "default": true,
+      "title": "Skip Duplicates",
+      "type": "boolean"
+     }
+    },
+    "title": "import_articlesArguments",
+    "type": "object"
+   }
+  }
+ }
+]

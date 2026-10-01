@@ -74,6 +74,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-tools", type=int, default=int(_env("MAX_TOOLS", "12")))
     s.add_argument("--always", default=_env("ALWAYS", ""), help="comma-separated tool names always sent")
     s.add_argument("--exclude", default=_env("EXCLUDE", ""), help="comma-separated fnmatch patterns of tools never offered")
+    s.add_argument("--apply", choices=["select", "reorder", "all"], default=_env("APPLY", "select"), help="select: send only the selection (default); reorder: send all tools, most relevant first; all: leave tools unchanged (use with --hint)")
+    s.add_argument("--hint", action="store_true", help="append the selector's routing hint to the last user message")
     s.add_argument("--no-server-tools", action="store_true", help="only route tools the client sends, ignore llama-server's /tools")
     s.add_argument("--sticky", action="store_true", help="keep each conversation's tool list append-only so llama-server's prompt cache can hit on follow-up turns (helps on-topic chats, hurts topic-hopping ones; see README)")
     s.add_argument("--fallback", choices=["all", "none"], default=_env("FALLBACK", "all"), help="if the selector fails")
@@ -139,6 +141,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         exclude=[x for x in a.exclude.split(",") if x],
         fallback=a.fallback,
         sticky=a.sticky,
+        apply=a.apply,
+        hint=a.hint,
     )
     uvicorn.run(create_app(cfg), host=a.host, port=a.port, log_level=a.log_level.lower())
     return 0
