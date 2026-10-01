@@ -45,10 +45,10 @@ def test_laya_choice_cumulative_mass_and_cap():
         assert set(crit) == {"search", "export", "gene", "pm_icd", "fs_read"}
         return {"tool_group": {"probabilities": {"export": 0.6, "search": 0.3, "gene": 0.07, "pm_icd": 0.02, "fs_read": 0.01}}}
 
-    sel = LayaSelector(groups=GROUPS, top_p=0.85, max_groups=3, transport=laya_transport(answers))
+    sel = LayaSelector(groups=GROUPS, views="single", top_p=0.85, max_groups=3, transport=laya_transport(answers))
     res = run(sel.select("export", TOOLS))
     assert res.names == ["pm_export", "pm_search"]  # 0.6 + 0.3 >= 0.85 -> stop
-    sel = LayaSelector(groups=GROUPS, top_p=1.0, max_groups=1, transport=laya_transport(answers))
+    sel = LayaSelector(groups=GROUPS, views="single", top_p=1.0, max_groups=1, transport=laya_transport(answers))
     assert run(sel.select("export", TOOLS)).names == ["pm_export"]
 
 
@@ -56,9 +56,9 @@ def test_laya_noul_mode_threshold_and_min_groups():
     def answers(q, qs):
         return {k: {"noul": p} for k, p in {"search": 0.2, "export": 0.7, "gene": 0.1, "pm_icd": 0.05, "fs_read": 0.0}.items()}
 
-    sel = LayaSelector(groups=GROUPS, mode="noul", threshold=0.5, transport=laya_transport(answers))
+    sel = LayaSelector(groups=GROUPS, views="single", mode="noul", threshold=0.5, transport=laya_transport(answers))
     assert run(sel.select("q", TOOLS)).names == ["pm_export"]
-    sel = LayaSelector(groups=GROUPS, mode="noul", threshold=0.95, min_groups=2, transport=laya_transport(answers))
+    sel = LayaSelector(groups=GROUPS, views="single", mode="noul", threshold=0.95, min_groups=2, transport=laya_transport(answers))
     assert run(sel.select("q", TOOLS)).names == ["pm_export", "pm_search"]
 
 
@@ -67,7 +67,7 @@ def test_laya_without_groups_is_per_tool():
         assert set(qs["tool_group"]["criteria"]) == {tool_name(t) for t in TOOLS}
         return {"tool_group": {"probabilities": {"pm_gene": 0.95, "pm_search": 0.05}}}
 
-    assert run(LayaSelector(top_p=0.9, transport=laya_transport(answers)).select("gene?", TOOLS)).names == ["pm_gene"]
+    assert run(LayaSelector(views="single", top_p=0.9, transport=laya_transport(answers)).select("gene?", TOOLS)).names == ["pm_gene"]
 
 
 def test_union_skips_failing_selector_and_dedups():
@@ -110,7 +110,7 @@ def test_laya_state_and_labels_are_what_the_lab_found_best():
     from conftest import laya_transport as lt
 
     grp = {"groups": {"export": {"description": "a very long description about exporting things", "label": "export citations", "tools": ["pm_export"]}}}
-    sel = LayaSelector(groups=grp, transport=lt(answers))
+    sel = LayaSelector(groups=grp, views="single", transport=lt(answers))
     run(sel.select("x" * 3000, TOOLS))
     q = seen["qs"]["tool_group"]
     assert q["instructions"] == "Which kind of tool does `request` need?"
@@ -139,6 +139,41 @@ def test_laya_query_is_capped_to_the_tail():
 
     import httpx
 
-    sel = LayaSelector(max_query_chars=10, transport=httpx.MockTransport(handler))
+    sel = LayaSelector(views="single", max_query_chars=10, transport=httpx.MockTransport(handler))
     run(sel.select("A" * 50 + "BBBBBBBBBB", TOOLS))
     assert got["state"] == {"request": "B" * 10}
+
+
+def test_laya_ensemble_averages_views_and_passes_model():
+    import json as j
+
+    import httpx
+
+    calls = []
+
+    def handler(request):
+        body = j.loads(request.content)
+        calls.append(body)
+        n = len(calls)
+        # view 1 prefers export, views 2 and 3 prefer gene -> mean picks gene first
+        probs = {"export": 0.7, "gene": 0.2, "search": 0.1} if "request" in str(body["state"]) else {"export": 0.1, "gene": 0.8, "search": 0.1}
+        return httpx.Response(200, json={"answers": {"tool_group": {"probabilities": probs}}})
+
+    sel = LayaSelector(groups=GROUPS, views="ensemble", max_groups=1, transport=httpx.MockTransport(handler))
+    res = run(sel.select("what is BRCA1", TOOLS))
+    assert len(calls) == 3
+    assert res.names == ["pm_gene"]
+    assert [c.get("model") for c in calls].count("multilingual") == 1
+    assert any(isinstance(c["state"], dict) for c in calls) and any(isinstance(c["state"], str) for c in calls)
+
+
+def test_laya_single_view_options_and_validation():
+    from llama_mcp_router import View
+
+    sel = LayaSelector(model="multilingual")
+    assert sel.views == [View("json", "label", "multilingual")]
+    assert LayaSelector(views=[{"state_mode": "raw"}, View(labels="auto")]).views[0].state_mode == "raw"
+    with pytest.raises(ValueError):
+        LayaSelector(views="nope")
+    with pytest.raises(ValueError):
+        LayaSelector(views=[{"labels": "bad"}])

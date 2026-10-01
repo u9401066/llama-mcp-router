@@ -33,6 +33,8 @@ def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
             "api_key": a.laya_api_key,
             "state_mode": a.laya_state,
             "labels": a.laya_labels,
+            "views": a.laya_views,
+            "model": a.laya_model,
         },
         "bm25": {"top_k": a.top_k},
     }
@@ -44,10 +46,12 @@ def _add_selector_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--laya-url", default=_env("LAYA_URL", "http://127.0.0.1:8000"))
     p.add_argument("--laya-api-key", default=_env("LAYA_API_KEY"))
     p.add_argument("--laya-mode", choices=["choice", "noul"], default=_env("LAYA_MODE", "choice"))
-    p.add_argument("--laya-state", choices=["json", "raw"], default=_env("LAYA_STATE", "json"), help="how the request is passed to Laya")
-    p.add_argument("--laya-labels", choices=["label", "description", "auto"], default=_env("LAYA_LABELS", "label"), help="text Laya sees for each group")
+    p.add_argument("--laya-state", choices=["json", "raw"], default=_env("LAYA_STATE"), help="how the request is passed to Laya")
+    p.add_argument("--laya-labels", choices=["label", "description", "auto"], default=_env("LAYA_LABELS"), help="text Laya sees for each group")
+    p.add_argument("--laya-views", choices=["single", "ensemble"], default=_env("LAYA_VIEWS"), help="ensemble (default): average three differently-framed questions, 3 Laya calls per request; single: one")
+    p.add_argument("--laya-model", default=_env("LAYA_MODEL"), help="force a Laya checkpoint (english | multilingual | typed-decisions); default: Laya routes by language")
     p.add_argument("--top-p", type=float, default=float(_env("TOP_P", "1.0")), help="keep groups until this much probability mass (choice mode)")
-    p.add_argument("--max-groups", type=int, default=int(_env("MAX_GROUPS", "3")))
+    p.add_argument("--max-groups", type=int, default=int(_env("MAX_GROUPS", "2")))
     p.add_argument("--threshold", type=float, default=float(_env("THRESHOLD", "0.5")), help="noul mode: min probability to keep a group")
     p.add_argument("--top-k", type=int, default=int(_env("TOP_K", "3")), help="bm25: number of tools")
 

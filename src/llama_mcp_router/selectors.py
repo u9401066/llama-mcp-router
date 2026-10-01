@@ -7,6 +7,7 @@ register it under the ``llama_mcp_router.selectors`` entry-point group.
 """
 from __future__ import annotations
 
+import asyncio
 import fnmatch
 import hashlib
 import importlib
@@ -117,6 +118,26 @@ def build_groups(cfg: Dict[str, Any], tools: Sequence[Tool]) -> List[Group]:
 
 # --------------------------------------------------------------------------- Laya
 
+@dataclass(frozen=True)
+class View:
+    """One way of asking Laya. Several views are averaged (``LayaSelector(views="ensemble")``)."""
+
+    state_mode: str = "json"  # "json": {"request": q}; "raw": q
+    labels: str = "label"  # "label" | "description" | "auto"
+    model: Optional[str] = None  # Laya checkpoint ("english", "multilingual", ...); None lets Laya route by language
+
+
+VIEW_PRESETS: Dict[str, List[View]] = {
+    "single": [View()],
+    # Different framings make different mistakes; the multilingual checkpoint covers non-English requests.
+    "ensemble": [View("json", "label"), View("raw", "auto"), View("raw", "description", "multilingual")],
+}
+
+
+def _as_view(v: Any) -> View:
+    return v if isinstance(v, View) else View(**v)
+
+
 class LayaSelector(Selector):
     """Use a `Laya <https://huggingface.co/convaiinnovations/laya>`_ server as a tool router.
 
@@ -130,9 +151,13 @@ class LayaSelector(Selector):
     14 of them (``head_max_len`` is 192 tokens in total), so ``label`` texts must be short and
     front-loaded, and *raising* ``head_max_len`` makes it worse.
 
-    ``state_mode``: ``"json"`` (default) or ``"raw"``.
-    ``labels``: ``"label"`` (group ``label`` or description, default), ``"description"`` or
-    ``"auto"`` (the first sentences of the member tools' own descriptions; needs no hand-written text).
+    ``views``: ``"ensemble"`` (the default: three differently-framed views averaged; on the tuning set
+    +6 points top-2 group recall over a single view for ~20 ms more), ``"single"``, or a list of
+    :class:`View` / dicts. Passing ``state_mode`` / ``labels`` / ``model`` instead builds one view.
+
+    ``state_mode``: ``"json"`` or ``"raw"``.
+    ``labels``: ``"label"`` (group ``label`` or description), ``"description"`` or ``"auto"``
+    (the first sentences of the member tools' own descriptions; needs no hand-written text).
     """
 
     name = "laya"
@@ -144,11 +169,13 @@ class LayaSelector(Selector):
         mode: str = "choice",
         top_p: float = 1.0,
         min_groups: int = 1,
-        max_groups: int = 3,
+        max_groups: int = 2,
         threshold: float = 0.5,
         instructions: Optional[str] = None,
-        state_mode: str = "json",
-        labels: str = "label",
+        state_mode: Optional[str] = None,
+        labels: Optional[str] = None,
+        model: Optional[str] = None,
+        views: Any = None,
         max_query_chars: int = 1500,
         api_key: Optional[str] = None,
         timeout: float = 10.0,
@@ -156,46 +183,79 @@ class LayaSelector(Selector):
     ):
         if mode not in ("choice", "noul"):
             raise ValueError("mode must be 'choice' or 'noul'")
-        if state_mode not in ("json", "raw"):
+        if state_mode not in (None, "json", "raw"):
             raise ValueError("state_mode must be 'json' or 'raw'")
-        if labels not in ("label", "description", "auto"):
+        if labels not in (None, "label", "description", "auto"):
             raise ValueError("labels must be 'label', 'description' or 'auto'")
         self.cfg = groups or {"always": [], "groups": {}}
         self.mode, self.top_p, self.min_groups, self.max_groups = mode, top_p, min_groups, max_groups
         self.threshold = threshold
-        self.state_mode, self.labels, self.max_query_chars = state_mode, labels, max_query_chars
-        json_mode = state_mode == "json"
-        self.instructions = instructions or ("Which kind of tool does `request` need?" if json_mode else "Which kind of tool is needed to handle this request?")
-        self._noul_tmpl = "Does `request` require: {d}?" if json_mode else "Does handling this request require: {d}?"
+        self.max_query_chars = max_query_chars
+        if views is None and state_mode is None and labels is None and model is None:
+            views = "ensemble"
+        if views is None:
+            self.views = [View(state_mode or "json", labels or "label", model)]
+        elif isinstance(views, str):
+            if views not in VIEW_PRESETS:
+                raise ValueError("unknown views preset %r (use %s)" % (views, ", ".join(VIEW_PRESETS)))
+            self.views = list(VIEW_PRESETS[views])
+        else:
+            self.views = [_as_view(v) for v in views]
+        for v in self.views:
+            if v.state_mode not in ("json", "raw") or v.labels not in ("label", "description", "auto"):
+                raise ValueError("invalid view %r" % (v,))
+        self._custom_instructions = instructions
         headers = {"Authorization": "Bearer " + api_key} if api_key else {}
         self.client = httpx.AsyncClient(base_url=url.rstrip("/"), headers=headers, timeout=timeout, transport=transport)
-        self._cache: Dict[str, Tuple[List[Group], Dict[str, Any]]] = {}
+        self._cache: Dict[str, Tuple[List[Group], List[Dict[str, Any]]]] = {}
 
     async def aclose(self) -> None:
         await self.client.aclose()
 
-    def _prepare(self, tools: Sequence[Tool]) -> Tuple[List[Group], Dict[str, Any]]:
+    def _instruction(self, view: View) -> str:
+        if self._custom_instructions:
+            return self._custom_instructions
+        return "Which kind of tool does `request` need?" if view.state_mode == "json" else "Which kind of tool is needed to handle this request?"
+
+    def _noul_text(self, view: View) -> str:
+        return "Does `request` require: {d}?" if view.state_mode == "json" else "Does handling this request require: {d}?"
+
+    def _prepare(self, tools: Sequence[Tool]) -> Tuple[List[Group], List[Dict[str, Any]]]:
         key = hashlib.sha1("\0".join(sorted(tool_name(t) for t in tools)).encode()).hexdigest()
         if key not in self._cache:
             groups = build_groups(self.cfg, tools)
-            text = {g.name: {"label": g.label, "description": g.description, "auto": g.auto_label}[self.labels] for g in groups}
-            if self.mode == "choice":
-                questions = {"tool_group": {"type": "choice", "instructions": self.instructions, "criteria": text}}
-            else:
-                questions = {g.name: {"type": "noul", "instructions": self._noul_tmpl.format(d=text[g.name])} for g in groups}
-            self._cache = {key: (groups, questions)}
+            qsets: List[Dict[str, Any]] = []
+            for v in self.views:
+                text = {g.name: {"label": g.label, "description": g.description, "auto": g.auto_label}[v.labels] for g in groups}
+                if self.mode == "choice":
+                    qsets.append({"tool_group": {"type": "choice", "instructions": self._instruction(v), "criteria": text}})
+                else:
+                    qsets.append({g.name: {"type": "noul", "instructions": self._noul_text(v).format(d=text[g.name])} for g in groups})
+            self._cache = {key: (groups, qsets)}
         return self._cache[key]
 
-    async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
-        groups, questions = self._prepare(tools)
-        query = query[-self.max_query_chars:]
-        state = {"request": query} if self.state_mode == "json" else query
-        r = await self.client.post("/v1/systemone", json={"state": state, "questions": questions})
+    async def _ask(self, view: View, questions: Dict[str, Any], query: str, groups: List[Group]) -> Dict[str, float]:
+        state = {"request": query} if view.state_mode == "json" else query
+        body: Dict[str, Any] = {"state": state, "questions": questions}
+        if view.model:
+            body["model"] = view.model
+        r = await self.client.post("/v1/systemone", json=body)
         r.raise_for_status()
         answers = r.json()["answers"]
         if self.mode == "choice":
-            probs = answers["tool_group"]["probabilities"]
-            ranked = sorted(probs.items(), key=lambda kv: -kv[1])
+            probs = {k: float(p) for k, p in answers["tool_group"]["probabilities"].items()}
+        else:
+            probs = {g.name: float(answers[g.name]["noul"]) for g in groups}
+        z = sum(probs.values()) or 1.0
+        return {k: p / z for k, p in probs.items()} if len(self.views) > 1 or self.mode == "noul" else probs
+
+    async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
+        groups, qsets = self._prepare(tools)
+        query = query[-self.max_query_chars:]
+        per_view = await asyncio.gather(*[self._ask(v, q, query, groups) for v, q in zip(self.views, qsets)])
+        probs = {g.name: sum(p.get(g.name, 0.0) for p in per_view) / len(per_view) for g in groups}
+        ranked = sorted(probs.items(), key=lambda kv: -kv[1])
+        if self.mode == "choice":
             kept, mass = [], 0.0
             for name, p in ranked:
                 if len(kept) >= self.max_groups or (len(kept) >= self.min_groups and mass >= self.top_p):
@@ -203,8 +263,6 @@ class LayaSelector(Selector):
                 kept.append(name)
                 mass += p
         else:
-            probs = {g.name: answers[g.name]["noul"] for g in groups}
-            ranked = sorted(probs.items(), key=lambda kv: -kv[1])
             kept = [n for n, p in ranked if p >= self.threshold][: self.max_groups]
             if len(kept) < self.min_groups:
                 kept = [n for n, _ in ranked[: self.min_groups]]

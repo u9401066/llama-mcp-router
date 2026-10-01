@@ -191,7 +191,7 @@ async def main():
     ap.add_argument("--groups", default=str(ROOT.parent / "examples/pubmed_groups.json"))
     ap.add_argument("--laya-url", default="http://127.0.0.1:8000")
     ap.add_argument("--top-p", type=float, default=1.0)
-    ap.add_argument("--max-groups", type=int, default=3)
+    ap.add_argument("--max-groups", type=int, default=2)
     ap.add_argument("--top-k", type=int, default=5)
     ap.add_argument("--llm", help="OpenAI-compatible base URL, enables phase 2")
     ap.add_argument("--effort", default="medium")
