@@ -67,7 +67,7 @@ def test_laya_without_groups_is_per_tool():
         assert set(qs["tool_group"]["criteria"]) == {tool_name(t) for t in TOOLS}
         return {"tool_group": {"probabilities": {"pm_gene": 0.95, "pm_search": 0.05}}}
 
-    assert run(LayaSelector(transport=laya_transport(answers)).select("gene?", TOOLS)).names == ["pm_gene"]
+    assert run(LayaSelector(top_p=0.9, transport=laya_transport(answers)).select("gene?", TOOLS)).names == ["pm_gene"]
 
 
 def test_union_skips_failing_selector_and_dedups():
