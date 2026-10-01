@@ -108,3 +108,96 @@ router, default (not sticky)
   turn 5:  5 tools  prefill     792 ms  (read  1661 tokens, reused     0)
   total prefill: 10.1 s
 ```
+
+
+# v0.2 / v0.3 runs
+
+## Fresh test set, 41 PubMed tools, 68 queries (56 tool requests, 12 chit-chat): accuracy
+
+### Selection (no LLM): 56 tool requests, 12 no-tool requests
+
+| selector | recall on tool requests | tools sent (tool requests) | tools sent (no-tool requests) | no-tool requests sent zero tools | schema KB (avg, all) | selector ms (median) |
+|---|---|---|---|---|---|---|
+| all | 100.0% | 41.0 | 41.0 | 0/12 | 136.9 | 0 |
+| v0.1 laya+bm25 | 94.6% | 10.4 | 10.8 | 0/12 | 41.7 | 12 |
+| v0.2 laya+bm25 | 92.9% | 7.7 | 7.6 | 0/12 | 28.8 | 32 |
+| v0.2 +none(0.7) | 85.7% | 7.1 | 3.6 | 6/12 | 24.7 | 33 |
+| oracle | 100.0% | 3.6 | 0.0 | 12/12 | 10.0 | 1 |
+
+### First tool call by the 27B model
+
+| selector | correct (all) | tool requests | no-tool requests (answered without a tool call) | EN | 中文 | prompt tokens (avg) | seconds/query (avg) |
+|---|---|---|---|---|---|---|---|
+| all | 94.1% | 94.6% | 91.7% | 92.3% | 100.0% | 30592 | 6.3 |
+| v0.1 laya+bm25 | 92.6% | 92.9% | 91.7% | 94.2% | 87.5% | 9290 | 12.4 |
+| v0.2 laya+bm25 | 88.2% | 89.3% | 83.3% | 90.4% | 81.2% | 6476 | 9.1 |
+| v0.2 +none(0.7) | 82.4% | 82.1% | 83.3% | 84.6% | 75.0% | 5443 | 9.1 |
+| oracle | 97.1% | 96.4% | 100.0% | 96.2% | 100.0% | 2387 | 3.8 |
+
+
+## Hard set, 61 tools (PubMed + Zotero Keeper), 110 queries: accuracy
+
+Note: the row `oracle all+hint` in this run is invalid (a bug sent no hint and no tools-selection; it behaves like `all`, 102/110 vs 101/110, i.e. a run-to-run noise sample). It was fixed and rerun below.
+
+### Selection (no LLM): 98 tool requests, 12 no-tool requests
+
+| selector | recall on tool requests | tools sent (tool requests) | tools sent (no-tool requests) | no-tool requests sent zero tools | schema KB (avg, all) | selector ms (median) |
+|---|---|---|---|---|---|---|
+| all | 100.0% | 61.0 | 61.0 | 0/12 | 161.2 | 0 |
+| v0.1 laya+bm25 | 87.8% | 11.4 | 14.4 | 0/12 | 29.3 | 12 |
+| v0.2 laya+bm25 | 90.8% | 9.6 | 8.8 | 0/12 | 21.0 | 32 |
+| v0.2 top3+bm25 | 93.9% | 13.0 | 11.8 | 0/12 | 27.6 | 32 |
+| v0.2 reorder | 90.8% | 9.6 | 8.8 | 0/12 | 21.0 | 32 |
+| v0.2 all+hint | 90.8% | 9.6 | 8.8 | 0/12 | 21.0 | 32 |
+| v0.2 select+hint | 90.8% | 9.6 | 8.8 | 0/12 | 21.0 | 32 |
+| oracle all+hint | 0.0% | 0.0 | 0.0 | 12/12 | 0.0 | 1 |
+
+### First tool call by the 27B model
+
+| selector | correct (all) | tool requests | no-tool requests (answered without a tool call) | EN | 中文 | prompt tokens (avg) | seconds/query (avg) |
+|---|---|---|---|---|---|---|---|
+| all | 91.8% | 90.8% | 100.0% | 89.9% | 96.8% | 36481 | 6.9 |
+| v0.1 laya+bm25 | 83.6% | 81.6% | 100.0% | 87.3% | 74.2% | 6769 | 9.2 |
+| v0.2 laya+bm25 | 89.1% | 87.8% | 100.0% | 93.7% | 77.4% | 4912 | 7.3 |
+| v0.2 top3+bm25 | 90.0% | 88.8% | 100.0% | 92.4% | 83.9% | 6472 | 8.8 |
+| v0.2 reorder | 94.5% | 93.9% | 100.0% | 93.7% | 96.8% | 36481 | 44.6 |
+| v0.2 all+hint | 92.7% | 93.9% | 83.3% | 92.4% | 93.5% | 36549 | 7.5 |
+| v0.2 select+hint | 89.1% | 87.8% | 100.0% | 93.7% | 77.4% | 4980 | 8.2 |
+| oracle all+hint | 92.7% | 91.8% | 100.0% | 91.1% | 96.8% | 36481 | 6.4 |
+
+
+## Hard set: oracle runs after the fix
+
+### Selection (no LLM): 98 tool requests, 12 no-tool requests
+
+| selector | recall on tool requests | tools sent (tool requests) | tools sent (no-tool requests) | no-tool requests sent zero tools | schema KB (avg, all) | selector ms (median) |
+|---|---|---|---|---|---|---|
+| oracle | 100.0% | 4.3 | 0.0 | 12/12 | 9.0 | 1 |
+| oracle all+hint | 100.0% | 4.3 | 0.0 | 12/12 | 9.0 | 1 |
+
+### First tool call by the 27B model
+
+| selector | correct (all) | tool requests | no-tool requests (answered without a tool call) | EN | 中文 | prompt tokens (avg) | seconds/query (avg) |
+|---|---|---|---|---|---|---|---|
+| oracle | 98.2% | 98.0% | 100.0% | 97.5% | 100.0% | 2239 | 3.6 |
+| oracle all+hint | 93.6% | 92.9% | 100.0% | 92.4% | 96.8% | 36527 | 7.0 |
+
+
+## Hard set: prefill timing (20 sampled queries, nothing cached)
+
+### Selection (no LLM): 18 tool requests, 2 no-tool requests
+
+| selector | recall on tool requests | tools sent (tool requests) | tools sent (no-tool requests) | no-tool requests sent zero tools | schema KB (avg, all) | selector ms (median) |
+|---|---|---|---|---|---|---|
+| all | 100.0% | 61.0 | 61.0 | 0/2 | 161.2 | 0 |
+| v0.1 laya+bm25 | 77.8% | 11.2 | 18.5 | 0/2 | 30.6 | 12 |
+| v0.2 laya+bm25 | 83.3% | 10.4 | 8.5 | 0/2 | 22.8 | 33 |
+
+### Prefill cost (time the server spends reading the prompt before it can answer)
+
+| selector | prompt tokens (avg) | selector ms | cold prefill ms (avg) | cold total ms (select+prefill) | cold speed-up vs all | warm prefill ms (avg, prefix cache on) |
+|---|---|---|---|---|---|---|
+| all | 36520 | 0 | 14074 | 14074 | 1.0x | 309 |
+| v0.1 laya+bm25 | 7150 | 13 | 2578 | 2590 | 5.4x | 2544 |
+| v0.2 laya+bm25 | 5347 | 32 | 1943 | 1976 | 7.1x | 1936 |
+

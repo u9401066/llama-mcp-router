@@ -26,9 +26,9 @@ group the request belongs to (≈ 12 ms per call), and unions that with a lexica
 * Extensible: selectors are plain classes, registered by name, entry-point or `pkg.mod:Class`.
 
 > **Read [the benchmark](#benchmark) before you adopt this.** It is a *latency / context* optimisation, not an accuracy booster:
-> on a 41-tool MCP server the router cut cold prefill from **11.4 s to 2.9 s (3.9×)** and prompt tokens by 73%, but a 27B model with
-> *all* tools already chose the right tool 96% of the time, so the selector costs a few points of accuracy (92% here). And when
-> llama-server's prompt cache is warm, sending *all* tools is faster (0.3 s) than a changing selection (2.9 s).
+> with 61 tools (PubMed + Zotero MCP servers, 36.5k prompt tokens) the router cut cold prefill from **14.1 s to 2.0 s (7.1×)**, but a 27B
+> model with *all* tools already picked the right tool 92–96% of the time, and the router lost 3–5 points of that (89% in the same test).
+> And when llama-server's prompt cache is warm, sending *all* tools is faster (0.3 s) than a changing selection (1.9 s).
 
 ## Install
 
@@ -242,6 +242,36 @@ the whole conversation. Therefore:
 One model, one hardware setup, one MCP server (plus synthetic distractors), one run per cell at temperature 0, and 52 queries — differences of a few points are noise
 (2 queries = 3.8 points). The queries were written by the maintainer, in the style of the tool descriptions. Laya was used zero-shot. Prefill numbers are
 llama-server's own `timings.prompt_ms` at max_tokens=1 with `cache_prompt=false`; "warm" numbers assume an identical prompt prefix. Please run `benchmarks/run_bench.py` on your own tools.
+
+## v0.2 / v0.3 update: does a better Laya input harness help? (61 tools, 110 queries)
+
+Details of the input experiments are in [benchmarks/HARNESS.md](benchmarks/HARNESS.md). Here is the end-to-end result.
+Pool: 41 PubMed + 20 Zotero Keeper tools (their verbs overlap: *search*, *list*, *save*, *import*). Queries: 110 (98 tool requests, 12 chit-chat), EN + 中文, none used to tune anything.
+Same 27B model and settings as above; one run per cell.
+
+| what is sent | correct first call | tool requests | chit-chat (no tool call) | 中文 | prompt tokens | s / query |
+|---|---|---|---|---|---|---|
+| all 61 tools (llama.cpp default) | 91.8% | 90.8% | 100% | 96.8% | 36,481 | 6.9 |
+| router v0.1 (bare string, long labels, top-p) + BM25 | 83.6% | 81.6% | 100% | 74.2% | 6,769 | 9.2 |
+| **router v0.2** (json framing, short labels, 3-view ensemble, top-2) + BM25 | **89.1%** | 87.8% | 100% | 77.4% | **4,912** | 7.3 |
+| v0.2 with top-3 groups | 90.0% | 88.8% | 100% | 83.9% | 6,472 | 8.8 |
+| v0.2 selection **+ routing hint** in the user message | 89.1% | 87.8% | 100% | 77.4% | 4,980 | 8.2 |
+| all 61 tools **+ routing hint** | 92.7% | 93.9% | 83.3% | 93.5% | 36,549 | 7.5 |
+| all 61 tools **reordered**, most relevant first | **94.5%** | 93.9% | 100% | 96.8% | 36,481 | 44.6 |
+| *oracle: perfect group only* | 98.2% | | | | | 3.6 |
+| *oracle hint + all 61 tools* | 93.6% | | | | | |
+
+On the 68-query set of the previous section (41 tools only) v0.2 was *not* better: 88.2% vs 92.6% for v0.1 and 94.1% for all tools, because v0.2 sends fewer tools (7.7 vs 10.4) and its recall is 92.9% vs 94.6%.
+One query is 0.9 points, and running the same prompt twice gave 101 vs 102 correct, so only differences of ≈ 3 points or more mean anything.
+
+* **A better-framed question gives a better ranking, not a free lunch.** Top-2 group recall on the tuning set rose from 64% to 81%. End-to-end that was +5 points over v0.1 on this pool and −4 on the other: at *equal tools sent* v0.2 is better, but v0.1 compensated with more tools.
+* **The router still cannot beat "all tools" for this model.** Best router configuration: 90.0% (top-3) vs 91.8%. What you buy is prompt size (−85%) and cold prefill: **14.1 s → 2.0 s (7.1×, 20 sampled queries; v0.1: 2.6 s)**; selection costs ~32 ms (3 Laya calls) vs ~12 ms.
+* **A routing hint is worth ≈ nothing for a 27B model.** Even a *perfect* hint (oracle) gave 103/110 vs 101–102 without; the router's own hint gave 102/110 and made two chit-chat requests call a tool (100% → 83.3%). Not recommended; it stays as an option for smaller models, which I did not test.
+* **Reordering helped (+2.7 points, 104/110) but cannot be used for speed:** the tool order changes with every request, so llama-server's prompt cache never hits and each request re-reads 37k tokens (44.6 s/query with two parallel clients). It is only an accuracy option.
+* **Non-English is the weak spot of every selector** (中文 74–84% vs 97% with all tools): zero-shot Laya and BM25 both do worse on Chinese than a 27B model reading all the tool descriptions.
+* **The `none` option (`--laya-none`) lost accuracy** on the 41-tool test (88.2% → 82.4%); do not enable it unless you measure it on your workload.
+
+**What is left on the table:** fine-tuning Laya on routing data (its README claims this is where most of the value is) – not attempted – and testing smaller/weaker models, where a hint or a short list should matter more than for a 27B.
 
 ## Development
 

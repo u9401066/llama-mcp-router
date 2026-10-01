@@ -108,7 +108,7 @@ async def phase1(selectors, tools, queries):
     for name, sel in selectors.items():
         rows = []
         for q in queries:
-            if name == "oracle":
+            if name.startswith("oracle"):
                 sel.expect = q["expect"]
             t0 = time.perf_counter()
             err = None
