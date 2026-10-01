@@ -22,7 +22,7 @@ def _env(name: str, default: Optional[str] = None) -> Optional[str]:
 
 
 def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
-    return {
+    opts: Dict[str, Dict[str, Any]] = {
         "laya": {
             "url": a.laya_url,
             "groups": load_groups_config(a.groups),
@@ -38,6 +38,10 @@ def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
         },
         "bm25": {"top_k": a.top_k},
     }
+    if a.laya_none is not None:
+        opts["laya"]["none_threshold"] = a.laya_none
+        opts["union"] = {"abstain": "any"}  # a "no tool needed" verdict from Laya overrides BM25's lexical hits
+    return opts
 
 
 def _add_selector_args(p: argparse.ArgumentParser) -> None:
@@ -50,6 +54,7 @@ def _add_selector_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--laya-labels", choices=["label", "description", "auto"], default=_env("LAYA_LABELS"), help="text Laya sees for each group")
     p.add_argument("--laya-views", choices=["single", "ensemble"], default=_env("LAYA_VIEWS"), help="ensemble (default): average three differently-framed questions, 3 Laya calls per request; single: one")
     p.add_argument("--laya-model", default=_env("LAYA_MODEL"), help="force a Laya checkpoint (english | multilingual | typed-decisions); default: Laya routes by language")
+    p.add_argument("--laya-none", type=float, default=(float(_env("LAYA_NONE")) if _env("LAYA_NONE") else None), help="add a 'no tool needed' option; send no tools when its probability >= this (0.7 recommended; costs ~2 points recall)")
     p.add_argument("--top-p", type=float, default=float(_env("TOP_P", "1.0")), help="keep groups until this much probability mass (choice mode)")
     p.add_argument("--max-groups", type=int, default=int(_env("MAX_GROUPS", "2")))
     p.add_argument("--threshold", type=float, default=float(_env("THRESHOLD", "0.5")), help="noul mode: min probability to keep a group")

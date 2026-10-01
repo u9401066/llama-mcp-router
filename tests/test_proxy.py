@@ -170,3 +170,16 @@ def test_default_follows_selector_exactly(backend):
         sel.names = ["pm_gene"]
         c.post("/v1/chat/completions", json={"messages": [user("first question about export")]})
     assert [t["function"]["name"] for t in backend.requests[1]["tools"]] == ["pm_gene"]
+
+
+def test_abstain_sends_no_tools_and_drops_tool_choice(backend):
+    class Quiet(Selector):
+        name = "quiet"
+
+        async def select(self, q, t):
+            return Selection([], {}, abstain=True)
+
+    with make(backend, Quiet()) as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("thanks, that is all for today")], "tool_choice": "auto"})
+    assert r.status_code == 200 and "tools" not in backend.requests[0] and "tool_choice" not in backend.requests[0]
+    assert r.headers["x-router-tools"] == ""

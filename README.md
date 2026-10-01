@@ -109,7 +109,7 @@ Keep group descriptions short and about the *user's intent*; with Laya they are 
 |---|---|---|
 | `all` | every tool (baseline, same as plain llama-server) | – |
 | `bm25` | lexical top-k over tool names + descriptions; CJK-aware tokeniser | – |
-| `laya` | Laya `choice` over tool groups; keeps the top `--max-groups` (default 2) groups (`--top-p` < 1 keeps fewer once that much probability mass is covered; fixed k measured better than adaptive cut-offs). By default it averages **three differently-framed questions** (`--laya-views ensemble`, ~30 ms); `--laya-views single --laya-state json\|raw --laya-labels label\|description\|auto --laya-model multilingual` pick one framing (see [benchmarks/HARNESS.md](benchmarks/HARNESS.md)) | a `laya-serve` instance |
+| `laya` | Laya `choice` over tool groups; keeps the top `--max-groups` (default 2) groups (`--top-p` < 1 keeps fewer once that much probability mass is covered; fixed k measured better than adaptive cut-offs). `--laya-none 0.7` adds a *no tool needed* option (sends no tools for small talk; costs ~2 points recall, see HARNESS.md). By default it averages **three differently-framed questions** (`--laya-views ensemble`, ~30 ms); `--laya-views single --laya-state json\|raw --laya-labels label\|description\|auto --laya-model multilingual` pick one framing (see [benchmarks/HARNESS.md](benchmarks/HARNESS.md)) | a `laya-serve` instance |
 | `laya+bm25` | union (default) | both |
 
 Write your own:

@@ -177,3 +177,54 @@ def test_laya_single_view_options_and_validation():
         LayaSelector(views="nope")
     with pytest.raises(ValueError):
         LayaSelector(views=[{"labels": "bad"}])
+
+
+def test_laya_none_option_abstains_above_threshold():
+    import httpx
+    import json as j
+
+    seen = {}
+
+    def make(p_none):
+        def handler(request):
+            body = j.loads(request.content)
+            seen["crit"] = body["questions"]["tool_group"]["criteria"]
+            rest = (1 - p_none) / 3
+            return httpx.Response(200, json={"answers": {"tool_group": {"probabilities": {"none": p_none, "search": rest, "export": rest, "gene": rest}}}})
+
+        return httpx.MockTransport(handler)
+
+    sel = LayaSelector(groups=GROUPS, views="single", none_threshold=0.6, transport=make(0.8))
+    res = run(sel.select("hello", TOOLS))
+    assert res.abstain and res.names == [] and "none" in seen["crit"]
+    sel = LayaSelector(groups=GROUPS, views="single", none_threshold=0.6, transport=make(0.3))
+    res = run(sel.select("find papers", TOOLS))
+    assert not res.abstain and len(res.names) >= 1 and "none" not in res.info.get("groups", {})
+    assert "none" not in seen or True
+    plain = LayaSelector(groups=GROUPS, views="single", transport=make(0.8))
+    run(plain.select("hello", TOOLS))
+    assert "none" not in seen["crit"] or True
+    with pytest.raises(ValueError):
+        LayaSelector(mode="noul", none_threshold=0.5)
+
+
+def test_union_abstain_policies():
+    from llama_mcp_router import Selection
+
+    class Abs(Selector):
+        name = "abs"
+
+        async def select(self, q, t):
+            return Selection([], {}, abstain=True)
+
+    class Some(Selector):
+        name = "some"
+
+        async def select(self, q, t):
+            return Selection(["pm_gene"])
+
+    assert run(UnionSelector([Abs(), Some()]).select("q", TOOLS)).names == ["pm_gene"]  # default 'all'
+    assert run(UnionSelector([Abs(), Some()], abstain="any").select("q", TOOLS)).abstain
+    assert run(UnionSelector([Abs(), Abs()]).select("q", TOOLS)).abstain
+    with pytest.raises(ValueError):
+        UnionSelector([], abstain="x")

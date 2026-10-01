@@ -25,6 +25,7 @@ from .tools import Tool, first_sentence, tool_description, tool_name
 class Selection:
     names: List[str]
     info: Dict[str, Any] = field(default_factory=dict)
+    abstain: bool = False  # "no tool is needed for this request"
 
 
 class Selector:
@@ -118,6 +119,10 @@ def build_groups(cfg: Dict[str, Any], tools: Sequence[Tool]) -> List[Group]:
 
 # --------------------------------------------------------------------------- Laya
 
+NONE_LABEL = "no tool: small talk, general knowledge, explanation, writing, translation, maths"
+NONE = "none"
+
+
 @dataclass(frozen=True)
 class View:
     """One way of asking Laya. Several views are averaged (``LayaSelector(views="ensemble")``)."""
@@ -177,6 +182,8 @@ class LayaSelector(Selector):
         model: Optional[str] = None,
         views: Any = None,
         max_query_chars: int = 1500,
+        none_threshold: Optional[float] = None,
+        none_label: str = NONE_LABEL,
         api_key: Optional[str] = None,
         timeout: float = 10.0,
         transport: Optional[httpx.AsyncBaseTransport] = None,
@@ -205,6 +212,9 @@ class LayaSelector(Selector):
             if v.state_mode not in ("json", "raw") or v.labels not in ("label", "description", "auto"):
                 raise ValueError("invalid view %r" % (v,))
         self._custom_instructions = instructions
+        if none_threshold is not None and mode != "choice":
+            raise ValueError("none_threshold needs mode='choice'")
+        self.none_threshold, self.none_label = none_threshold, none_label
         headers = {"Authorization": "Bearer " + api_key} if api_key else {}
         self.client = httpx.AsyncClient(base_url=url.rstrip("/"), headers=headers, timeout=timeout, transport=transport)
         self._cache: Dict[str, Tuple[List[Group], List[Dict[str, Any]]]] = {}
@@ -228,6 +238,8 @@ class LayaSelector(Selector):
             for v in self.views:
                 text = {g.name: {"label": g.label, "description": g.description, "auto": g.auto_label}[v.labels] for g in groups}
                 if self.mode == "choice":
+                    if self.none_threshold is not None:
+                        text = dict(text, **{NONE: self.none_label})
                     qsets.append({"tool_group": {"type": "choice", "instructions": self._instruction(v), "criteria": text}})
                 else:
                     qsets.append({g.name: {"type": "noul", "instructions": self._noul_text(v).format(d=text[g.name])} for g in groups})
@@ -247,13 +259,16 @@ class LayaSelector(Selector):
         else:
             probs = {g.name: float(answers[g.name]["noul"]) for g in groups}
         z = sum(probs.values()) or 1.0
-        return {k: p / z for k, p in probs.items()} if len(self.views) > 1 or self.mode == "noul" else probs
+        return {k: p / z for k, p in probs.items()}
 
     async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
         groups, qsets = self._prepare(tools)
         query = query[-self.max_query_chars:]
         per_view = await asyncio.gather(*[self._ask(v, q, query, groups) for v, q in zip(self.views, qsets)])
         probs = {g.name: sum(p.get(g.name, 0.0) for p in per_view) / len(per_view) for g in groups}
+        none_p = sum(p.get(NONE, 0.0) for p in per_view) / len(per_view) if self.none_threshold is not None else None
+        if none_p is not None and none_p >= self.none_threshold:
+            return Selection([], {"none": round(none_p, 3)}, abstain=True)
         ranked = sorted(probs.items(), key=lambda kv: -kv[1])
         if self.mode == "choice":
             kept, mass = [], 0.0
@@ -270,15 +285,26 @@ class LayaSelector(Selector):
         names: List[str] = []
         for g in kept:
             names.extend(n for n in members[g] if n not in names)
-        return Selection(names, {"groups": {g: round(probs[g], 3) for g in kept}})
+        info: Dict[str, Any] = {"groups": {g: round(probs[g], 3) for g in kept}}
+        if none_p is not None:
+            info["none"] = round(none_p, 3)
+        return Selection(names, info)
 
 
 # --------------------------------------------------------------------------- combinators
 
 class UnionSelector(Selector):
-    """Union of several selectors, in order. A selector that raises is skipped."""
+    """Union of several selectors, in order. A selector that raises is skipped.
 
-    def __init__(self, selectors: Sequence[Selector]):
+    ``abstain``: what a selector saying "no tool needed" means for the union --
+    ``"all"`` (default): abstain only if every selector abstains or finds nothing,
+    ``"any"``: one abstaining selector is enough (a veto).
+    """
+
+    def __init__(self, selectors: Sequence[Selector], abstain: str = "all"):
+        if abstain not in ("all", "any"):
+            raise ValueError("abstain must be 'all' or 'any'")
+        self.abstain = abstain
         self.selectors = list(selectors)
         self.name = "+".join(s.name for s in self.selectors)
 
@@ -290,6 +316,7 @@ class UnionSelector(Selector):
         names: List[str] = []
         info: Dict[str, Any] = {}
         ok = 0
+        vetoes = 0
         for s in self.selectors:
             try:
                 sel = await s.select(query, tools)
@@ -298,9 +325,12 @@ class UnionSelector(Selector):
                 continue
             ok += 1
             info[s.name] = sel.info
+            vetoes += bool(sel.abstain)
             names.extend(n for n in sel.names if n not in names)
         if not ok:
             raise RuntimeError("all selectors failed")
+        if vetoes and (self.abstain == "any" or not names):
+            return Selection([], info, abstain=True)
         return Selection(names, info)
 
 
@@ -323,8 +353,10 @@ BUILTIN: Dict[str, Callable[..., Selector]] = {"all": AllSelector, "bm25": BM25S
 def load_selector(spec: str, **options: Any) -> Selector:
     """Build a selector from a spec such as ``laya``, ``laya+bm25`` or ``pkg.mod:Class``.
 
-    ``options`` maps selector name -> kwargs, e.g. ``{"laya": {"url": ...}, "bm25": {"top_k": 5}}``.
+    ``options`` maps selector name -> kwargs, e.g. ``{"laya": {"url": ...}, "bm25": {"top_k": 5}}``;
+    the key ``"union"`` holds kwargs for :class:`UnionSelector` (e.g. ``{"abstain": "any"}``).
     """
+    union_kwargs = options.pop("union", {})
     parts = [p.strip() for p in spec.split("+") if p.strip()]
     built: List[Selector] = []
     for p in parts:
@@ -340,4 +372,4 @@ def load_selector(spec: str, **options: Any) -> Selector:
             built.append(getattr(importlib.import_module(mod), cls)(**kwargs))
         else:
             raise ValueError("unknown selector %r (builtin: %s)" % (p, ", ".join(BUILTIN)))
-    return built[0] if len(built) == 1 else UnionSelector(built)
+    return built[0] if len(built) == 1 else UnionSelector(built, **union_kwargs)

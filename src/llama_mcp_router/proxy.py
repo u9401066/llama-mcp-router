@@ -164,7 +164,11 @@ class Router:
         if isinstance(tc, dict) and (tc.get("function") or {}).get("name"):
             extra.add(tc["function"]["name"])
         choice = await self.choose(last_user_query(body.get("messages") or []), pool, extra, conversation_key(body.get("messages") or []))
-        body["tools"] = choice["tools"]
+        if choice["tools"]:
+            body["tools"] = choice["tools"]
+        else:  # nothing selected: send a tool-free prompt (also drop tool_choice, which would force a call)
+            body.pop("tools", None)
+            body.pop("tool_choice", None)
         meta = {"x-router-tools": ",".join(tool_name(t) for t in choice["tools"])[:1000], "x-router-pool": str(choice["pool"]), "x-router-select-ms": str(choice["ms"])}
         log.info("selected %d/%d tools in %sms: %s", len(choice["tools"]), choice["pool"], choice["ms"], meta["x-router-tools"][:200])
 
