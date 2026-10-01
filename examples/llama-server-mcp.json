@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "pubmed": {
+      "command": "uvx",
+      "args": ["pubmed-search-mcp"],
+      "env": { "NCBI_EMAIL": "you@example.com" },
+      "timeout_ms": 120000
+    }
+  }
+}

@@ -1,0 +1,166 @@
+{
+ "groups": {
+  "filesystem": {
+   "description": "reading, writing, searching and organising files and folders on disk",
+   "tools": [
+    "fs_read_file",
+    "fs_write_file",
+    "fs_list_directory",
+    "fs_search_files",
+    "fs_move_file",
+    "fs_delete_file",
+    "fs_get_file_info",
+    "fs_make_directory"
+   ]
+  },
+  "github": {
+   "description": "working with GitHub repositories, issues and pull requests",
+   "tools": [
+    "gh_create_issue",
+    "gh_list_issues",
+    "gh_get_pull_request",
+    "gh_create_pull_request",
+    "gh_merge_pull_request",
+    "gh_search_code",
+    "gh_list_commits",
+    "gh_create_branch",
+    "gh_list_workflow_runs",
+    "gh_get_file_contents"
+   ]
+  },
+  "calendar": {
+   "description": "scheduling meetings and managing calendar events",
+   "tools": [
+    "cal_list_events",
+    "cal_create_event",
+    "cal_update_event",
+    "cal_delete_event",
+    "cal_find_free_slot",
+    "cal_set_reminder"
+   ]
+  },
+  "email": {
+   "description": "reading, searching, drafting and sending email",
+   "tools": [
+    "mail_search",
+    "mail_read_message",
+    "mail_send",
+    "mail_create_draft",
+    "mail_reply",
+    "mail_label_message"
+   ]
+  },
+  "web": {
+   "description": "browsing the web, fetching pages and general web search",
+   "tools": [
+    "web_search",
+    "web_fetch_page",
+    "web_screenshot",
+    "web_extract_links",
+    "web_check_status"
+   ]
+  },
+  "database": {
+   "description": "querying and administering SQL databases",
+   "tools": [
+    "db_run_query",
+    "db_list_tables",
+    "db_describe_table",
+    "db_insert_rows",
+    "db_explain_query",
+    "db_export_csv"
+   ]
+  },
+  "chat": {
+   "description": "sending and reading messages in team chat channels (Slack-like)",
+   "tools": [
+    "chat_post_message",
+    "chat_list_channels",
+    "chat_read_history",
+    "chat_search_messages",
+    "chat_add_reaction",
+    "chat_set_status"
+   ]
+  },
+  "tickets": {
+   "description": "tracking work items in a ticket / project management system (Jira-like)",
+   "tools": [
+    "tkt_create",
+    "tkt_search",
+    "tkt_get",
+    "tkt_transition",
+    "tkt_assign",
+    "tkt_add_comment",
+    "tkt_list_sprints",
+    "tkt_log_work"
+   ]
+  },
+  "cloud": {
+   "description": "operating cloud infrastructure and Kubernetes clusters",
+   "tools": [
+    "k8s_list_pods",
+    "k8s_get_logs",
+    "k8s_scale_deployment",
+    "k8s_apply_manifest",
+    "cloud_list_instances",
+    "cloud_start_instance",
+    "cloud_stop_instance",
+    "cloud_list_buckets",
+    "cloud_get_billing",
+    "cloud_rotate_secret"
+   ]
+  },
+  "finance": {
+   "description": "stock quotes, currency conversion and personal finance",
+   "tools": [
+    "fin_get_quote",
+    "fin_convert_currency",
+    "fin_list_transactions",
+    "fin_get_portfolio",
+    "fin_compute_loan"
+   ]
+  },
+  "maps": {
+   "description": "weather forecasts, maps, routes and places",
+   "tools": [
+    "geo_weather_forecast",
+    "geo_route",
+    "geo_search_places",
+    "geo_geocode",
+    "geo_timezone"
+   ]
+  },
+  "notes": {
+   "description": "personal notes, documents and to-do lists",
+   "tools": [
+    "note_create",
+    "note_search",
+    "note_append",
+    "todo_add",
+    "todo_list",
+    "todo_complete"
+   ]
+  },
+  "media": {
+   "description": "music playback, image generation and speech",
+   "tools": [
+    "media_play_music",
+    "media_pause",
+    "media_generate_image",
+    "media_transcribe_audio",
+    "media_text_to_speech"
+   ]
+  },
+  "smarthome": {
+   "description": "controlling smart-home devices",
+   "tools": [
+    "home_set_light",
+    "home_set_thermostat",
+    "home_lock_door",
+    "home_list_devices",
+    "home_run_scene",
+    "home_get_camera_snapshot"
+   ]
+  }
+ }
+}

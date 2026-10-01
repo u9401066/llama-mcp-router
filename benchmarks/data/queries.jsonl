@@ -1,0 +1,83 @@
+{"id": 0, "query": "Find recent randomized trials on remimazolam for ICU sedation.", "expect": ["pubmed_unified_search"], "lang": "en"}
+{"id": 1, "query": "幫我搜尋 GLP-1 受體促效劑對減重的系統性回顧", "expect": ["pubmed_unified_search"], "lang": "zh"}
+{"id": 2, "query": "Search for papers comparing dexmedetomidine versus propofol in mechanically ventilated patients.", "expect": ["pubmed_unified_search"], "lang": "en"}
+{"id": 3, "query": "Before running it, analyze how the query 'sepsis AND vasopressin NOT children' would be interpreted. Don't search yet.", "expect": ["pubmed_analyze_search_query"], "lang": "en"}
+{"id": 4, "query": "不要真的搜尋,只分析 'remimazolam ICU sedation' 這個查詢會被怎麼處理", "expect": ["pubmed_analyze_search_query"], "lang": "zh"}
+{"id": 5, "query": "Validate my PICO plan: P=adults with septic shock, I=vasopressin, C=norepinephrine alone, O=28-day mortality, question type therapy.", "expect": ["pubmed_validate_pico_plan"], "lang": "en"}
+{"id": 6, "query": "幫我檢查這個 PICO 計畫:族群=成人敗血性休克,介入=血管加壓素,對照=單用正腎上腺素,結果=28天死亡率", "expect": ["pubmed_validate_pico_plan"], "lang": "zh"}
+{"id": 7, "query": "Generate PubMed search strategies with MeSH terms and synonyms for postoperative delirium prevention.", "expect": ["pubmed_generate_search_queries"], "lang": "en"}
+{"id": 8, "query": "給我 'postoperative nausea vomiting' 的 MeSH 同義詞與搜尋策略素材", "expect": ["pubmed_generate_search_queries"], "lang": "zh"}
+{"id": 9, "query": "Find articles related to PMID 31452104.", "expect": ["pubmed_find_related_articles"], "lang": "en"}
+{"id": 10, "query": "找出和 PMID 33301246 相似的文章", "expect": ["pubmed_find_related_articles"], "lang": "zh"}
+{"id": 11, "query": "Which papers cite PMID 31452104?", "expect": ["pubmed_find_citing_articles"], "lang": "en"}
+{"id": 12, "query": "誰引用了 PMID 27993422 這篇論文?", "expect": ["pubmed_find_citing_articles"], "lang": "zh"}
+{"id": 13, "query": "List the reference list (bibliography) of PMID 32109013.", "expect": ["pubmed_get_article_references"], "lang": "en"}
+{"id": 14, "query": "PMID 30345678 的參考文獻有哪些?", "expect": ["pubmed_get_article_references"], "lang": "zh"}
+{"id": 15, "query": "Get the abstract and metadata for PMID 31452104 and 33301246.", "expect": ["pubmed_fetch_article_details"], "lang": "en"}
+{"id": 16, "query": "抓取 PMID 28000001 的詳細資料與摘要", "expect": ["pubmed_fetch_article_details"], "lang": "zh"}
+{"id": 17, "query": "What are the NIH iCite citation metrics and relative citation ratio for PMID 31452104?", "expect": ["pubmed_get_citation_metrics"], "lang": "en"}
+{"id": 18, "query": "PMID 29100001 的被引用次數與 RCR 是多少?", "expect": ["pubmed_get_citation_metrics"], "lang": "zh"}
+{"id": 19, "query": "Check whether these references are real: 1. Smith J. Remimazolam in ICU sedation. Crit Care 2021. 2. Lee K. Propofol infusion syndrome. Anesthesiology 2019.", "expect": ["pubmed_verify_reference_list"], "lang": "en"}
+{"id": 20, "query": "幫我驗證這份參考文獻清單是否真的存在於 PubMed:1. Wang L. Dexmedetomidine and delirium. JAMA 2020. 2. Chen H. Sepsis bundles. Lancet 2018.", "expect": ["pubmed_verify_reference_list"], "lang": "zh"}
+{"id": 21, "query": "Export PMIDs 31452104 and 33301246 to BibTeX.", "expect": ["pubmed_prepare_export", "pubmed_read_session"], "lang": "en"}
+{"id": 22, "query": "把剛剛的搜尋結果匯出成 RIS 給 EndNote 用", "expect": ["pubmed_prepare_export", "pubmed_read_session"], "lang": "zh"}
+{"id": 23, "query": "Save my searched articles as Markdown notes in my Foam wiki.", "expect": ["pubmed_save_literature_notes", "pubmed_read_session"], "lang": "en"}
+{"id": 24, "query": "把這些搜尋到的文章存成本地 Markdown 筆記", "expect": ["pubmed_save_literature_notes", "pubmed_read_session"], "lang": "zh"}
+{"id": 25, "query": "Get the full text of PMC7654321.", "expect": ["pubmed_get_fulltext"], "lang": "en"}
+{"id": 26, "query": "取得 PMID 31452104 的全文", "expect": ["pubmed_get_fulltext"], "lang": "zh"}
+{"id": 27, "query": "Get the text-mined genes and chemicals from Europe PMC for PMID 31452104.", "expect": ["pubmed_get_text_mined_terms"], "lang": "en"}
+{"id": 28, "query": "取得 PMID 31452104 在 Europe PMC 的文字探勘實體(基因、化學物)", "expect": ["pubmed_get_text_mined_terms"], "lang": "zh"}
+{"id": 29, "query": "Show the figures and captions from PMC7654321.", "expect": ["pubmed_get_article_figures"], "lang": "en"}
+{"id": 30, "query": "列出 PMC7654321 的圖片與圖說", "expect": ["pubmed_get_article_figures"], "lang": "zh"}
+{"id": 31, "query": "Search the NCBI Gene database for BRCA1 in human.", "expect": ["pubmed_search_gene"], "lang": "en"}
+{"id": 32, "query": "查詢 TP53 基因的基本資訊", "expect": ["pubmed_search_gene"], "lang": "zh"}
+{"id": 33, "query": "Get details for NCBI Gene ID 672.", "expect": ["pubmed_get_gene_details"], "lang": "en"}
+{"id": 34, "query": "取得 Gene ID 7157 的詳細資料", "expect": ["pubmed_get_gene_details"], "lang": "zh"}
+{"id": 35, "query": "Get the PubMed articles linked to NCBI Gene ID 672.", "expect": ["pubmed_get_gene_literature"], "lang": "en"}
+{"id": 36, "query": "列出與基因 ID 7157 相關的 PubMed 文獻", "expect": ["pubmed_get_gene_literature"], "lang": "zh"}
+{"id": 37, "query": "Search PubChem for the compound remimazolam.", "expect": ["pubmed_search_compound"], "lang": "en"}
+{"id": 38, "query": "在 PubChem 搜尋 propofol 的化學結構", "expect": ["pubmed_search_compound"], "lang": "zh"}
+{"id": 39, "query": "Get the details of PubChem CID 4943.", "expect": ["pubmed_get_compound_details"], "lang": "en"}
+{"id": 40, "query": "取得 PubChem CID 5361 的詳細資料", "expect": ["pubmed_get_compound_details"], "lang": "zh"}
+{"id": 41, "query": "Get the PubMed articles linked to PubChem CID 4943.", "expect": ["pubmed_get_compound_literature"], "lang": "en"}
+{"id": 42, "query": "列出和 PubChem CID 5361 相關的文獻", "expect": ["pubmed_get_compound_literature"], "lang": "zh"}
+{"id": 43, "query": "Is the variant rs113488022 pathogenic according to ClinVar?", "expect": ["pubmed_search_clinvar"], "lang": "en"}
+{"id": 44, "query": "查 ClinVar 上 BRCA1 c.5266dupC 的臨床意義", "expect": ["pubmed_search_clinvar"], "lang": "zh"}
+{"id": 45, "query": "Build a citation tree for PMID 31452104.", "expect": ["pubmed_build_citation_tree"], "lang": "en"}
+{"id": 46, "query": "畫出 PMID 27993422 的引用網絡樹", "expect": ["pubmed_build_citation_tree"], "lang": "zh"}
+{"id": 47, "query": "Build a research chronicle tracking how the evidence on remimazolam sedation evolved.", "expect": ["pubmed_build_research_chronicle"], "lang": "en"}
+{"id": 48, "query": "建立 'sepsis vasopressin' 這個研究問題的研究編年史", "expect": ["pubmed_build_research_chronicle"], "lang": "zh"}
+{"id": 49, "query": "List my stored research chronicles.", "expect": ["pubmed_read_research_chronicle"], "lang": "en"}
+{"id": 50, "query": "讀取並比較我先前儲存的研究編年史", "expect": ["pubmed_read_research_chronicle"], "lang": "zh"}
+{"id": 51, "query": "I have a figure from a paper (Kaplan-Meier survival curves). Help me prepare a literature search from this image.", "expect": ["pubmed_prepare_figure_search"], "lang": "en"}
+{"id": 52, "query": "我有一張論文裡的圖片,幫我準備用這張圖去找文獻", "expect": ["pubmed_prepare_figure_search"], "lang": "zh"}
+{"id": 53, "query": "Search Open-i for chest X-ray images of pneumothorax.", "expect": ["pubmed_search_biomedical_images"], "lang": "en"}
+{"id": 54, "query": "搜尋生醫影像:胰臟癌的 CT 影像", "expect": ["pubmed_search_biomedical_images"], "lang": "zh"}
+{"id": 55, "query": "Configure my university library link resolver for full-text access: https://resolver.example.edu/openurl.", "expect": ["pubmed_configure_institutional_access"], "lang": "en"}
+{"id": 56, "query": "設定我學校圖書館的 link resolver 以便取得全文", "expect": ["pubmed_configure_institutional_access"], "lang": "zh"}
+{"id": 57, "query": "Generate the institutional OpenURL access link for PMID 31452104.", "expect": ["pubmed_get_institutional_link"], "lang": "en"}
+{"id": 58, "query": "產生 PMID 31452104 的機構全文連結", "expect": ["pubmed_get_institutional_link"], "lang": "zh"}
+{"id": 59, "query": "What institutional link resolver presets are available?", "expect": ["pubmed_list_resolver_presets"], "lang": "en"}
+{"id": 60, "query": "列出可用的圖書館 resolver 預設", "expect": ["pubmed_list_resolver_presets"], "lang": "zh"}
+{"id": 61, "query": "Test whether my institutional link resolver configuration works.", "expect": ["pubmed_test_institutional_access"], "lang": "en"}
+{"id": 62, "query": "測試我的機構存取設定是否正常", "expect": ["pubmed_test_institutional_access"], "lang": "zh"}
+{"id": 63, "query": "Why can't I get the full text of PMID 31452104 through my institution? Diagnose it.", "expect": ["pubmed_diagnose_institutional_access"], "lang": "en"}
+{"id": 64, "query": "診斷為什麼透過學校存取 PMID 31452104 的全文會失敗", "expect": ["pubmed_diagnose_institutional_access"], "lang": "zh"}
+{"id": 65, "query": "Convert ICD-10 code E11.9 to MeSH terms.", "expect": ["pubmed_convert_icd_mesh"], "lang": "en"}
+{"id": 66, "query": "把 MeSH 'Diabetes Mellitus, Type 2' 轉成 ICD 代碼", "expect": ["pubmed_convert_icd_mesh"], "lang": "zh"}
+{"id": 67, "query": "Save this search as a reusable pipeline named weekly_remimazolam.", "expect": ["pubmed_save_pipeline"], "lang": "en"}
+{"id": 68, "query": "把這個搜尋存成可重複使用的管線,名稱 weekly_remimazolam", "expect": ["pubmed_save_pipeline"], "lang": "zh"}
+{"id": 69, "query": "List all my saved pipelines tagged sedation.", "expect": ["pubmed_list_pipelines"], "lang": "en"}
+{"id": 70, "query": "列出我所有儲存的搜尋管線", "expect": ["pubmed_list_pipelines"], "lang": "zh"}
+{"id": 71, "query": "Load the pipeline weekly_remimazolam so I can review it.", "expect": ["pubmed_load_pipeline"], "lang": "en"}
+{"id": 72, "query": "載入管線 weekly_remimazolam", "expect": ["pubmed_load_pipeline"], "lang": "zh"}
+{"id": 73, "query": "Delete the saved pipeline weekly_remimazolam.", "expect": ["pubmed_delete_pipeline"], "lang": "en"}
+{"id": 74, "query": "刪除管線 weekly_remimazolam", "expect": ["pubmed_delete_pipeline"], "lang": "zh"}
+{"id": 75, "query": "Show the execution history of pipeline weekly_remimazolam.", "expect": ["pubmed_get_pipeline_history"], "lang": "en"}
+{"id": 76, "query": "顯示管線 weekly_remimazolam 的執行歷史與差異", "expect": ["pubmed_get_pipeline_history"], "lang": "zh"}
+{"id": 77, "query": "Schedule pipeline weekly_remimazolam to run every Monday at 9am.", "expect": ["pubmed_schedule_pipeline"], "lang": "en"}
+{"id": 78, "query": "每週一早上 9 點自動執行管線 weekly_remimazolam", "expect": ["pubmed_schedule_pipeline"], "lang": "zh"}
+{"id": 79, "query": "Stop the schedule of pipeline weekly_remimazolam.", "expect": ["pubmed_unschedule_pipeline"], "lang": "en"}
+{"id": 80, "query": "取消管線 weekly_remimazolam 的排程", "expect": ["pubmed_unschedule_pipeline"], "lang": "zh"}
+{"id": 81, "query": "Show the PMIDs from my current search session.", "expect": ["pubmed_read_session"], "lang": "en"}
+{"id": 82, "query": "讀取目前 session 裡的 PMID 清單", "expect": ["pubmed_read_session"], "lang": "zh"}

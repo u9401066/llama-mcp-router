@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llama-mcp-router"
+version = "0.1.0"
+description = "Tool-selection router for llama-server (llama.cpp) MCP tools: send the model only the few tools it needs instead of all of them."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "llama-mcp-router contributors" }]
+keywords = ["llama.cpp", "llama-server", "mcp", "tool-use", "function-calling", "router", "laya", "openai-compatible"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "httpx>=0.24",
+    "starlette>=0.27",
+    "uvicorn>=0.23",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+llama-mcp-router = "llama_mcp_router.cli:main"
+
+[project.entry-points."llama_mcp_router.selectors"]
+all = "llama_mcp_router.selectors:AllSelector"
+bm25 = "llama_mcp_router.selectors:BM25Selector"
+laya = "llama_mcp_router.selectors:LayaSelector"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llama_mcp_router"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

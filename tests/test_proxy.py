@@ -1,0 +1,172 @@
+import json
+
+import httpx
+import pytest
+from starlette.testclient import TestClient
+
+from conftest import TOOLS, FakeBackend, call
+from llama_mcp_router import BM25Selector, Selection, Selector
+from llama_mcp_router.proxy import RouterConfig, called_tool_names, create_app, last_user_query
+
+
+class Pick(Selector):
+    name = "pick"
+
+    def __init__(self, *names):
+        self.names = list(names)
+
+    async def select(self, query, tools):
+        self.query = query
+        return Selection(list(self.names))
+
+
+def make(backend, selector=None, **kw):
+    cfg = RouterConfig(backend="http://backend", selector=selector or Pick("pm_export"), **kw)
+    return TestClient(create_app(cfg, transport=httpx.ASGITransport(app=backend.app())))
+
+
+def user(text):
+    return {"role": "user", "content": text}
+
+
+def test_inject_filters_tools_and_sets_headers(backend):
+    sel = Pick("pm_export")
+    with make(backend, sel) as c:
+        r = c.post("/v1/chat/completions", json={"model": "m", "messages": [user("export to bibtex please")]})
+    assert r.status_code == 200 and r.json()["choices"][0]["message"]["content"] == "ok"
+    sent = backend.requests[0]["tools"]
+    assert [t["function"]["name"] for t in sent] == ["pm_export"]
+    assert r.headers["x-router-tools"] == "pm_export" and r.headers["x-router-pool"] == "5"
+    assert sel.query == "export to bibtex please"
+
+
+def test_always_exclude_and_continuation_tools(backend):
+    msgs = [user("find papers on propofol"), {"role": "assistant", "content": "", "tool_calls": [call("pm_gene")]}, {"role": "tool", "tool_call_id": "c1", "content": "x"}]
+    with make(backend, Pick("pm_export"), always=["pm_search"], exclude=["fs_*"]) as c:
+        c.post("/v1/chat/completions", json={"messages": msgs})
+    assert [t["function"]["name"] for t in backend.requests[0]["tools"]] == ["pm_search", "pm_export", "pm_gene"]
+
+
+def test_client_tools_are_routed_and_win_name_collisions(backend):
+    mine = {"type": "function", "function": {"name": "pm_export", "description": "MINE", "parameters": {"type": "object"}}}
+    with make(backend, Pick("pm_export")) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("hello there my friend")], "tools": [mine]})
+    sent = backend.requests[0]["tools"]
+    assert len(sent) == 1 and sent[0]["function"]["description"] == "MINE"
+
+
+def test_no_server_tools_and_empty_pool_passthrough(backend):
+    with make(backend, use_server_tools=False) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("hi")]})
+    assert "tools" not in backend.requests[0]
+
+
+def test_bypass_header_and_body_flag(backend):
+    with make(backend) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("hi")]}, headers={"x-router-bypass": "1"})
+        c.post("/v1/chat/completions", json={"messages": [user("hi")], "router": False})
+    assert all("tools" not in b and "router" not in b for b in backend.requests)
+
+
+def test_tool_choice_forces_inclusion(backend):
+    with make(backend, Pick("pm_export")) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("hello there my friend")], "tool_choice": {"type": "function", "function": {"name": "pm_icd"}}})
+    assert {t["function"]["name"] for t in backend.requests[0]["tools"]} == {"pm_export", "pm_icd"}
+
+
+def test_selector_failure_falls_back(backend):
+    class Boom(Selector):
+        name = "boom"
+
+        async def select(self, q, t):
+            raise RuntimeError("laya down")
+
+    with make(backend, Boom()) as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("anything at all here")]})
+    assert r.status_code == 200 and len(backend.requests[0]["tools"]) == 5
+    with make(FakeBackend(), Boom(), fallback="none") as c2:
+        c2.post("/v1/chat/completions", json={"messages": [user("anything at all here")]})
+
+
+def test_max_tools_caps_selector_output(backend):
+    with make(backend, Pick("pm_search", "pm_export", "pm_gene"), max_tools=2) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("anything at all here")]})
+    assert len(backend.requests[0]["tools"]) == 2
+
+
+def test_select_endpoint_passthrough_and_health(backend):
+    with make(backend, BM25Selector(top_k=1)) as c:
+        r = c.post("/router/select", json={"query": "look up the BRCA1 gene"})
+        assert r.json()["selected"] == ["pm_gene"] and r.json()["pool"] == 5
+        assert c.get("/props").json() == {"hello": "props"}
+        assert c.get("/tools").status_code == 200
+        assert c.get("/router/health").json()["selector"] == "bm25"
+
+
+def test_agent_mode_runs_server_tools_until_answer():
+    script = [{"role": "assistant", "content": None, "tool_calls": [call("pm_export", '{"q": "x"}')]}, {"role": "assistant", "content": "done"}]
+    b = FakeBackend(script)
+    with make(b, Pick("pm_export"), mode="agent") as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("export my papers")]})
+    data = r.json()
+    assert data["choices"][0]["message"]["content"] == "done"
+    assert data["router"]["iterations"] == 2 and data["router"]["selected"] == ["pm_export"]
+    assert b.executed == [{"tool": "pm_export", "params": {"q": "x"}}]
+    assert data["usage"]["total_tokens"] == 24
+    tool_msg = b.requests[1]["messages"][-1]
+    assert tool_msg == {"role": "tool", "tool_call_id": "c1", "content": "result for pm_export"}
+
+
+def test_agent_mode_returns_client_tool_calls_untouched():
+    script = [{"role": "assistant", "content": None, "tool_calls": [call("my_tool")]}]
+    b = FakeBackend(script)
+    mine = {"type": "function", "function": {"name": "my_tool", "description": "client side", "parameters": {"type": "object"}}}
+    with make(b, Pick("my_tool"), mode="agent") as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("do it for me please")], "tools": [mine]})
+    assert r.json()["choices"][0]["finish_reason"] == "tool_calls" and b.executed == []
+
+
+def test_agent_mode_stream_is_emulated():
+    with make(FakeBackend(), mode="agent") as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("hello there friend")], "stream": True})
+    lines = [l for l in r.text.split("\n\n") if l]
+    assert lines[-1] == "data: [DONE]" and json.loads(lines[0][6:])["choices"][0]["delta"]["content"] == "ok"
+
+
+def test_helpers():
+    assert last_user_query([user("a long enough first question"), {"role": "assistant", "content": "x"}, user("ok")]) == "a long enough first question\nok"
+    assert last_user_query([{"role": "user", "content": [{"type": "text", "text": "hello world, this is long"}]}]) == "hello world, this is long"
+    assert called_tool_names([{"tool_calls": [call("a")]}, {}]) == {"a"}
+
+
+def test_sticky_keeps_tool_list_stable_across_turns(backend):
+    class Seq(Selector):
+        name = "seq"
+
+        def __init__(self, picks):
+            self.picks = list(picks)
+
+        async def select(self, q, t):
+            return Selection(self.picks.pop(0))
+
+    sel = Seq([["pm_export"], ["pm_gene"], ["pm_export"], ["pm_search"]])
+    base = [{"role": "system", "content": "s"}, user("first question about export")]
+    names = lambda i: [t["function"]["name"] for t in backend.requests[i]["tools"]]
+    with make(backend, sel, sticky=True) as c:
+        c.post("/v1/chat/completions", json={"messages": base})
+        c.post("/v1/chat/completions", json={"messages": base + [user("and now genes")]})
+        c.post("/v1/chat/completions", json={"messages": base + [user("export again")]})
+        c.post("/v1/chat/completions", json={"messages": [user("a different conversation entirely")]})
+    assert names(0) == ["pm_export"]
+    assert names(1) == ["pm_export", "pm_gene"]  # grows, order kept
+    assert names(2) == ["pm_export", "pm_gene"]  # subset of previous -> identical list (cache hit)
+    assert names(3) == ["pm_search"]  # other conversation is independent
+
+
+def test_default_follows_selector_exactly(backend):
+    sel = Pick("pm_export")
+    with make(backend, sel) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("first question about export")]})
+        sel.names = ["pm_gene"]
+        c.post("/v1/chat/completions", json={"messages": [user("first question about export")]})
+    assert [t["function"]["name"] for t in backend.requests[1]["tools"]] == ["pm_gene"]

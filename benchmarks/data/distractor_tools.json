@@ -1,0 +1,1967 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "fs_read_file",
+   "description": "Read the full contents of a text file from the local disk.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "The path."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fs_write_file",
+   "description": "Create or overwrite a file on the local disk with the given content.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "The path."
+     },
+     "content": {
+      "type": "string",
+      "description": "The content."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fs_list_directory",
+   "description": "List the files and subdirectories inside a directory.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "The path."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fs_search_files",
+   "description": "Search for files by name pattern under a directory.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "root": {
+      "type": "string",
+      "description": "The root."
+     },
+     "pattern": {
+      "type": "string",
+      "description": "The pattern."
+     }
+    },
+    "required": [
+     "root"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fs_move_file",
+   "description": "Move or rename a file or directory.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "source": {
+      "type": "string",
+      "description": "The source."
+     },
+     "destination": {
+      "type": "string",
+      "description": "The destination."
+     }
+    },
+    "required": [
+     "source"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fs_delete_file",
+   "description": "Delete a file from the local disk.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "The path."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fs_get_file_info",
+   "description": "Get size, permissions and modification time of a file.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "The path."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fs_make_directory",
+   "description": "Create a new directory, including missing parents.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "The path."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_create_issue",
+   "description": "Create a new issue in a GitHub repository.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     },
+     "title": {
+      "type": "string",
+      "description": "The title."
+     },
+     "body": {
+      "type": "string",
+      "description": "The body."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_list_issues",
+   "description": "List open issues of a GitHub repository, optionally filtered by label.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     },
+     "label": {
+      "type": "string",
+      "description": "The label."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_get_pull_request",
+   "description": "Get the details, diff and review status of a pull request.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     },
+     "number": {
+      "type": "string",
+      "description": "The number."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_create_pull_request",
+   "description": "Open a pull request from a branch.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     },
+     "head": {
+      "type": "string",
+      "description": "The head."
+     },
+     "base": {
+      "type": "string",
+      "description": "The base."
+     },
+     "title": {
+      "type": "string",
+      "description": "The title."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_merge_pull_request",
+   "description": "Merge an approved pull request.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     },
+     "number": {
+      "type": "string",
+      "description": "The number."
+     },
+     "method": {
+      "type": "string",
+      "description": "The method."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_search_code",
+   "description": "Search code across GitHub repositories.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "The query."
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_list_commits",
+   "description": "List the recent commits on a branch.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     },
+     "branch": {
+      "type": "string",
+      "description": "The branch."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_create_branch",
+   "description": "Create a new branch from a commit or another branch.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     },
+     "name": {
+      "type": "string",
+      "description": "The name."
+     },
+     "from": {
+      "type": "string",
+      "description": "The from."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_list_workflow_runs",
+   "description": "List recent GitHub Actions workflow runs and their status.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "gh_get_file_contents",
+   "description": "Read a file from a GitHub repository at a given ref.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string",
+      "description": "The repo."
+     },
+     "path": {
+      "type": "string",
+      "description": "The path."
+     },
+     "ref": {
+      "type": "string",
+      "description": "The ref."
+     }
+    },
+    "required": [
+     "repo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cal_list_events",
+   "description": "List calendar events in a date range.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "start": {
+      "type": "string",
+      "description": "The start."
+     },
+     "end": {
+      "type": "string",
+      "description": "The end."
+     }
+    },
+    "required": [
+     "start"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cal_create_event",
+   "description": "Create a calendar event with attendees and a time slot.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string",
+      "description": "The title."
+     },
+     "start": {
+      "type": "string",
+      "description": "The start."
+     },
+     "end": {
+      "type": "string",
+      "description": "The end."
+     },
+     "attendees": {
+      "type": "string",
+      "description": "The attendees."
+     }
+    },
+    "required": [
+     "title"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cal_update_event",
+   "description": "Change the time or details of an existing event.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "event_id": {
+      "type": "string",
+      "description": "The event id."
+     },
+     "changes": {
+      "type": "string",
+      "description": "The changes."
+     }
+    },
+    "required": [
+     "event_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cal_delete_event",
+   "description": "Cancel and delete a calendar event.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "event_id": {
+      "type": "string",
+      "description": "The event id."
+     }
+    },
+    "required": [
+     "event_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cal_find_free_slot",
+   "description": "Find a common free time slot for several people.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "attendees": {
+      "type": "string",
+      "description": "The attendees."
+     },
+     "duration_minutes": {
+      "type": "string",
+      "description": "The duration minutes."
+     }
+    },
+    "required": [
+     "attendees"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cal_set_reminder",
+   "description": "Add a reminder to a calendar event.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "event_id": {
+      "type": "string",
+      "description": "The event id."
+     },
+     "minutes_before": {
+      "type": "string",
+      "description": "The minutes before."
+     }
+    },
+    "required": [
+     "event_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "mail_search",
+   "description": "Search the mailbox for messages matching a query.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "The query."
+     },
+     "folder": {
+      "type": "string",
+      "description": "The folder."
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "mail_read_message",
+   "description": "Read a single email message by id.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "message_id": {
+      "type": "string",
+      "description": "The message id."
+     }
+    },
+    "required": [
+     "message_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "mail_send",
+   "description": "Send an email to one or more recipients.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "to": {
+      "type": "string",
+      "description": "The to."
+     },
+     "subject": {
+      "type": "string",
+      "description": "The subject."
+     },
+     "body": {
+      "type": "string",
+      "description": "The body."
+     }
+    },
+    "required": [
+     "to"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "mail_create_draft",
+   "description": "Save a draft email without sending it.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "to": {
+      "type": "string",
+      "description": "The to."
+     },
+     "subject": {
+      "type": "string",
+      "description": "The subject."
+     },
+     "body": {
+      "type": "string",
+      "description": "The body."
+     }
+    },
+    "required": [
+     "to"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "mail_reply",
+   "description": "Reply to an email thread.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "message_id": {
+      "type": "string",
+      "description": "The message id."
+     },
+     "body": {
+      "type": "string",
+      "description": "The body."
+     }
+    },
+    "required": [
+     "message_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "mail_label_message",
+   "description": "Apply or remove a label on a message.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "message_id": {
+      "type": "string",
+      "description": "The message id."
+     },
+     "label": {
+      "type": "string",
+      "description": "The label."
+     }
+    },
+    "required": [
+     "message_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "web_search",
+   "description": "Search the public web and return result snippets.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "The query."
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "web_fetch_page",
+   "description": "Download a web page and return its text.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "description": "The url."
+     }
+    },
+    "required": [
+     "url"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "web_screenshot",
+   "description": "Take a screenshot of a web page.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "description": "The url."
+     }
+    },
+    "required": [
+     "url"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "web_extract_links",
+   "description": "Extract all hyperlinks from a web page.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "description": "The url."
+     }
+    },
+    "required": [
+     "url"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "web_check_status",
+   "description": "Check whether a website is reachable and its HTTP status.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "description": "The url."
+     }
+    },
+    "required": [
+     "url"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "db_run_query",
+   "description": "Run a read-only SQL query and return rows.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "sql": {
+      "type": "string",
+      "description": "The sql."
+     }
+    },
+    "required": [
+     "sql"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "db_list_tables",
+   "description": "List the tables of a database schema.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "schema": {
+      "type": "string",
+      "description": "The schema."
+     }
+    },
+    "required": [
+     "schema"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "db_describe_table",
+   "description": "Show columns, types and indexes of a table.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "table": {
+      "type": "string",
+      "description": "The table."
+     }
+    },
+    "required": [
+     "table"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "db_insert_rows",
+   "description": "Insert rows into a table.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "table": {
+      "type": "string",
+      "description": "The table."
+     },
+     "rows": {
+      "type": "string",
+      "description": "The rows."
+     }
+    },
+    "required": [
+     "table"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "db_explain_query",
+   "description": "Show the execution plan of a SQL query.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "sql": {
+      "type": "string",
+      "description": "The sql."
+     }
+    },
+    "required": [
+     "sql"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "db_export_csv",
+   "description": "Export the result of a query to a CSV file.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "sql": {
+      "type": "string",
+      "description": "The sql."
+     },
+     "path": {
+      "type": "string",
+      "description": "The path."
+     }
+    },
+    "required": [
+     "sql"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "chat_post_message",
+   "description": "Post a message to a team chat channel.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "channel": {
+      "type": "string",
+      "description": "The channel."
+     },
+     "text": {
+      "type": "string",
+      "description": "The text."
+     }
+    },
+    "required": [
+     "channel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "chat_list_channels",
+   "description": "List the channels in the workspace.",
+   "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "chat_read_history",
+   "description": "Read recent messages of a channel.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "channel": {
+      "type": "string",
+      "description": "The channel."
+     },
+     "limit": {
+      "type": "string",
+      "description": "The limit."
+     }
+    },
+    "required": [
+     "channel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "chat_search_messages",
+   "description": "Search chat messages across channels.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "The query."
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "chat_add_reaction",
+   "description": "React to a chat message with an emoji.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "channel": {
+      "type": "string",
+      "description": "The channel."
+     },
+     "timestamp": {
+      "type": "string",
+      "description": "The timestamp."
+     },
+     "emoji": {
+      "type": "string",
+      "description": "The emoji."
+     }
+    },
+    "required": [
+     "channel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "chat_set_status",
+   "description": "Set my chat presence status text.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "description": "The text."
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tkt_create",
+   "description": "Create a new ticket in a project.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "project": {
+      "type": "string",
+      "description": "The project."
+     },
+     "summary": {
+      "type": "string",
+      "description": "The summary."
+     },
+     "description": {
+      "type": "string",
+      "description": "The description."
+     }
+    },
+    "required": [
+     "project"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tkt_search",
+   "description": "Search tickets with a JQL-like query.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "The query."
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tkt_get",
+   "description": "Get one ticket with comments and history.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "key": {
+      "type": "string",
+      "description": "The key."
+     }
+    },
+    "required": [
+     "key"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tkt_transition",
+   "description": "Move a ticket to another workflow status.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "key": {
+      "type": "string",
+      "description": "The key."
+     },
+     "status": {
+      "type": "string",
+      "description": "The status."
+     }
+    },
+    "required": [
+     "key"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tkt_assign",
+   "description": "Assign a ticket to a user.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "key": {
+      "type": "string",
+      "description": "The key."
+     },
+     "assignee": {
+      "type": "string",
+      "description": "The assignee."
+     }
+    },
+    "required": [
+     "key"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tkt_add_comment",
+   "description": "Add a comment to a ticket.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "key": {
+      "type": "string",
+      "description": "The key."
+     },
+     "text": {
+      "type": "string",
+      "description": "The text."
+     }
+    },
+    "required": [
+     "key"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tkt_list_sprints",
+   "description": "List the sprints of a board.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string",
+      "description": "The board."
+     }
+    },
+    "required": [
+     "board"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tkt_log_work",
+   "description": "Log worked time on a ticket.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "key": {
+      "type": "string",
+      "description": "The key."
+     },
+     "minutes": {
+      "type": "string",
+      "description": "The minutes."
+     }
+    },
+    "required": [
+     "key"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "k8s_list_pods",
+   "description": "List pods in a Kubernetes namespace with their status.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "namespace": {
+      "type": "string",
+      "description": "The namespace."
+     }
+    },
+    "required": [
+     "namespace"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "k8s_get_logs",
+   "description": "Fetch the logs of a pod container.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "pod": {
+      "type": "string",
+      "description": "The pod."
+     },
+     "container": {
+      "type": "string",
+      "description": "The container."
+     }
+    },
+    "required": [
+     "pod"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "k8s_scale_deployment",
+   "description": "Scale a deployment to a number of replicas.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "description": "The name."
+     },
+     "replicas": {
+      "type": "string",
+      "description": "The replicas."
+     }
+    },
+    "required": [
+     "name"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "k8s_apply_manifest",
+   "description": "Apply a YAML manifest to the cluster.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "manifest": {
+      "type": "string",
+      "description": "The manifest."
+     }
+    },
+    "required": [
+     "manifest"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cloud_list_instances",
+   "description": "List virtual machine instances in a cloud project.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "project": {
+      "type": "string",
+      "description": "The project."
+     }
+    },
+    "required": [
+     "project"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cloud_start_instance",
+   "description": "Start a stopped virtual machine.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string",
+      "description": "The instance."
+     }
+    },
+    "required": [
+     "instance"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cloud_stop_instance",
+   "description": "Stop a running virtual machine.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string",
+      "description": "The instance."
+     }
+    },
+    "required": [
+     "instance"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cloud_list_buckets",
+   "description": "List object storage buckets.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "project": {
+      "type": "string",
+      "description": "The project."
+     }
+    },
+    "required": [
+     "project"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cloud_get_billing",
+   "description": "Get the current month's cloud spend by service.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "project": {
+      "type": "string",
+      "description": "The project."
+     }
+    },
+    "required": [
+     "project"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cloud_rotate_secret",
+   "description": "Rotate a stored secret and return the new version id.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "description": "The name."
+     }
+    },
+    "required": [
+     "name"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fin_get_quote",
+   "description": "Get the latest stock price for a ticker symbol.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string",
+      "description": "The symbol."
+     }
+    },
+    "required": [
+     "symbol"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fin_convert_currency",
+   "description": "Convert an amount between two currencies at today's rate.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "amount": {
+      "type": "string",
+      "description": "The amount."
+     },
+     "from": {
+      "type": "string",
+      "description": "The from."
+     },
+     "to": {
+      "type": "string",
+      "description": "The to."
+     }
+    },
+    "required": [
+     "amount"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fin_list_transactions",
+   "description": "List my bank transactions in a date range.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "start": {
+      "type": "string",
+      "description": "The start."
+     },
+     "end": {
+      "type": "string",
+      "description": "The end."
+     }
+    },
+    "required": [
+     "start"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fin_get_portfolio",
+   "description": "Show my investment portfolio holdings and value.",
+   "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fin_compute_loan",
+   "description": "Compute the monthly payment of a loan.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "principal": {
+      "type": "string",
+      "description": "The principal."
+     },
+     "rate": {
+      "type": "string",
+      "description": "The rate."
+     },
+     "years": {
+      "type": "string",
+      "description": "The years."
+     }
+    },
+    "required": [
+     "principal"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "geo_weather_forecast",
+   "description": "Get the weather forecast for a city.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "city": {
+      "type": "string",
+      "description": "The city."
+     },
+     "days": {
+      "type": "string",
+      "description": "The days."
+     }
+    },
+    "required": [
+     "city"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "geo_route",
+   "description": "Compute a driving or transit route between two places.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "origin": {
+      "type": "string",
+      "description": "The origin."
+     },
+     "destination": {
+      "type": "string",
+      "description": "The destination."
+     },
+     "mode": {
+      "type": "string",
+      "description": "The mode."
+     }
+    },
+    "required": [
+     "origin"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "geo_search_places",
+   "description": "Search for restaurants, shops or other places near a location.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "The query."
+     },
+     "location": {
+      "type": "string",
+      "description": "The location."
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "geo_geocode",
+   "description": "Convert an address into coordinates.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "address": {
+      "type": "string",
+      "description": "The address."
+     }
+    },
+    "required": [
+     "address"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "geo_timezone",
+   "description": "Get the current time in a city.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "city": {
+      "type": "string",
+      "description": "The city."
+     }
+    },
+    "required": [
+     "city"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "note_create",
+   "description": "Create a new note in the notebook.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string",
+      "description": "The title."
+     },
+     "body": {
+      "type": "string",
+      "description": "The body."
+     }
+    },
+    "required": [
+     "title"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "note_search",
+   "description": "Search my notes by keyword.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "The query."
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "note_append",
+   "description": "Append text to an existing note.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "note_id": {
+      "type": "string",
+      "description": "The note id."
+     },
+     "text": {
+      "type": "string",
+      "description": "The text."
+     }
+    },
+    "required": [
+     "note_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "todo_add",
+   "description": "Add an item to my to-do list.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "description": "The text."
+     },
+     "due": {
+      "type": "string",
+      "description": "The due."
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "todo_list",
+   "description": "List my open to-do items.",
+   "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "todo_complete",
+   "description": "Mark a to-do item as done.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "description": "The id."
+     }
+    },
+    "required": [
+     "id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "media_play_music",
+   "description": "Play a song, album or playlist.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "The query."
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "media_pause",
+   "description": "Pause the current playback.",
+   "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "media_generate_image",
+   "description": "Generate an image from a text prompt.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "prompt": {
+      "type": "string",
+      "description": "The prompt."
+     },
+     "size": {
+      "type": "string",
+      "description": "The size."
+     }
+    },
+    "required": [
+     "prompt"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "media_transcribe_audio",
+   "description": "Transcribe an audio file to text.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "The path."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "media_text_to_speech",
+   "description": "Read a text aloud and save it as an audio file.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string",
+      "description": "The text."
+     },
+     "voice": {
+      "type": "string",
+      "description": "The voice."
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "home_set_light",
+   "description": "Turn a light on or off or set its brightness.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "room": {
+      "type": "string",
+      "description": "The room."
+     },
+     "state": {
+      "type": "string",
+      "description": "The state."
+     },
+     "brightness": {
+      "type": "string",
+      "description": "The brightness."
+     }
+    },
+    "required": [
+     "room"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "home_set_thermostat",
+   "description": "Set the target temperature of a room.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "room": {
+      "type": "string",
+      "description": "The room."
+     },
+     "celsius": {
+      "type": "string",
+      "description": "The celsius."
+     }
+    },
+    "required": [
+     "room"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "home_lock_door",
+   "description": "Lock or unlock a door.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "door": {
+      "type": "string",
+      "description": "The door."
+     },
+     "state": {
+      "type": "string",
+      "description": "The state."
+     }
+    },
+    "required": [
+     "door"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "home_list_devices",
+   "description": "List all smart-home devices and their state.",
+   "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "home_run_scene",
+   "description": "Activate a saved scene such as 'movie night'.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "scene": {
+      "type": "string",
+      "description": "The scene."
+     }
+    },
+    "required": [
+     "scene"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "home_get_camera_snapshot",
+   "description": "Get the latest snapshot from a security camera.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "camera": {
+      "type": "string",
+      "description": "The camera."
+     }
+    },
+    "required": [
+     "camera"
+    ]
+   }
+  }
+ }
+]

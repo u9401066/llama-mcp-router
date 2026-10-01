@@ -1,0 +1,52 @@
+{"id": 0, "query": "I need studies on high-flow nasal oxygen in COPD exacerbations.", "expect": ["pubmed_unified_search"], "lang": "en"}
+{"id": 1, "query": "有沒有關於術後譫妄與右美託咪啶的文獻?", "expect": ["pubmed_unified_search"], "lang": "zh"}
+{"id": 2, "query": "How would you interpret the query 'ketamine AND depression[MeSH]'? Just explain the parse, I don't need results.", "expect": ["pubmed_analyze_search_query"], "lang": "en"}
+{"id": 3, "query": "我的 PICO:P=第二型糖尿病成人、I=SGLT2 抑制劑、C=安慰劑、O=心衰竭住院。幫我驗證並產生可執行的管線", "expect": ["pubmed_validate_pico_plan"], "lang": "zh"}
+{"id": 4, "query": "What synonyms and MeSH headings should I use to search for 'chronic postsurgical pain'?", "expect": ["pubmed_generate_search_queries"], "lang": "en"}
+{"id": 5, "query": "幫我規劃 'sepsis-induced coagulopathy' 的檢索詞與同義詞", "expect": ["pubmed_generate_search_queries"], "lang": "zh"}
+{"id": 6, "query": "Give me papers similar to PMID 25012345.", "expect": ["pubmed_find_related_articles"], "lang": "en"}
+{"id": 7, "query": "和 PMID 30111222 類似的研究有哪些", "expect": ["pubmed_find_related_articles"], "lang": "zh"}
+{"id": 8, "query": "Who has cited PMID 29876543 since it was published?", "expect": ["pubmed_find_citing_articles"], "lang": "en"}
+{"id": 9, "query": "有哪些論文引用了 PMID 26543210", "expect": ["pubmed_find_citing_articles"], "lang": "zh"}
+{"id": 10, "query": "What does PMID 31000111 cite? Show its bibliography.", "expect": ["pubmed_get_article_references"], "lang": "en"}
+{"id": 11, "query": "Pull the abstract, authors and journal for PMID 32012345.", "expect": ["pubmed_fetch_article_details"], "lang": "en"}
+{"id": 12, "query": "PMID 27000222 這篇的作者和摘要是什麼", "expect": ["pubmed_fetch_article_details"], "lang": "zh"}
+{"id": 13, "query": "How influential is PMID 30123456? Give me its iCite percentile.", "expect": ["pubmed_get_citation_metrics"], "lang": "en"}
+{"id": 14, "query": "我寫了兩條參考文獻,幫我確認是否真的存在:Tanaka H, et al. Remimazolam versus midazolam. Br J Anaesth 2020; Zhou Y. Ketamine for depression. Lancet Psychiatry 2019.", "expect": ["pubmed_verify_reference_list"], "lang": "zh"}
+{"id": 15, "query": "Give me a RIS file for PMIDs 30111222, 31000111 and 32012345.", "expect": ["pubmed_prepare_export"], "lang": "en"}
+{"id": 16, "query": "匯出這些文獻為 Zotero 可以匯入的格式", "expect": ["pubmed_prepare_export", "pubmed_read_session"], "lang": "zh"}
+{"id": 17, "query": "Turn the articles I found into linked notes for my Obsidian vault.", "expect": ["pubmed_save_literature_notes", "pubmed_read_session"], "lang": "en"}
+{"id": 18, "query": "Fetch the open access full text for PMID 30123456.", "expect": ["pubmed_get_fulltext"], "lang": "en"}
+{"id": 19, "query": "What diseases and chemicals are annotated in the text of PMID 28001234 on Europe PMC?", "expect": ["pubmed_get_text_mined_terms"], "lang": "en"}
+{"id": 20, "query": "我想看 PMC6543210 裡面每張圖的圖說與連結", "expect": ["pubmed_get_article_figures"], "lang": "zh"}
+{"id": 21, "query": "Look up the CFTR gene in Homo sapiens.", "expect": ["pubmed_search_gene"], "lang": "en"}
+{"id": 22, "query": "幫我找 EGFR 這個基因", "expect": ["pubmed_search_gene"], "lang": "zh"}
+{"id": 23, "query": "Details for gene ID 1956 please.", "expect": ["pubmed_get_gene_details"], "lang": "en"}
+{"id": 24, "query": "Which PubMed articles are curated for NCBI gene 1956?", "expect": ["pubmed_get_gene_literature"], "lang": "en"}
+{"id": 25, "query": "Find the PubChem record for metformin.", "expect": ["pubmed_search_compound"], "lang": "en"}
+{"id": 26, "query": "查一下 dexmedetomidine 的化合物資料", "expect": ["pubmed_search_compound"], "lang": "zh"}
+{"id": 27, "query": "Pull full compound details for CID 4091.", "expect": ["pubmed_get_compound_details"], "lang": "en"}
+{"id": 28, "query": "與 PubChem CID 4091 連結的 PubMed 論文有哪些?", "expect": ["pubmed_get_compound_literature"], "lang": "zh"}
+{"id": 29, "query": "What does ClinVar say about the variant CFTR c.1521_1523delCTT?", "expect": ["pubmed_search_clinvar"], "lang": "en"}
+{"id": 30, "query": "rs121913529 在 ClinVar 是致病性的嗎", "expect": ["pubmed_search_clinvar"], "lang": "zh"}
+{"id": 31, "query": "Map the upstream and downstream citation network of PMID 25012345.", "expect": ["pubmed_build_citation_tree"], "lang": "en"}
+{"id": 32, "query": "為 'GLP-1 agonists and pancreatitis' 建立可持續更新、有版本紀錄的研究紀事", "expect": ["pubmed_build_research_chronicle"], "lang": "zh"}
+{"id": 33, "query": "Show me the narrative of my saved research chronicle about vasopressin.", "expect": ["pubmed_read_research_chronicle"], "lang": "en"}
+{"id": 34, "query": "這是一張組織切片染色圖,幫我分析它並規劃用圖找類似文獻", "expect": ["pubmed_prepare_figure_search"], "lang": "zh"}
+{"id": 35, "query": "Find Open-i images of diabetic retinopathy fundus photographs.", "expect": ["pubmed_search_biomedical_images"], "lang": "en"}
+{"id": 36, "query": "Set up my hospital's EZproxy / OpenURL resolver so full texts open through the library.", "expect": ["pubmed_configure_institutional_access"], "lang": "en"}
+{"id": 37, "query": "Make me a library access link for the article with PMID 30123456.", "expect": ["pubmed_get_institutional_link"], "lang": "en"}
+{"id": 38, "query": "Which universities already have a preset resolver configuration?", "expect": ["pubmed_list_resolver_presets"], "lang": "en"}
+{"id": 39, "query": "Check that the library resolver I configured earlier is working.", "expect": ["pubmed_test_institutional_access"], "lang": "en"}
+{"id": 40, "query": "我透過學校圖書館看不到 PMID 30123456 的全文,幫我找出原因", "expect": ["pubmed_diagnose_institutional_access"], "lang": "zh"}
+{"id": 41, "query": "Which MeSH term corresponds to ICD-9-CM 250.00?", "expect": ["pubmed_convert_icd_mesh"], "lang": "en"}
+{"id": 42, "query": "J18.9 對應到哪個 MeSH 詞彙?", "expect": ["pubmed_convert_icd_mesh"], "lang": "zh"}
+{"id": 43, "query": "Store my current search configuration as a pipeline called icu_delirium_weekly with the tag delirium.", "expect": ["pubmed_save_pipeline"], "lang": "en"}
+{"id": 44, "query": "What pipelines have I saved?", "expect": ["pubmed_list_pipelines"], "lang": "en"}
+{"id": 45, "query": "Open the saved pipeline icu_delirium_weekly for editing.", "expect": ["pubmed_load_pipeline"], "lang": "en"}
+{"id": 46, "query": "請刪掉 icu_delirium_weekly 這個管線和它的歷史", "expect": ["pubmed_delete_pipeline"], "lang": "zh"}
+{"id": 47, "query": "Which new articles did the last run of icu_delirium_weekly find compared with the run before?", "expect": ["pubmed_get_pipeline_history"], "lang": "en"}
+{"id": 48, "query": "Run the icu_delirium_weekly pipeline every day at 06:30.", "expect": ["pubmed_schedule_pipeline"], "lang": "en"}
+{"id": 49, "query": "不要再自動執行 icu_delirium_weekly 了", "expect": ["pubmed_unschedule_pipeline"], "lang": "zh"}
+{"id": 50, "query": "What articles are cached in this session right now?", "expect": ["pubmed_read_session"], "lang": "en"}
+{"id": 51, "query": "目前 session 摘要是什麼", "expect": ["pubmed_read_session"], "lang": "zh"}
