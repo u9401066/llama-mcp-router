@@ -72,6 +72,7 @@ def laya_transport(answer_for):
 
     def handler(request: httpx.Request):
         body = json.loads(request.content)
-        return httpx.Response(200, json={"answers": answer_for(body["state"], body["questions"])})
+        state = body["state"]
+        return httpx.Response(200, json={"answers": answer_for(state["request"] if isinstance(state, dict) else state, body["questions"]), "_body": body})
 
     return httpx.MockTransport(handler)

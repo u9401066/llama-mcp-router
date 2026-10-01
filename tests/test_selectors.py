@@ -98,3 +98,47 @@ def test_load_selector_specs():
     assert isinstance(load_selector("llama_mcp_router.selectors:AllSelector"), AllSelector)
     with pytest.raises(ValueError):
         load_selector("nope")
+
+
+def test_laya_state_and_labels_are_what_the_lab_found_best():
+    seen = {}
+
+    def answers(q, qs):
+        seen["qs"] = qs
+        return {"tool_group": {"probabilities": {"export": 1.0}}}
+
+    from conftest import laya_transport as lt
+
+    grp = {"groups": {"export": {"description": "a very long description about exporting things", "label": "export citations", "tools": ["pm_export"]}}}
+    sel = LayaSelector(groups=grp, transport=lt(answers))
+    run(sel.select("x" * 3000, TOOLS))
+    q = seen["qs"]["tool_group"]
+    assert q["instructions"] == "Which kind of tool does `request` need?"
+    assert q["criteria"]["export"] == "export citations"
+    assert q["criteria"]["pm_search"].startswith("Search PubMed")  # ungrouped tool: first sentence of its description
+
+    sel = LayaSelector(groups=grp, labels="description", state_mode="raw", transport=lt(answers))
+    run(sel.select("hello", TOOLS))
+    q = seen["qs"]["tool_group"]
+    assert q["criteria"]["export"].startswith("a very long") and "`request`" not in q["instructions"]
+    sel = LayaSelector(groups=grp, labels="auto", transport=lt(answers))
+    run(sel.select("hello", TOOLS))
+    assert seen["qs"]["tool_group"]["criteria"]["export"].startswith("Export citations")
+    with pytest.raises(ValueError):
+        LayaSelector(state_mode="xml")
+
+
+def test_laya_query_is_capped_to_the_tail():
+    got = {}
+
+    def handler(request):
+        import json as j
+
+        got["state"] = j.loads(request.content)["state"]
+        return httpx.Response(200, json={"answers": {"tool_group": {"probabilities": {"pm_gene": 1.0}}}})
+
+    import httpx
+
+    sel = LayaSelector(max_query_chars=10, transport=httpx.MockTransport(handler))
+    run(sel.select("A" * 50 + "BBBBBBBBBB", TOOLS))
+    assert got["state"] == {"request": "B" * 10}

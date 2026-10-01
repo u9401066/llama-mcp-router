@@ -80,6 +80,8 @@ class Group:
     name: str
     description: str
     tools: List[str]
+    label: str = ""  # short, front-loaded text shown to Laya (falls back to description)
+    auto_label: str = ""  # built from the member tools' own descriptions
 
 
 def load_groups_config(path: Optional[str]) -> Dict[str, Any]:
@@ -103,10 +105,13 @@ def build_groups(cfg: Dict[str, Any], tools: Sequence[Tool]) -> List[Group]:
         members = [n for n in members if n not in seen]
         if members:
             seen.update(members)
-            groups.append(Group(gname, g.get("description", gname), members))
+            desc = g.get("description", gname)
+            auto = "; ".join(first_sentence(tool_description(by_name[m]), 90) for m in members[:3])
+            groups.append(Group(gname, desc, members, g.get("label") or desc, auto or desc))
     for n, t in by_name.items():
         if n not in seen:
-            groups.append(Group(n, first_sentence(tool_description(t)) or n, [n]))
+            d = first_sentence(tool_description(t)) or n
+            groups.append(Group(n, d, [n], d, d))
     return groups
 
 
@@ -118,6 +123,16 @@ class LayaSelector(Selector):
     Laya is a non-autoregressive decision model (~15-100 ms per call). The tool groups
     become the options of a single ``choice`` question; the probabilities decide how
     many groups to keep. ``mode="noul"`` asks one yes/no question per group instead.
+
+    How the question is *asked* matters (see benchmarks/HARNESS.md): the default wraps the
+    request as ``{"request": ...}`` and names that field in the instruction (+8 points top-1
+    over passing the bare string). Laya reads at most ~11 tokens of each option when there are
+    14 of them (``head_max_len`` is 192 tokens in total), so ``label`` texts must be short and
+    front-loaded, and *raising* ``head_max_len`` makes it worse.
+
+    ``state_mode``: ``"json"`` (default) or ``"raw"``.
+    ``labels``: ``"label"`` (group ``label`` or description, default), ``"description"`` or
+    ``"auto"`` (the first sentences of the member tools' own descriptions; needs no hand-written text).
     """
 
     name = "laya"
@@ -127,20 +142,31 @@ class LayaSelector(Selector):
         url: str = "http://127.0.0.1:8000",
         groups: Optional[Dict[str, Any]] = None,
         mode: str = "choice",
-        top_p: float = 0.95,
+        top_p: float = 1.0,
         min_groups: int = 1,
-        max_groups: int = 4,
+        max_groups: int = 3,
         threshold: float = 0.5,
-        instructions: str = "Which kind of tool is needed to handle this request?",
+        instructions: Optional[str] = None,
+        state_mode: str = "json",
+        labels: str = "label",
+        max_query_chars: int = 1500,
         api_key: Optional[str] = None,
         timeout: float = 10.0,
         transport: Optional[httpx.AsyncBaseTransport] = None,
     ):
         if mode not in ("choice", "noul"):
             raise ValueError("mode must be 'choice' or 'noul'")
+        if state_mode not in ("json", "raw"):
+            raise ValueError("state_mode must be 'json' or 'raw'")
+        if labels not in ("label", "description", "auto"):
+            raise ValueError("labels must be 'label', 'description' or 'auto'")
         self.cfg = groups or {"always": [], "groups": {}}
         self.mode, self.top_p, self.min_groups, self.max_groups = mode, top_p, min_groups, max_groups
-        self.threshold, self.instructions = threshold, instructions
+        self.threshold = threshold
+        self.state_mode, self.labels, self.max_query_chars = state_mode, labels, max_query_chars
+        json_mode = state_mode == "json"
+        self.instructions = instructions or ("Which kind of tool does `request` need?" if json_mode else "Which kind of tool is needed to handle this request?")
+        self._noul_tmpl = "Does `request` require: {d}?" if json_mode else "Does handling this request require: {d}?"
         headers = {"Authorization": "Bearer " + api_key} if api_key else {}
         self.client = httpx.AsyncClient(base_url=url.rstrip("/"), headers=headers, timeout=timeout, transport=transport)
         self._cache: Dict[str, Tuple[List[Group], Dict[str, Any]]] = {}
@@ -152,16 +178,19 @@ class LayaSelector(Selector):
         key = hashlib.sha1("\0".join(sorted(tool_name(t) for t in tools)).encode()).hexdigest()
         if key not in self._cache:
             groups = build_groups(self.cfg, tools)
+            text = {g.name: {"label": g.label, "description": g.description, "auto": g.auto_label}[self.labels] for g in groups}
             if self.mode == "choice":
-                questions = {"tool_group": {"type": "choice", "instructions": self.instructions, "criteria": {g.name: g.description for g in groups}}}
+                questions = {"tool_group": {"type": "choice", "instructions": self.instructions, "criteria": text}}
             else:
-                questions = {g.name: {"type": "noul", "instructions": "Does handling this request require: %s?" % g.description} for g in groups}
+                questions = {g.name: {"type": "noul", "instructions": self._noul_tmpl.format(d=text[g.name])} for g in groups}
             self._cache = {key: (groups, questions)}
         return self._cache[key]
 
     async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
         groups, questions = self._prepare(tools)
-        r = await self.client.post("/v1/systemone", json={"state": query, "questions": questions})
+        query = query[-self.max_query_chars:]
+        state = {"request": query} if self.state_mode == "json" else query
+        r = await self.client.post("/v1/systemone", json={"state": state, "questions": questions})
         r.raise_for_status()
         answers = r.json()["answers"]
         if self.mode == "choice":

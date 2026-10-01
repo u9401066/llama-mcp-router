@@ -109,7 +109,7 @@ Keep group descriptions short and about the *user's intent*; with Laya they are 
 |---|---|---|
 | `all` | every tool (baseline, same as plain llama-server) | – |
 | `bm25` | lexical top-k over tool names + descriptions; CJK-aware tokeniser | – |
-| `laya` | Laya `choice` over tool groups, keeps groups until `--top-p` of probability mass (≤ `--max-groups`); `--laya-mode noul` asks one yes/no question per group instead | a `laya-serve` instance |
+| `laya` | Laya `choice` over tool groups; keeps the top `--max-groups` (default 3) groups (or fewer once `--top-p` of the probability mass is covered; default 1.0 = always 3, which measured better than adaptive cut-offs). `--laya-state json\|raw`, `--laya-labels label\|description\|auto` control how the question is asked (see [benchmarks/HARNESS.md](benchmarks/HARNESS.md)) | a `laya-serve` instance |
 | `laya+bm25` | union (default) | both |
 
 Write your own:

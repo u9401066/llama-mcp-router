@@ -3,59 +3,128 @@
   "groups": {
     "search": {
       "description": "searching the literature for papers on a topic, building PICO questions or search strategies",
-      "tools": ["pubmed_unified_search", "pubmed_analyze_search_query", "pubmed_validate_pico_plan", "pubmed_generate_search_queries"]
+      "tools": [
+        "pubmed_unified_search",
+        "pubmed_analyze_search_query",
+        "pubmed_validate_pico_plan",
+        "pubmed_generate_search_queries"
+      ],
+      "label": "search PubMed for papers on a topic"
     },
     "article_details": {
       "description": "looking up details, abstract, metadata or citation metrics of specific known articles by PMID or DOI, or verifying a reference list",
-      "tools": ["pubmed_fetch_article_details", "pubmed_get_citation_metrics", "pubmed_verify_reference_list"]
+      "tools": [
+        "pubmed_fetch_article_details",
+        "pubmed_get_citation_metrics",
+        "pubmed_verify_reference_list"
+      ],
+      "label": "abstract, authors, metrics of a given PMID"
     },
     "citation_network": {
       "description": "finding related articles, who cites an article, an article's references, or building a citation tree",
-      "tools": ["pubmed_find_related_articles", "pubmed_find_citing_articles", "pubmed_get_article_references", "pubmed_build_citation_tree"]
+      "tools": [
+        "pubmed_find_related_articles",
+        "pubmed_find_citing_articles",
+        "pubmed_get_article_references",
+        "pubmed_build_citation_tree"
+      ],
+      "label": "papers citing or related to an article"
     },
     "fulltext": {
       "description": "getting the full text, PDF, text-mined entities or figures of an article",
-      "tools": ["pubmed_get_fulltext", "pubmed_get_text_mined_terms", "pubmed_get_article_figures"]
+      "tools": [
+        "pubmed_get_fulltext",
+        "pubmed_get_text_mined_terms",
+        "pubmed_get_article_figures"
+      ],
+      "label": "full text, figures, text mining of an article"
     },
     "export": {
       "description": "exporting citations to a reference manager format (RIS, BibTeX, EndNote) or saving literature notes",
-      "tools": ["pubmed_prepare_export", "pubmed_save_literature_notes"]
+      "tools": [
+        "pubmed_prepare_export",
+        "pubmed_save_literature_notes"
+      ],
+      "label": "export citations to BibTeX, RIS; save notes"
     },
     "gene": {
       "description": "looking up a gene, its details, or the literature about a gene",
-      "tools": ["pubmed_search_gene", "pubmed_get_gene_details", "pubmed_get_gene_literature"]
+      "tools": [
+        "pubmed_search_gene",
+        "pubmed_get_gene_details",
+        "pubmed_get_gene_literature"
+      ],
+      "label": "look up a gene"
     },
     "compound": {
       "description": "looking up a chemical compound or drug in PubChem, its details, or literature about it",
-      "tools": ["pubmed_search_compound", "pubmed_get_compound_details", "pubmed_get_compound_literature"]
+      "tools": [
+        "pubmed_search_compound",
+        "pubmed_get_compound_details",
+        "pubmed_get_compound_literature"
+      ],
+      "label": "look up a chemical compound or drug"
     },
     "variant": {
       "description": "looking up a genetic variant and its clinical significance in ClinVar",
-      "tools": ["pubmed_search_clinvar"]
+      "tools": [
+        "pubmed_search_clinvar"
+      ],
+      "label": "genetic variant clinical significance"
     },
     "chronicle": {
       "description": "building, reading or comparing a research chronicle (the evolving history of a research question)",
-      "tools": ["pubmed_build_research_chronicle", "pubmed_read_research_chronicle"]
+      "tools": [
+        "pubmed_build_research_chronicle",
+        "pubmed_read_research_chronicle"
+      ],
+      "label": "research chronicle of a topic over time"
     },
     "images": {
       "description": "searching biomedical images or analysing a figure or image to find literature",
-      "tools": ["pubmed_prepare_figure_search", "pubmed_search_biomedical_images"]
+      "tools": [
+        "pubmed_prepare_figure_search",
+        "pubmed_search_biomedical_images"
+      ],
+      "label": "biomedical images, figure-based search"
     },
     "institutional": {
       "description": "configuring, testing or diagnosing institutional library access (link resolver, OpenURL) to get paywalled full text",
-      "tools": ["pubmed_configure_institutional_access", "pubmed_get_institutional_link", "pubmed_list_resolver_presets", "pubmed_test_institutional_access", "pubmed_diagnose_institutional_access"]
+      "tools": [
+        "pubmed_configure_institutional_access",
+        "pubmed_get_institutional_link",
+        "pubmed_list_resolver_presets",
+        "pubmed_test_institutional_access",
+        "pubmed_diagnose_institutional_access"
+      ],
+      "label": "library access to full text via resolver"
     },
     "icd": {
       "description": "converting between ICD diagnosis codes and MeSH terms",
-      "tools": ["pubmed_convert_icd_mesh"]
+      "tools": [
+        "pubmed_convert_icd_mesh"
+      ],
+      "label": "convert ICD codes and MeSH terms"
     },
     "pipeline": {
       "description": "saving, loading, listing, deleting or scheduling a reusable saved search pipeline, or viewing its run history",
-      "tools": ["pubmed_save_pipeline", "pubmed_list_pipelines", "pubmed_load_pipeline", "pubmed_delete_pipeline", "pubmed_get_pipeline_history", "pubmed_schedule_pipeline", "pubmed_unschedule_pipeline"]
+      "tools": [
+        "pubmed_save_pipeline",
+        "pubmed_list_pipelines",
+        "pubmed_load_pipeline",
+        "pubmed_delete_pipeline",
+        "pubmed_get_pipeline_history",
+        "pubmed_schedule_pipeline",
+        "pubmed_unschedule_pipeline"
+      ],
+      "label": "saved search pipeline: save, list, schedule"
     },
     "session": {
       "description": "reading the PMIDs, cached articles or summary of the current search session",
-      "tools": ["pubmed_read_session"]
+      "tools": [
+        "pubmed_read_session"
+      ],
+      "label": "PMIDs in the current session"
     }
   }
 }
