@@ -1,9 +1,11 @@
 """OpenAI-compatible proxy that sends the model only the tools it needs."""
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
+import os
 import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
@@ -14,9 +16,10 @@ import httpx
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response, StreamingResponse
+from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
+from .agent import AcpError, AgentConfig, AgentManager
 from .selectors import AllSelector, Selector
 from .tools import ServerToolSource, Tool, exclude_tools, first_sentence, normalize_tool, sanitize_tool, tool_description, tool_name
 
@@ -43,6 +46,7 @@ class RouterConfig:
     catalog_max: int = 80  # list left-out tools by name up to this many; beyond it the meta-tool takes a search query
     search_k: int = 8  # tools loaded per escalation search query
     sanitize: bool = True  # inline $refs / drop huge length limits so llama.cpp can build a grammar for every tool
+    agent: Optional[AgentConfig] = None  # run an ACP agent per conversation for model=agent.model_id / trigger prefix
     sticky: bool = False  # opt-in: keep a conversation's tool list append-only so llama-server's prompt cache can keep hitting
     sticky_conversations: int = 512  # how many conversations to remember
     tools_ttl: float = 60.0
@@ -193,6 +197,30 @@ def add_hint(messages: List[Dict[str, Any]], hint: str) -> List[Dict[str, Any]]:
     return out
 
 
+def _msg_text(m: Dict[str, Any]) -> str:
+    c = m.get("content")
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        return "\n".join(p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text")
+    return ""
+
+
+def _agent_summary(ev: Dict[str, Any]) -> str:
+    sid = ev.get("session")
+    base = "/agent/sessions/%s" % sid
+    lines = ["", "", "---"]
+    if ev.get("changed"):
+        lines.append("**Files changed** (commit `%s`):" % ev.get("commit"))
+        for c in ev["changed"]:
+            mark = {"A": "added", "M": "modified", "D": "deleted"}.get(c["status"], c["status"])
+            lines.append("- [%s](%s/files/%s) — %s" % (c["path"], base, c["path"], mark) if c["status"] != "D" else "- %s — deleted" % c["path"])
+    else:
+        lines.append("No files changed.")
+    lines.append("[Workspace](%s) · [Download zip](%s/archive.zip)" % (base, base))
+    return "\n".join(lines)
+
+
 def called_tool_names(messages: Sequence[Dict[str, Any]]) -> Set[str]:
     names: Set[str] = set()
     for m in messages:
@@ -229,10 +257,13 @@ class Router:
         self._sticky: "OrderedDict[str, List[str]]" = OrderedDict()
         self._fallback_retriever: Any = None
         self._clean: Dict[str, Tool] = {}
+        self.agents: Optional[AgentManager] = AgentManager(config.agent) if config.agent else None
 
     async def aclose(self) -> None:
         await self.client.aclose()
         await self.cfg.selector.aclose()
+        if self.agents:
+            await self.agents.aclose()
 
     # ------------------------------------------------------------------ selection
     async def pool(self, client_tools: Sequence[Tool]) -> List[Tool]:
@@ -283,6 +314,8 @@ class Router:
             body = await request.json()
         except ValueError:
             return JSONResponse({"error": {"message": "invalid JSON body"}}, status_code=400)
+        if self.agents and self._agent_trigger(body) is not None:
+            return await self._agent_chat(body)
         bypass = request.headers.get("x-router-bypass") or body.pop("router", None) is False
         headers = _forward_headers(request)
         if bypass:
@@ -493,6 +526,128 @@ class Router:
         yield "data: %s\n\n" % json.dumps({**base, "choices": [{"index": 0, "delta": {}, "finish_reason": data["choices"][0].get("finish_reason")}], "usage": data.get("usage")}, ensure_ascii=False)
         yield "data: [DONE]\n\n"
 
+    # ------------------------------------------------------------------ agent bridge
+    def _agent_trigger(self, body: Dict[str, Any]) -> Optional[str]:
+        """'' when the request is for the agent by model name, the matched prefix when by trigger, else None."""
+        cfg = self.cfg.agent
+        if cfg is None:
+            return None
+        if body.get("model") == cfg.model_id:
+            return ""
+        first = next((_msg_text(m) for m in body.get("messages") or [] if m.get("role") == "user"), "")
+        for t in cfg.triggers:
+            if first.lstrip().lower().startswith(t.lower()):
+                return t
+        return None
+
+    async def _agent_chat(self, body: Dict[str, Any]) -> Response:
+        assert self.agents and self.cfg.agent
+        messages = body.get("messages") or []
+        trigger = self._agent_trigger(body) or ""
+        users = [m for m in messages if m.get("role") == "user"]
+        text = _msg_text(users[-1]) if users else ""
+        if trigger and text.lstrip().lower().startswith(trigger.lower()):
+            text = text.lstrip()[len(trigger):].strip()
+        key = "agent:" + (conversation_key(messages) or "default")
+        model = body.get("model") or self.cfg.agent.model_id
+        created = int(time.time())
+        cid = "chatcmpl-agent-%d" % created
+
+        def chunk(delta: Dict[str, Any], finish: Optional[str] = None) -> str:
+            return "data: %s\n\n" % json.dumps({"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
+                                                 "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}, ensure_ascii=False)
+
+        async def events():
+            if not text:
+                yield {"type": "message", "text": "Send a task after `%s`, e.g. `%s write a script that ...`." % (trigger or "/agent", trigger or "/agent")}
+                return
+            try:
+                async for ev in self.agents.turn(key, text):  # type: ignore[union-attr]
+                    yield ev
+            except (AcpError, OSError, RuntimeError, asyncio.TimeoutError) as e:
+                log.warning("agent turn failed: %s: %s", type(e).__name__, e)
+                yield {"type": "message", "text": "\n\n**Agent error:** %s" % e}
+
+        def render(ev: Dict[str, Any]) -> Dict[str, Any]:
+            t = ev["type"]
+            if t == "message":
+                return {"content": ev["text"]}
+            if t == "thought":
+                return {"reasoning_content": ev["text"]}
+            if t == "status":
+                return {"reasoning_content": "[agent: %s]\n" % ev["text"]}
+            if t == "tool":
+                label = ev.get("title") or ev.get("kind") or "tool"
+                if ev.get("new"):
+                    return {"reasoning_content": "\n▶ %s\n" % label}
+                if ev.get("status") in ("completed", "failed"):
+                    return {"reasoning_content": "%s %s\n" % ("✓" if ev["status"] == "completed" else "✗", label)}
+                return {}
+            if t == "plan":
+                return {"reasoning_content": "\nPlan:\n" + "".join("- %s\n" % e for e in ev.get("entries") or [])}
+            if t == "permission":
+                return {"reasoning_content": "\n[permission %s: %s]\n" % ("granted" if ev.get("granted") else "denied", ev.get("title"))}
+            if t == "done":
+                return {"content": _agent_summary(ev)}
+            return {}
+
+        if body.get("stream"):
+            async def gen():
+                yield chunk({"role": "assistant", "content": ""})
+                async for ev in events():
+                    d = render(ev)
+                    if d:
+                        yield chunk(d)
+                yield chunk({}, "stop")
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(gen(), media_type="text/event-stream", headers={"x-router-agent": self.cfg.agent.name})
+        content, reasoning, session = "", "", None
+        async for ev in events():
+            d = render(ev)
+            content += d.get("content", "")
+            reasoning += d.get("reasoning_content", "")
+            session = ev.get("session", session)
+        msg = {"role": "assistant", "content": content}
+        if reasoning:
+            msg["reasoning_content"] = reasoning
+        return JSONResponse({"id": cid, "object": "chat.completion", "created": created, "model": model,
+                             "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}],
+                             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}, "router": {"agent_session": session}})
+
+    async def agent_session(self, request: Request) -> Response:
+        if not self.agents:
+            return JSONResponse({"error": "agent bridge disabled"}, status_code=404)
+        info = await self.agents.describe(request.path_params["sid"])
+        return JSONResponse(info) if info else JSONResponse({"error": "no such session"}, status_code=404)
+
+    async def agent_file(self, request: Request) -> Response:
+        path = self.agents.file_path(request.path_params["sid"], request.path_params["path"]) if self.agents else None
+        if not path:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return FileResponse(path, filename=os.path.basename(path), content_disposition_type="inline")
+
+    async def agent_archive(self, request: Request) -> Response:
+        data = await self.agents.archive(request.path_params["sid"]) if self.agents else None
+        if data is None:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return Response(data, media_type="application/zip", headers={"content-disposition": "attachment; filename=session-%s.zip" % request.path_params["sid"][:8]})
+
+    async def models(self, request: Request) -> Response:
+        """llama-server's model list, plus the agent as a selectable model."""
+        r = await self.client.get("/v1/models", headers={"accept-encoding": "identity"})
+        try:
+            data = r.json()
+        except ValueError:
+            return Response(r.content, status_code=r.status_code, media_type=r.headers.get("content-type"))
+        if self.cfg.agent and isinstance(data, dict):
+            mid = self.cfg.agent.model_id
+            if isinstance(data.get("data"), list) and not any(m.get("id") == mid for m in data["data"]):
+                data["data"].append({"id": mid, "object": "model", "owned_by": "llama-mcp-router", "created": 0})
+            if isinstance(data.get("models"), list) and not any(m.get("model") == mid for m in data["models"]):
+                data["models"].append({"name": mid, "model": mid, "type": "model", "description": "ACP agent (%s) with a per-session workspace" % self.cfg.agent.name})
+        return JSONResponse(data, status_code=r.status_code)
+
     # ------------------------------------------------------------------ other routes
     async def select_endpoint(self, request: Request) -> Response:
         """POST /router/select {"query": "...", "tools": [...optional]} -> what would be sent."""
@@ -520,11 +675,15 @@ def create_app(config: RouterConfig, transport: Optional[httpx.AsyncBaseTranspor
         yield
         await router.aclose()
 
+    extra = [Route("/v1/models", router.models, methods=["GET"]), Route("/models", router.models, methods=["GET"])] if config.agent else []
     app = Starlette(
-        routes=[
+        routes=extra + [
             Route("/v1/chat/completions", router.chat, methods=["POST"]),
             Route("/router/select", router.select_endpoint, methods=["POST"]),
             Route("/router/health", router.health, methods=["GET"]),
+            Route("/agent/sessions/{sid}", router.agent_session, methods=["GET"]),
+            Route("/agent/sessions/{sid}/archive.zip", router.agent_archive, methods=["GET"]),
+            Route("/agent/sessions/{sid}/files/{path:path}", router.agent_file, methods=["GET"]),
             Route("/{path:path}", router.passthrough, methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]),
         ],
         lifespan=lifespan,
