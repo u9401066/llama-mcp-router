@@ -45,7 +45,10 @@ pip install git+https://github.com/u9401066/llama-mcp-router      # or: pipx ins
 
 ## Quick start
 
-1. Run `llama-server` with your MCP servers ([examples/llama-server-mcp.json](examples/llama-server-mcp.json)):
+1. Run `llama-server` with your MCP servers ([examples/llama-server-mcp.json](examples/llama-server-mcp.json)).
+   Point `command` at an **installed** executable (e.g. `uv tool install pubmed-search-mcp`, then `~/.local/bin/pubmed-search-mcp`),
+   not at `uvx …`: llama-server lists MCP tools only during a ~10 s warmup at startup, and a slow `uvx` start (e.g. at boot, while
+   the model loads) silently leaves it with **0 MCP tools**. Check with `curl -s localhost:8080/tools`.
 
    ```bash
    llama-server -m model.gguf --jinja --port 8080 --mcp-servers-config mcp.json
