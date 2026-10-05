@@ -1,0 +1,1549 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "query_pharmacy",
+   "description": "Single pharmaceutical knowledge entry point. Query compatible public APIs, Taiwan NHI/TFDA, hospital FHIR inventory, SQL, files, vector search, and configured web sources concurrently. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "capabilities": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "enum": [
+          "search",
+          "identity",
+          "label",
+          "dosing",
+          "safety",
+          "interaction",
+          "adverse_event",
+          "drug_class",
+          "ndc",
+          "approval",
+          "therapeutic_equivalence",
+          "reimbursement",
+          "formulary",
+          "inventory",
+          "document",
+          "chemistry",
+          "literature",
+          "clinical_trial",
+          "indication",
+          "target",
+          "bioactivity",
+          "recall",
+          "shortage"
+         ]
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Capabilities"
+     },
+     "sources": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "enum": [
+          "rxnorm",
+          "rxclass",
+          "openfda",
+          "dailymed",
+          "pubchem",
+          "medlineplus-connect",
+          "pubmed",
+          "clinical-trials-gov",
+          "chembl",
+          "open-targets",
+          "drugbank",
+          "first-databank",
+          "micromedex",
+          "tw-tfda",
+          "tw-nhi",
+          "fhir",
+          "local-formulary",
+          "sql",
+          "vector",
+          "file",
+          "web"
+         ]
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sources"
+     },
+     "limit": {
+      "default": 10,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "context": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Context"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "title": "query_pharmacyArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_knowledge_sources",
+   "description": "List cataloged pharmacy knowledge sources, capabilities, readiness, credential requirements, and runtime registration state. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "state": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "State"
+     },
+     "capability": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Capability"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "title": "list_knowledge_sourcesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_nhi_data_status",
+   "description": "Inspect the Taiwan NHI official index freshness, row count, local path, and upstream dataset URL without forcing a download. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "title": "get_nhi_data_statusArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "search_drug",
+   "description": "Search for drugs by name. Returns results from RxNorm and FDA databases. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "max_results": {
+      "default": 10,
+      "title": "Max Results",
+      "type": "integer"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "title": "search_drugArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_drug_info",
+   "description": "Get comprehensive information about a drug including indications, dosage, warnings, and pharmacology. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug_name": {
+      "title": "Drug Name",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug_name"
+    ],
+    "title": "get_drug_infoArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_drug_dosage",
+   "description": "Get dosage and administration information for a drug. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug_name": {
+      "title": "Drug Name",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug_name"
+    ],
+    "title": "get_drug_dosageArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_drug_warnings",
+   "description": "Get warnings, contraindications, and adverse reactions for a drug. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug_name": {
+      "title": "Drug Name",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug_name"
+    ],
+    "title": "get_drug_warningsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "check_drug_interaction",
+   "description": "Check for interactions between two drugs. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug1": {
+      "title": "Drug1",
+      "type": "string"
+     },
+     "drug2": {
+      "title": "Drug2",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug1",
+     "drug2"
+    ],
+    "title": "check_drug_interactionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "check_multi_drug_interactions",
+   "description": "Check for interactions among multiple drugs (medication list review). Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drugs": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Drugs",
+      "type": "array"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drugs"
+    ],
+    "title": "check_multi_drug_interactionsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "check_food_drug_interaction",
+   "description": "Check for food-drug interactions for a specific drug. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug_name": {
+      "title": "Drug Name",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug_name"
+    ],
+    "title": "check_food_drug_interactionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_dose_by_weight",
+   "description": "Calculate weight-based dosage (mg/kg). Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "dose_per_kg": {
+      "title": "Dose Per Kg",
+      "type": "number"
+     },
+     "patient_weight_kg": {
+      "title": "Patient Weight Kg",
+      "type": "number"
+     },
+     "dose_unit": {
+      "default": "mg",
+      "title": "Dose Unit",
+      "type": "string"
+     },
+     "max_dose": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Max Dose"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "dose_per_kg",
+     "patient_weight_kg"
+    ],
+    "title": "calculate_dose_by_weightArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_dose_by_bsa",
+   "description": "Calculate BSA-based dosage (mg/m²), commonly used in oncology. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "dose_per_m2": {
+      "title": "Dose Per M2",
+      "type": "number"
+     },
+     "height_cm": {
+      "title": "Height Cm",
+      "type": "number"
+     },
+     "weight_kg": {
+      "title": "Weight Kg",
+      "type": "number"
+     },
+     "dose_unit": {
+      "default": "mg",
+      "title": "Dose Unit",
+      "type": "string"
+     },
+     "max_dose": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Max Dose"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "dose_per_m2",
+     "height_cm",
+     "weight_kg"
+    ],
+    "title": "calculate_dose_by_bsaArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_creatinine_clearance",
+   "description": "Calculate creatinine clearance using Cockcroft-Gault formula for renal dosing adjustments. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "age_years": {
+      "title": "Age Years",
+      "type": "integer"
+     },
+     "weight_kg": {
+      "title": "Weight Kg",
+      "type": "number"
+     },
+     "serum_creatinine": {
+      "title": "Serum Creatinine",
+      "type": "number"
+     },
+     "gender": {
+      "title": "Gender",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "age_years",
+     "weight_kg",
+     "serum_creatinine",
+     "gender"
+    ],
+    "title": "calculate_creatinine_clearanceArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_pediatric_dose",
+   "description": "Calculate pediatric dose from adult dose using weight, age, or BSA method. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "adult_dose": {
+      "title": "Adult Dose",
+      "type": "number"
+     },
+     "child_weight_kg": {
+      "title": "Child Weight Kg",
+      "type": "number"
+     },
+     "method": {
+      "default": "weight",
+      "title": "Method",
+      "type": "string"
+     },
+     "child_age_years": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Child Age Years"
+     },
+     "child_bsa": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Child Bsa"
+     },
+     "dose_unit": {
+      "default": "mg",
+      "title": "Dose Unit",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "adult_dose",
+     "child_weight_kg"
+    ],
+    "title": "calculate_pediatric_doseArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_infusion_rate",
+   "description": "Calculate IV infusion rate. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "total_dose": {
+      "title": "Total Dose",
+      "type": "number"
+     },
+     "dose_unit": {
+      "title": "Dose Unit",
+      "type": "string"
+     },
+     "volume_ml": {
+      "title": "Volume Ml",
+      "type": "number"
+     },
+     "duration_hours": {
+      "title": "Duration Hours",
+      "type": "number"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "total_dose",
+     "dose_unit",
+     "volume_ml",
+     "duration_hours"
+    ],
+    "title": "calculate_infusion_rateArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "convert_dose_units",
+   "description": "Convert between dose units (g, mg, mcg, ng). Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "value": {
+      "title": "Value",
+      "type": "number"
+     },
+     "from_unit": {
+      "title": "From Unit",
+      "type": "string"
+     },
+     "to_unit": {
+      "title": "To Unit",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "value",
+     "from_unit",
+     "to_unit"
+    ],
+    "title": "convert_dose_unitsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "search_tfda_drug",
+   "description": "Search the Taiwan TFDA drug database for permits and product information. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "search_type": {
+      "default": "name",
+      "title": "Search Type",
+      "type": "string"
+     },
+     "limit": {
+      "default": 20,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "title": "search_tfda_drugArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_nhi_coverage",
+   "description": "Check whether a drug is covered by Taiwan National Health Insurance (NHI) and return coverage details. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug_name": {
+      "title": "Drug Name",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug_name"
+    ],
+    "title": "get_nhi_coverageArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_nhi_drug_price",
+   "description": "Get NHI reimbursement price for a drug by NHI code. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "nhi_code": {
+      "title": "Nhi Code",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "nhi_code"
+    ],
+    "title": "get_nhi_drug_priceArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "translate_drug_name",
+   "description": "Translate drug names between English and Traditional Chinese where local mapping data is available. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "translate_drug_nameArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_prior_authorization_drugs",
+   "description": "List drugs requiring NHI prior authorization. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "title": "list_prior_authorization_drugsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_nhi_coverage_rules",
+   "description": "List all NHI coverage rules available in the local database. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "title": "list_nhi_coverage_rulesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_formulary_item",
+   "description": "Get hospital formulary item details by drug code. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug_code": {
+      "title": "Drug Code",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug_code"
+    ],
+    "title": "get_formulary_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "search_formulary",
+   "description": "Search hospital formulary by drug name or code. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "limit": {
+      "default": 10,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "title": "search_formularyArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_renal_adjustment",
+   "description": "Get renal dosing adjustment recommendation based on creatinine clearance (CrCl). Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug_code": {
+      "title": "Drug Code",
+      "type": "string"
+     },
+     "crcl": {
+      "title": "Crcl",
+      "type": "number"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug_code",
+     "crcl"
+    ],
+    "title": "get_renal_adjustmentArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "validate_order",
+   "description": "Validate a medication order before submission. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug_code": {
+      "title": "Drug Code",
+      "type": "string"
+     },
+     "dose": {
+      "title": "Dose",
+      "type": "number"
+     },
+     "dose_unit": {
+      "title": "Dose Unit",
+      "type": "string"
+     },
+     "route": {
+      "title": "Route",
+      "type": "string"
+     },
+     "frequency": {
+      "title": "Frequency",
+      "type": "string"
+     },
+     "patient_crcl": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Patient Crcl"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug_code",
+     "dose",
+     "dose_unit",
+     "route",
+     "frequency"
+    ],
+    "title": "validate_orderArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "submit_order",
+   "description": "Submit a medication order to the HIS service. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     },
+     "drug_code": {
+      "title": "Drug Code",
+      "type": "string"
+     },
+     "dose": {
+      "title": "Dose",
+      "type": "number"
+     },
+     "dose_unit": {
+      "title": "Dose Unit",
+      "type": "string"
+     },
+     "route": {
+      "title": "Route",
+      "type": "string"
+     },
+     "frequency": {
+      "title": "Frequency",
+      "type": "string"
+     },
+     "duration_days": {
+      "title": "Duration Days",
+      "type": "integer"
+     },
+     "physician_id": {
+      "title": "Physician Id",
+      "type": "string"
+     },
+     "override_warnings": {
+      "default": false,
+      "title": "Override Warnings",
+      "type": "boolean"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Notes"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "patient_id",
+     "drug_code",
+     "dose",
+     "dose_unit",
+     "route",
+     "frequency",
+     "duration_days",
+     "physician_id"
+    ],
+    "title": "submit_orderArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "stop_order",
+   "description": "Discontinue an active medication order. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "order_id": {
+      "title": "Order Id",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "order_id",
+     "reason"
+    ],
+    "title": "stop_orderArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_formula_catalog",
+   "description": "List trusted PK/DDI formulas available for simulation. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": "trusted",
+      "title": "Status"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "title": "list_formula_catalogArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_formula_details",
+   "description": "Get full metadata for a trusted PK/DDI formula. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "formula_id": {
+      "title": "Formula Id",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "formula_id"
+    ],
+    "title": "get_formula_detailsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "explain_interaction_mechanism",
+   "description": "Explain the supported mechanistic DDI pathway for a drug pair, including required simulation parameters. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug1": {
+      "title": "Drug1",
+      "type": "string"
+     },
+     "drug2": {
+      "title": "Drug2",
+      "type": "string"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug1",
+     "drug2"
+    ],
+    "title": "explain_interaction_mechanismArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "simulate_pk_interaction",
+   "description": "Run a PBPK-lite CYP reversible inhibition exposure estimate for a supported drug pair using explicit user-supplied parameters. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "drug1": {
+      "title": "Drug1",
+      "type": "string"
+     },
+     "drug2": {
+      "title": "Drug2",
+      "type": "string"
+     },
+     "cl_total": {
+      "title": "Cl Total",
+      "type": "number"
+     },
+     "fm": {
+      "title": "Fm",
+      "type": "number"
+     },
+     "inhibitor_concentration": {
+      "title": "Inhibitor Concentration",
+      "type": "number"
+     },
+     "ki": {
+      "title": "Ki",
+      "type": "number"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "drug1",
+     "drug2",
+     "cl_total",
+     "fm",
+     "inhibitor_concentration",
+     "ki"
+    ],
+    "title": "simulate_pk_interactionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "simulate_concentration_time",
+   "description": "Run a one-compartment concentration-time estimate. Agent contract: use structuredContent as the source of truth; preserve schema_version/status/sources/warnings/errors/meta when forwarding the result and never infer missing clinical facts.",
+   "parameters": {
+    "properties": {
+     "dose": {
+      "title": "Dose",
+      "type": "number"
+     },
+     "vd": {
+      "title": "Vd",
+      "type": "number"
+     },
+     "ke": {
+      "title": "Ke",
+      "type": "number"
+     },
+     "time": {
+      "title": "Time",
+      "type": "number"
+     },
+     "output_format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "json_compact",
+       "markdown"
+      ],
+      "default": "json",
+      "description": "Text rendering. structuredContent always follows the versioned outputSchema."
+     },
+     "locale": {
+      "type": "string",
+      "default": "zh-TW",
+      "description": "BCP 47 locale for labels and messages (for example zh-TW)."
+     }
+    },
+    "required": [
+     "dose",
+     "vd",
+     "ke",
+     "time"
+    ],
+    "title": "simulate_concentration_timeArguments",
+    "type": "object"
+   }
+  }
+ }
+]

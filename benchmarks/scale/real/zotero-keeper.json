@@ -1,0 +1,2262 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "check_connection",
+   "description": "\n            🔌 Check connection to Zotero\n\n            Verifies that Zotero is running and accessible.\n\n            Returns:\n                Connection status and endpoint info\n            ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "check_connectionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "search_items",
+   "description": "\n        🔍 Search for references in Zotero\n\n        搜尋 Zotero 中的書目資料\n\n        Args:\n            query: Search terms (title, author, year)\n            limit: Maximum results to return (default: 25)\n\n        Returns:\n            List of matching items with metadata\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object",
+    "title": "search_itemsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item",
+   "description": "\n        📖 Get detailed item by key\n\n        取得單一文獻的完整資料\n\n        Args:\n            key: Zotero item key (e.g., \"ABC12345\")\n\n        Returns:\n            Full item metadata\n        ",
+   "parameters": {
+    "properties": {
+     "key": {
+      "title": "Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key"
+    ],
+    "type": "object",
+    "title": "get_itemArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_items",
+   "description": "\n        📋 List recent items\n\n        列出最近的文獻\n\n        Args:\n            limit: Maximum items to return (default: 20)\n            collection_key: Optional - filter by collection\n\n        Returns:\n            List of items with basic metadata\n        ",
+   "parameters": {
+    "properties": {
+     "limit": {
+      "default": 20,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     }
+    },
+    "type": "object",
+    "title": "list_itemsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_tags",
+   "description": "\n        🏷️ List all tags\n\n        列出所有標籤\n\n        Returns:\n            List of tags\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "list_tagsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item_types",
+   "description": "\n        📝 Get available item types\n\n        取得可用的文獻類型\n\n        Returns:\n            List of item types (journalArticle, book, etc.)\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "get_item_typesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_collections",
+   "description": "\n        📁 List all collections in Zotero library\n\n        列出所有收藏夾\n\n        ⭐ IMPORTANT: Use this tool BEFORE importing articles!\n        Show the user available collections so they can choose where to save.\n\n        💡 WORKFLOW:\n        1. Search articles with pubmed-search-mcp or collect manual metadata\n        2. Call list_collections to show options\n        3. Ask user: \"Which collection should I save these to?\"\n        4. Import with import_articles(..., collection_name=...) or save with interactive_save\n\n        Returns:\n            List of collections with item counts\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "list_collectionsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_collection",
+   "description": "\n        📁 Get a specific collection by key\n\n        取得特定收藏夾的詳細資訊\n\n        Args:\n            key: Collection key (e.g., \"ABC12345\")\n\n        Returns:\n            Collection details including name and item count\n        ",
+   "parameters": {
+    "properties": {
+     "key": {
+      "title": "Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key"
+    ],
+    "type": "object",
+    "title": "get_collectionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_collection_items",
+   "description": "\n        📚 Get items in a specific collection\n\n        取得特定收藏夾內的所有文獻\n\n        Args:\n            collection_key: Collection key (e.g., \"ABC12345\")\n            limit: Maximum items to return (default: 50)\n\n        Returns:\n            List of items in the collection\n        ",
+   "parameters": {
+    "properties": {
+     "collection_key": {
+      "title": "Collection Key",
+      "type": "string"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "collection_key"
+    ],
+    "type": "object",
+    "title": "get_collection_itemsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_collection_tree",
+   "description": "\n        🌳 Get collections as a hierarchical tree\n\n        取得收藏夾的樹狀結構（含子收藏夾）\n\n        Returns:\n            Tree structure with nested children\n\n        Example response:\n            {\n                \"count\": 2,\n                \"tree\": [\n                    {\n                        \"key\": \"ABC123\",\n                        \"name\": \"AI Research\",\n                        \"itemCount\": 10,\n                        \"children\": [\n                            {\"key\": \"DEF456\", \"name\": \"Deep Learning\", ...}\n                        ]\n                    }\n                ]\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "get_collection_treeArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "find_collection",
+   "description": "\n        🔍 Find a collection by name\n\n        用名稱查找收藏夾（不區分大小寫）\n\n        Args:\n            name: Collection name to search for\n            parent_name: Optional parent collection name to narrow search\n\n        Returns:\n            Collection if found, or suggestions if not found\n\n        Example:\n            find_collection(name=\"AI Research\")\n            find_collection(name=\"Deep Learning\", parent_name=\"AI Research\")\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "parent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Parent Name"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object",
+    "title": "find_collectionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "authorize_local_writes",
+   "description": "Request Zotero's runtime approval for Local API writes.\n\n        Set ``require_remembered=true`` before a three-phase attachment upload;\n        Zotero must grant ``Always Allow`` so one authorization remains valid\n        across all upload phases. The key itself never crosses the MCP boundary.\n        ",
+   "parameters": {
+    "properties": {
+     "require_remembered": {
+      "default": false,
+      "title": "Require Remembered",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "authorize_local_writesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_collection",
+   "description": "Create a top-level or nested Zotero collection after explicit confirmation.",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "parent_collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Parent Collection Key"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object",
+    "title": "create_collectionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "update_collection",
+   "description": "Rename or move one exact collection using its object version.",
+   "parameters": {
+    "properties": {
+     "collection_key": {
+      "title": "Collection Key",
+      "type": "string"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Name"
+     },
+     "parent_collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Parent Collection Key"
+     },
+     "move_to_library_root": {
+      "default": false,
+      "title": "Move To Library Root",
+      "type": "boolean"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "collection_key",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "update_collectionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_collection",
+   "description": "Delete one exact collection without deleting its library items.",
+   "parameters": {
+    "properties": {
+     "collection_key": {
+      "title": "Collection Key",
+      "type": "string"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "collection_key",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "delete_collectionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "add_items_to_collection",
+   "description": "Add up to 50 exact items to a collection while preserving all memberships.",
+   "parameters": {
+    "properties": {
+     "item_keys": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Item Keys",
+      "type": "array"
+     },
+     "collection_key": {
+      "title": "Collection Key",
+      "type": "string"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_keys",
+     "collection_key"
+    ],
+    "type": "object",
+    "title": "add_items_to_collectionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "remove_items_from_collection",
+   "description": "Remove up to 50 exact items from one collection without deleting them.",
+   "parameters": {
+    "properties": {
+     "item_keys": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Item Keys",
+      "type": "array"
+     },
+     "collection_key": {
+      "title": "Collection Key",
+      "type": "string"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_keys",
+     "collection_key"
+    ],
+    "type": "object",
+    "title": "remove_items_from_collectionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "update_item_fields",
+   "description": "Update safe scalar metadata fields on one exact bibliographic item.",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     },
+     "fields": {
+      "additionalProperties": true,
+      "title": "Fields",
+      "type": "object"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_key",
+     "fields",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "update_item_fieldsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_item",
+   "description": "Permanently delete one exact Zotero item using its object version.",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_key",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "delete_itemArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_note",
+   "description": "Create one child note beneath an exact bibliographic item.",
+   "parameters": {
+    "properties": {
+     "parent_item_key": {
+      "title": "Parent Item Key",
+      "type": "string"
+     },
+     "note_html": {
+      "title": "Note Html",
+      "type": "string"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "parent_item_key",
+     "note_html"
+    ],
+    "type": "object",
+    "title": "create_noteArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_saved_search",
+   "description": "Create a Zotero saved search from validated conditions.",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "conditions": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Conditions",
+      "type": "array"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "name",
+     "conditions"
+    ],
+    "type": "object",
+    "title": "create_saved_searchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "update_saved_search",
+   "description": "Rename or replace the conditions of one exact saved search.",
+   "parameters": {
+    "properties": {
+     "search_key": {
+      "title": "Search Key",
+      "type": "string"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Name"
+     },
+     "conditions": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Conditions"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "search_key",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "update_saved_searchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_saved_search",
+   "description": "Delete one exact saved search without deleting matching items.",
+   "parameters": {
+    "properties": {
+     "search_key": {
+      "title": "Search Key",
+      "type": "string"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "search_key",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "delete_saved_searchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_tags",
+   "description": "Delete up to 50 exact tags using one response-bound library cursor.",
+   "parameters": {
+    "properties": {
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+     },
+     "expected_library_version": {
+      "title": "Expected Library Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "tags",
+     "expected_library_version"
+    ],
+    "type": "object",
+    "title": "delete_tagsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "attach_file_to_item",
+   "description": "Upload a local stored file beneath an exact existing Zotero item.",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     },
+     "file_path": {
+      "title": "File Path",
+      "type": "string"
+     },
+     "title": {
+      "default": "Full Text PDF",
+      "title": "Title",
+      "type": "string"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_key",
+     "file_path"
+    ],
+    "type": "object",
+    "title": "attach_file_to_itemArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "replace_attachment_file",
+   "description": "Replace one imported attachment file after exact version/MD5 review.",
+   "parameters": {
+    "properties": {
+     "attachment_key": {
+      "title": "Attachment Key",
+      "type": "string"
+     },
+     "file_path": {
+      "title": "File Path",
+      "type": "string"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "expected_md5": {
+      "title": "Expected Md5",
+      "type": "string"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "attachment_key",
+     "file_path",
+     "expected_version",
+     "expected_md5"
+    ],
+    "type": "object",
+    "title": "replace_attachment_fileArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_attachment_fulltext",
+   "description": "Set indexed full text using one Server-ID-bound library cursor.",
+   "parameters": {
+    "properties": {
+     "attachment_key": {
+      "title": "Attachment Key",
+      "type": "string"
+     },
+     "content": {
+      "title": "Content",
+      "type": "string"
+     },
+     "expected_library_version": {
+      "title": "Expected Library Version",
+      "type": "integer"
+     },
+     "indexed_pages": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Indexed Pages"
+     },
+     "total_pages": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Total Pages"
+     },
+     "indexed_chars": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Indexed Chars"
+     },
+     "total_chars": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Total Chars"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "attachment_key",
+     "content",
+     "expected_library_version"
+    ],
+    "type": "object",
+    "title": "set_attachment_fulltextArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_attachment_fulltexts",
+   "description": "Set indexed full text for 1..10 attachments in one protected batch.",
+   "parameters": {
+    "properties": {
+     "entries": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Entries",
+      "type": "array"
+     },
+     "expected_library_version": {
+      "title": "Expected Library Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "entries",
+     "expected_library_version"
+    ],
+    "type": "object",
+    "title": "set_attachment_fulltextsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "update_item_tags",
+   "description": "Add/remove exact tags on one item, preserving unrelated tags and their manual/automatic type.",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "add": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Add"
+     },
+     "remove": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Remove"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_key",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "update_item_tagsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "update_item_creators",
+   "description": "Replace the reviewed ordered creator list; use get_item_schema to discover valid creator types. Empty clears all.",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     },
+     "creators": {
+      "items": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Creators",
+      "type": "array"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_key",
+     "creators",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "update_item_creatorsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "update_note",
+   "description": "Replace one exact note's HTML without changing its parent; read get_item first. Empty HTML clears the note.",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     },
+     "note_html": {
+      "title": "Note Html",
+      "type": "string"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_key",
+     "note_html",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "update_noteArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_item_trashed",
+   "description": "Move one exact item to Trash (true), or restore it (false). Unlike delete_item, this is recoverable.",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     },
+     "trashed": {
+      "title": "Trashed",
+      "type": "boolean"
+     },
+     "expected_version": {
+      "title": "Expected Version",
+      "type": "integer"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "item_key",
+     "trashed",
+     "expected_version"
+    ],
+    "type": "object",
+    "title": "set_item_trashedArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "batch_update_item_fields",
+   "description": "Edit scalar metadata on 1–50 bibliographic items. Each entry requires item_key, expected_version and fields.\n\n        Preview the whole batch. All exact objects/versions are rechecked before one POST;\n        Zotero may partially accept that POST, so inspect each returned item status and never replay blindly.\n        ",
+   "parameters": {
+    "properties": {
+     "updates": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Updates",
+      "type": "array"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "expected_server_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Server Id"
+     }
+    },
+    "required": [
+     "updates"
+    ],
+    "type": "object",
+    "title": "batch_update_item_fieldsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item_schema",
+   "description": "Discover fields and ordered creator types supported by this Zotero instance, e.g. journalArticle.",
+   "parameters": {
+    "properties": {
+     "item_type": {
+      "title": "Item Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_type"
+    ],
+    "type": "object",
+    "title": "get_item_schemaArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item_annotations",
+   "description": "Read all annotation children of one exact attachment, including text/comment/color/page and position.",
+   "parameters": {
+    "properties": {
+     "attachment_key": {
+      "title": "Attachment Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "attachment_key"
+    ],
+    "type": "object",
+    "title": "get_item_annotationsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "export_items",
+   "description": "Export up to 50 exact items as BibTeX/BibLaTeX/RIS/CSL JSON/etc. using Zotero's own translators.\n\n        Prefer this over rebuilding citations from search results. Keys absent from the library are reported\n        in `missing_count` so a partial export is never mistaken for a complete one.\n        ",
+   "parameters": {
+    "properties": {
+     "item_keys": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Item Keys",
+      "type": "array"
+     },
+     "format": {
+      "default": "bibtex",
+      "title": "Format",
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_keys"
+    ],
+    "type": "object",
+    "title": "export_itemsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_bibliography",
+   "description": "Render formatted bibliography entries and/or in-text citations (HTML) for up to 50 exact items.\n\n        `style` is an installed CSL style id such as apa, vancouver or chicago-note-bibliography.\n        `output` is bib, citation or both. Items Zotero cannot render are listed in `missing_keys`.\n        ",
+   "parameters": {
+    "properties": {
+     "item_keys": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Item Keys",
+      "type": "array"
+     },
+     "style": {
+      "default": "apa",
+      "title": "Style",
+      "type": "string"
+     },
+     "output": {
+      "default": "bib",
+      "title": "Output",
+      "type": "string"
+     },
+     "locale": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Locale"
+     },
+     "linkwrap": {
+      "default": false,
+      "title": "Linkwrap",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "item_keys"
+    ],
+    "type": "object",
+    "title": "get_bibliographyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "interactive_save",
+   "description": "\n        💾 Interactive save with collection selection\n\n        互動式儲存 - 會列出所有收藏夾讓你選擇\n\n        🎯 This tool uses MCP Elicitation to:\n        1. Show available collections and their exact keys\n        2. Highlight suggested collections based on title/tags\n        3. Let you choose an exact collection key\n        4. Confirm if duplicates are found\n        5. Require a second confirmation if you choose ROOT\n\n        🔒 DATA INTEGRITY:\n        When DOI or PMID is provided, this tool will **automatically fetch**\n        complete article metadata from external APIs (CrossRef/PubMed).\n\n        🤝 MCP COLLABORATION NOTE:\n        This auto-fetch path is intended for manual DOI/PMID entry.\n        If metadata already comes from pubmed-search-mcp, prefer `import_articles()`\n        to avoid refetching the same PubMed record.\n\n        Args:\n            item_type: Type (journalArticle, book, etc.)\n            title: Reference title (required)\n            creators: List of author dicts\n            doi: Digital Object Identifier → 自動從 CrossRef 取得完整資料\n            pmid: PubMed ID → 自動從 PubMed 取得完整資料 + RCR\n            skip_collection_prompt: Deprecated. If True, aborts without writing;\n                use quick_save with a validated collection or explicitly approved\n                allow_library_root instead.\n\n        Returns:\n            Success/failure with details\n        ",
+   "parameters": {
+    "properties": {
+     "item_type": {
+      "title": "Item Type",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "creators": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Creators"
+     },
+     "doi": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Doi"
+     },
+     "isbn": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Isbn"
+     },
+     "pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmid"
+     },
+     "publication_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Publication Title"
+     },
+     "date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Date"
+     },
+     "abstract": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Abstract"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Url"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "skip_collection_prompt": {
+      "default": false,
+      "title": "Skip Collection Prompt",
+      "type": "boolean"
+     },
+     "auto_fetch_metadata": {
+      "default": true,
+      "title": "Auto Fetch Metadata",
+      "type": "boolean"
+     },
+     "include_citation_metrics": {
+      "default": true,
+      "title": "Include Citation Metrics",
+      "type": "boolean"
+     },
+     "extra_fields": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Extra Fields"
+     }
+    },
+    "required": [
+     "item_type",
+     "title"
+    ],
+    "type": "object",
+    "title": "interactive_saveArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "quick_save",
+   "description": "\n        ⚡ Quick save without interactive prompts\n\n        快速儲存（不詢問，直接存）\n\n        Use this when you already know the collection. A destination is required\n        unless the user has explicitly approved a root-library write and the\n        caller carries that approval as `allow_library_root=True`. For interactive\n        collection selection, use `interactive_save` instead.\n\n        🔒 DATA INTEGRITY:\n        When DOI or PMID is provided, this tool will **automatically fetch**\n        complete article metadata from external APIs (CrossRef/PubMed).\n\n        🤝 MCP COLLABORATION NOTE:\n        This auto-fetch path is intended for manual DOI/PMID entry.\n        If metadata already comes from pubmed-search-mcp, prefer `import_articles()`\n        to avoid refetching the same PubMed record.\n\n        Args:\n            item_type: Type (journalArticle, book, etc.)\n            title: Reference title (required)\n            collection_key: Collection key to save to\n            collection_name: OR collection name (will be looked up)\n            doi: Digital Object Identifier → 自動從 CrossRef 取得完整資料\n            pmid: PubMed ID → 自動從 PubMed 取得完整資料 + RCR\n            force_add: Add even if duplicate found\n            allow_library_root: Explicitly allow saving outside every collection\n\n        Returns:\n            Success/failure with details\n        ",
+   "parameters": {
+    "properties": {
+     "item_type": {
+      "title": "Item Type",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     },
+     "collection_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Name"
+     },
+     "creators": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Creators"
+     },
+     "doi": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Doi"
+     },
+     "isbn": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Isbn"
+     },
+     "pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmid"
+     },
+     "publication_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Publication Title"
+     },
+     "date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Date"
+     },
+     "abstract": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Abstract"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Url"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "force_add": {
+      "default": false,
+      "title": "Force Add",
+      "type": "boolean"
+     },
+     "allow_library_root": {
+      "default": false,
+      "title": "Allow Library Root",
+      "type": "boolean"
+     },
+     "auto_fetch_metadata": {
+      "default": true,
+      "title": "Auto Fetch Metadata",
+      "type": "boolean"
+     },
+     "include_citation_metrics": {
+      "default": true,
+      "title": "Include Citation Metrics",
+      "type": "boolean"
+     },
+     "extra_fields": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Extra Fields"
+     }
+    },
+    "required": [
+     "item_type",
+     "title"
+    ],
+    "type": "object",
+    "title": "quick_saveArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_saved_searches",
+   "description": "\n        📋 List all saved searches in Zotero\n\n        列出所有已儲存的搜尋條件\n\n        🌟 Local API 獨有功能！\n\n        Returns:\n            List of saved searches with names and keys\n\n        Example response:\n            {\n                \"count\": 3,\n                \"searches\": [\n                    {\"key\": \"ABC123\", \"name\": \"Missing PDF\", \"conditions\": [...]},\n                    {\"key\": \"DEF456\", \"name\": \"Unread Papers\", \"conditions\": [...]},\n                    {\"key\": \"GHI789\", \"name\": \"Recent Additions\", \"conditions\": [...]}\n                ]\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "list_saved_searchesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_saved_search",
+   "description": "\n        ▶️ Execute a saved search and return matching items\n\n        執行已儲存的搜尋條件並返回符合的文獻\n\n        🌟 這是 Local API 獨有的功能！Web API 無法做到這點。\n\n        Args:\n            search_key: The saved search key (e.g., \"ABC12345\")\n            search_name: OR the saved search name (e.g., \"Missing PDF\")\n            limit: Maximum items to return (default: 50)\n            start: Result-page offset (default: 0)\n            include_children: Preserve Zotero 10 attachment/annotation/note result levels (default: true)\n\n        Returns:\n            List of items matching the saved search conditions\n\n        Example:\n            # By key\n            run_saved_search(search_key=\"ABC12345\")\n\n            # By name (case-insensitive)\n            run_saved_search(search_name=\"Missing PDF\")\n\n        Use cases:\n            - \"Which papers don't have PDFs?\" → run_saved_search(search_name=\"Missing PDF\")\n            - \"What did I add this week?\" → run_saved_search(search_name=\"Recent Additions\")\n            - \"Show unread papers\" → run_saved_search(search_name=\"Unread\")\n        ",
+   "parameters": {
+    "properties": {
+     "search_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Search Key"
+     },
+     "search_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Search Name"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "start": {
+      "default": 0,
+      "title": "Start",
+      "type": "integer"
+     },
+     "include_children": {
+      "default": true,
+      "title": "Include Children",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "run_saved_searchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_saved_search_details",
+   "description": "\n        🔍 Get details of a specific saved search\n\n        取得特定已儲存搜尋的詳細條件\n\n        Args:\n            search_key: The saved search key (e.g., \"ABC12345\")\n\n        Returns:\n            Saved search details including all conditions\n\n        Example response:\n            {\n                \"found\": true,\n                \"search\": {\n                    \"key\": \"ABC12345\",\n                    \"name\": \"Missing PDF\",\n                    \"conditions\": [\n                        {\"condition\": \"attachment\", \"operator\": \"isNot\", \"value\": \"PDF\"}\n                    ]\n                }\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "search_key": {
+      "title": "Search Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "search_key"
+    ],
+    "type": "object",
+    "title": "get_saved_search_detailsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "advanced_search",
+   "description": "\n        🔍 Advanced search with multiple conditions in Zotero library\n\n        使用多重條件搜尋 Zotero 書庫\n\n        Args:\n            q: Quick search query (title, creator, year)\n            item_type: Filter by type (journalArticle, book, -attachment, etc.)\n            tag: Single tag filter\n            tags: Multiple tags (AND logic)\n            sort: Sort field (dateModified, dateAdded, title, etc.)\n            direction: Sort direction (desc, asc)\n            qmode: Search mode (titleCreatorYear, everything)\n            limit: Maximum results\n            include_trashed: Include trash items\n            start: Result offset for pagination (default: 0)\n\n        Returns:\n            Search results with formatted output\n        ",
+   "parameters": {
+    "properties": {
+     "q": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Q"
+     },
+     "item_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Item Type"
+     },
+     "tag": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tag"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "sort": {
+      "default": "dateModified",
+      "title": "Sort",
+      "type": "string"
+     },
+     "direction": {
+      "default": "desc",
+      "title": "Direction",
+      "type": "string"
+     },
+     "qmode": {
+      "default": "titleCreatorYear",
+      "title": "Qmode",
+      "type": "string"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "include_trashed": {
+      "default": false,
+      "title": "Include Trashed",
+      "type": "boolean"
+     },
+     "start": {
+      "default": 0,
+      "title": "Start",
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "title": "advanced_searchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "check_articles_owned",
+   "description": "\n        📚 Check which PubMed articles are already in Zotero\n\n        檢查哪些 PubMed 文獻已存在於 Zotero\n\n        Args:\n            pmids: List of PubMed IDs to check\n\n        Returns:\n            Lists of owned and new PMIDs\n        ",
+   "parameters": {
+    "properties": {
+     "pmids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Pmids",
+      "type": "array"
+     }
+    },
+    "required": [
+     "pmids"
+    ],
+    "type": "object",
+    "title": "check_articles_ownedArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_library_stats",
+   "description": "\n        📊 Get library statistics and insights\n\n        取得文獻庫統計分析：年份、作者、期刊分布\n\n        Returns:\n            Statistics including:\n            - total_items: Total number of items\n            - by_type: Count by item type (journalArticle, book, etc.)\n            - by_year: Distribution by publication year\n            - top_authors: Most frequent authors\n            - top_journals: Most frequent journals\n            - tag_stats: Tag usage statistics\n            - collection_stats: Collection statistics\n\n        Example:\n            get_library_stats()\n            → {\n                \"total_items\": 150,\n                \"by_type\": {\"journalArticle\": 120, \"book\": 20, \"thesis\": 10},\n                \"by_year\": {\"2024\": 30, \"2023\": 45, \"2022\": 25, ...},\n                \"top_authors\": [[\"Smith J\", 15], [\"Lee K\", 12], ...],\n                \"top_journals\": [[\"Nature\", 10], [\"Science\", 8], ...],\n                ...\n            }\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "get_library_statsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "find_orphan_items",
+   "description": "\n        🔍 Find orphan items (no collection or no tags)\n\n        找出「孤兒」文獻：無 Collection 或無標籤的項目\n\n        Helps you organize your library by identifying items that may need attention.\n\n        Args:\n            limit: Maximum items to return per category (default: 50)\n            include_no_collection: Include items without any collection (default: True)\n            include_no_tags: Include items without any tags (default: True)\n\n        Returns:\n            Lists of orphan items:\n            - no_collection: Items not in any collection\n            - no_tags: Items without any tags\n            - completely_orphan: Items with neither collection nor tags\n\n        Example:\n            find_orphan_items()\n            → {\n                \"no_collection\": [{\"key\": \"ABC123\", \"title\": \"Paper 1\", ...}, ...],\n                \"no_tags\": [...],\n                \"completely_orphan\": [...],\n                \"summary\": {\"no_collection\": 25, \"no_tags\": 40, \"completely_orphan\": 15}\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "include_no_collection": {
+      "default": true,
+      "title": "Include No Collection",
+      "type": "boolean"
+     },
+     "include_no_tags": {
+      "default": true,
+      "title": "Include No Tags",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "find_orphan_itemsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "import_articles",
+   "description": "\n        📥 Unified Import Tool - Import articles from ANY source to Zotero\n\n        統一匯入工具 - 從任何來源匯入文章到 Zotero\n\n        ⭐ THIS IS THE SINGLE TOOL FOR ALL IMPORTS:\n        - Accepts articles from pubmed-search-mcp (any search tool)\n        - Accepts RIS text (from prepare_export or external sources)\n        - Automatically handles format conversion\n        - Supports collection targeting with validation\n\n        🔗 INTEGRATION WITH pubmed-search-mcp:\n        Articles from these tools can be directly imported:\n        - unified_search(..., output_format=\"json\") → articles\n        - fetch_article_details() → article\n        - prepare_export(format=\"ris\") → ris_text\n\n        ⚠️ COLLECTION 防呆:\n        - If collection_name/collection_key is specified but not found → ERROR\n        - Returns available collections list for user to choose\n        - If no collection is specified → refuses to write unless allow_library_root=True\n\n        Args:\n            articles: List of article dicts from pubmed-search-mcp\n                     Format: UnifiedArticle.to_dict() or search result format\n            ris_text: Alternative - RIS format text to parse and import\n            collection_name: Target collection name (human-readable, recommended)\n            collection_key: Target collection key (alternative)\n            tags: Additional tags to add to all imported items\n            skip_duplicates: If True (default), skip articles already in Zotero\n            allow_library_root: Explicitly allow importing outside every collection\n\n        Returns:\n            Import result with:\n            - success: bool\n            - imported: number of items imported\n            - skipped: number of duplicates skipped\n            - items: list of imported titles\n            - saved_to: collection info or \"My Library (root)\"\n            - errors: any errors encountered\n\n        Example - From PubMed search:\n            # Step 1: Search with pubmed-search-mcp\n            results = await unified_search(\"machine learning anesthesia\", output_format=\"json\")\n\n            # Step 2: Import to Zotero\n            await import_articles(\n                articles=results[\"articles\"],\n                collection_name=\"ML Anesthesia\",\n                tags=[\"ML\", \"review-2024\"]\n            )\n\n        Example - From multi-source search:\n            results = await unified_search(\"CRISPR\", output_format=\"json\")\n            await import_articles(articles=results[\"articles\"], collection_name=\"CRISPR OA\")\n\n        Example - From RIS text:\n            ris = await prepare_export(pmids=\"12345678,87654321\", format=\"ris\")\n            await import_articles(ris_text=ris[\"content\"], collection_name=\"My Collection\")\n        ",
+   "parameters": {
+    "properties": {
+     "articles": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Articles"
+     },
+     "ris_text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Ris Text"
+     },
+     "collection_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Name"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "skip_duplicates": {
+      "default": true,
+      "title": "Skip Duplicates",
+      "type": "boolean"
+     },
+     "allow_library_root": {
+      "default": false,
+      "title": "Allow Library Root",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "import_articlesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "import_pdf",
+   "description": "\n        📎 Import a local PDF file into Zotero (Connector API — no API key needed)\n\n        匯入本機 PDF 檔案到 Zotero，使用 Connector API（不需 Web API key），\n        符合現有 Local/Connector 架構。\n\n        Two modes:\n        - **Metadata mode** (recommended): provide `article` (a unified article\n          dict from pubmed-search-mcp) or `title`. Creates a parent item with\n          that metadata in the chosen collection and attaches the PDF to it.\n        - **Auto-recognize mode** (default when no metadata): saves the PDF as a\n          standalone attachment and lets Zotero recognize it — Zotero extracts\n          the DOI/title from the PDF and builds the parent item automatically.\n\n        Args:\n            file_path: Absolute path to a local PDF on the machine running this\n                MCP server (the server reads the bytes directly).\n            title: Optional parent-item title when no `article` is given.\n            article: Optional unified article dict (e.g. from\n                fetch_article_details / unified_search) to build a rich parent.\n            collection_name: Target collection by name (metadata mode).\n            collection_key: Target collection by key (metadata mode).\n            tags: Extra tags for the parent item (metadata mode).\n            allow_library_root: Explicitly allow a metadata parent or standalone\n                attachment outside every collection.\n\n        Returns:\n            Result dict with: success, mode, parent/attachment info, saved_to.\n\n        Examples:\n            # Auto-recognize writes a standalone PDF to My Library root, so the\n            # user must explicitly confirm that destination first.\n            import_pdf(\n                file_path=\"/home/me/papers/smith2024.pdf\",\n                allow_library_root=True,\n            )\n\n            # Attach a PDF to a parent built from PubMed metadata\n            details = await fetch_article_details(pmid=\"38353755\")\n            import_pdf(\n                file_path=\"/home/me/papers/ai-anesthesia.pdf\",\n                article=details,\n                collection_name=\"AI Anesthesia\",\n            )\n\n        Note:\n            Attaching to a *pre-existing* library item is not supported by the\n            Connector API (it is session-scoped). This tool creates the parent\n            item itself (metadata mode) or relies on Zotero's standalone\n            auto-recognition.\n        ",
+   "parameters": {
+    "properties": {
+     "file_path": {
+      "title": "File Path",
+      "type": "string"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Title"
+     },
+     "article": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Article"
+     },
+     "collection_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Name"
+     },
+     "collection_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Key"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "allow_library_root": {
+      "default": false,
+      "title": "Allow Library Root",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "file_path"
+    ],
+    "type": "object",
+    "title": "import_pdfArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item_attachments",
+   "description": "\n        📎 Get attachments for a Zotero item (PDFs, snapshots, etc.)\n\n        取得文獻的所有附件資訊，包含檔案路徑。\n        回傳的 file_path 可以直接交給其他 MCP 工具（如 PDF reader）使用。\n\n        Zotero 10+ 會透過 Local API 回傳實際路徑；舊版 Zotero 或不支援該\n        endpoint 時，才使用可選的 ZOTERO_DATA_DIR 推導 storage 路徑。\n\n        Args:\n            item_key: Zotero item key (8-character, e.g. \"ABCD1234\")\n\n        Returns:\n            Dict with:\n            - item_key: The parent item key\n            - title: Parent item title\n            - library_version: Library cursor for version-protected full-text writes\n            - server_id: Zotero 10+ database identity paired with that cursor\n            - attachment_count: Number of attachments\n            - attachments: List of attachment info dicts, each containing:\n                - key: Attachment item key\n                - version: Zotero instance-local object version, used as the\n                  expected_version for object-version-protected writes\n                - object_version: Explicit alias of version\n                - server_id: Database identity in which the object version is valid\n                - md5: Current imported-file MD5 for safe If-Match replacement\n                - title: Attachment title\n                - filename: Original filename\n                - content_type: MIME type (e.g. \"application/pdf\")\n                - file_path: Absolute path to file (if ZOTERO_DATA_DIR set)\n                - file_exists: Whether the file exists on disk\n                - file_size: File size in bytes (0 if not accessible)\n                - link_mode: How the file is stored (imported_file, linked_file, etc.)\n\n        Example:\n            get_item_attachments(item_key=\"X42A7DEE\")\n            → {\n                \"item_key\": \"X42A7DEE\",\n                \"title\": \"Deep Learning in Medicine\",\n                \"attachment_count\": 1,\n                \"attachments\": [{\n                    \"key\": \"NHZFE5A7\",\n                    \"title\": \"Full Text PDF\",\n                    \"filename\": \"paper.pdf\",\n                    \"content_type\": \"application/pdf\",\n                    \"file_path\": \"/home/user/Zotero/storage/NHZFE5A7/paper.pdf\",\n                    \"file_exists\": true,\n                    \"file_size\": 1048576,\n                    \"link_mode\": \"imported_file\"\n                }]\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_key"
+    ],
+    "type": "object",
+    "title": "get_item_attachmentsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item_fulltext",
+   "description": "\n        📄 Get fulltext content of a Zotero item (indexed by Zotero)\n\n        取得 Zotero 已索引的全文純文字內容。\n        Zotero 會自動為 PDF/EPUB/HTML 附件建立全文索引。\n\n        此工具會自動找到該文獻的附件，並嘗試取得已索引的全文。\n        不需要外部 PDF 解析工具 — 直接回傳純文字。\n\n        Args:\n            item_key: Zotero item key (parent item or attachment key)\n\n        Returns:\n            Dict with:\n            - item_key: The item key\n            - title: Item title\n            - content: Fulltext content (plain text)\n            - indexed_pages: Number of pages indexed\n            - total_pages: Total pages in document\n            - library_version: Library cursor to pass to set_attachment_fulltext\n            - server_id: Zotero database identity paired with the cursor\n            - source: Which attachment provided the fulltext\n\n        Example:\n            get_item_fulltext(item_key=\"X42A7DEE\")\n            → {\n                \"item_key\": \"X42A7DEE\",\n                \"title\": \"Deep Learning in Medicine\",\n                \"content\": \"Abstract: Deep learning has...\",\n                \"indexed_pages\": 12,\n                \"total_pages\": 12,\n                \"source\": \"NHZFE5A7 (Full Text PDF)\"\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "item_key": {
+      "title": "Item Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_key"
+    ],
+    "type": "object",
+    "title": "get_item_fulltextArguments"
+   }
+  }
+ }
+]

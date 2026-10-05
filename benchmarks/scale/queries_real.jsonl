@@ -1,0 +1,167 @@
+{"id": 0, "query": "anything new on semaglutide and kidney outcomes in the last two years?", "expect": ["pubmed_unified_search"], "lang": "en"}
+{"id": 1, "query": "幫我找『術後慢性疼痛』的隨機對照試驗,最好是近五年的", "expect": ["pubmed_unified_search"], "lang": "zh"}
+{"id": 2, "query": "pls look up meta-analyses comparing sugammadex w/ neostigmine for reversal", "expect": ["pubmed_unified_search"], "lang": "en"}
+{"id": 3, "query": "我想了解 CAR-T 在實體瘤的最新臨床試驗結果", "expect": ["pubmed_unified_search"], "lang": "zh"}
+{"id": 4, "query": "before I run it: how will you expand 'COPD AND (tiotropium OR LAMA)'? only show the plan", "expect": ["pubmed_analyze_search_query"], "lang": "en"}
+{"id": 5, "query": "P: ICU patients on ventilators; I: early mobilization; C: usual care; O: ICU length of stay. check this PICO and turn it into a pipeline", "expect": ["pubmed_validate_pico_plan"], "lang": "en"}
+{"id": 6, "query": "what MeSH headings + free-text synonyms cover 'frailty in older surgical patients'?", "expect": ["pubmed_generate_search_queries"], "lang": "en"}
+{"id": 7, "query": "我要寫系統性回顧,幫我整理 'perioperative hypothermia' 該用的關鍵字和 MeSH", "expect": ["pubmed_generate_search_queries"], "lang": "zh"}
+{"id": 8, "query": "got this PMID 29551234 - show me similar papers", "expect": ["pubmed_find_related_articles"], "lang": "en"}
+{"id": 9, "query": "has anyone built on PMID 28123456? list the citing papers", "expect": ["pubmed_find_citing_articles"], "lang": "en"}
+{"id": 10, "query": "PMID 30456789 後來被哪些研究引用", "expect": ["pubmed_find_citing_articles"], "lang": "zh"}
+{"id": 11, "query": "what sources does PMID 31234567 rely on? give me its bibliography", "expect": ["pubmed_get_article_references"], "lang": "en"}
+{"id": 12, "query": "Need title, authors, abstract and DOI of 27654321 and 28765432", "expect": ["pubmed_fetch_article_details"], "lang": "en"}
+{"id": 13, "query": "PMID 33445566 的摘要在說什麼", "expect": ["pubmed_fetch_article_details"], "lang": "zh"}
+{"id": 14, "query": "is PMID 29988776 highly cited for its field? percentile / RCR please", "expect": ["pubmed_get_citation_metrics"], "lang": "en"}
+{"id": 15, "query": "Can you check if this citation is hallucinated? 'Garcia M, et al. Ketamine infusion in sepsis. N Engl J Med 2022;386:1123'", "expect": ["pubmed_verify_reference_list"], "lang": "en"}
+{"id": 16, "query": "I need these 12 PMIDs in EndNote format", "expect": ["pubmed_prepare_export"], "lang": "en"}
+{"id": 17, "query": "匯出成 BibTeX", "expect": ["pubmed_prepare_export", "pubmed_read_session"], "lang": "zh"}
+{"id": 18, "query": "write the papers we just found into my markdown wiki as linked notes", "expect": ["pubmed_save_literature_notes", "pubmed_read_session"], "lang": "en"}
+{"id": 19, "query": "can you pull the open-access PDF/full text for PMID 30987654", "expect": ["pubmed_get_fulltext"], "lang": "en"}
+{"id": 20, "query": "which genes, diseases and chemicals does Europe PMC mine from PMID 29776655?", "expect": ["pubmed_get_text_mined_terms"], "lang": "en"}
+{"id": 21, "query": "PMC8123456 有哪些圖?我要圖說和下載連結", "expect": ["pubmed_get_article_figures"], "lang": "zh"}
+{"id": 22, "query": "what's the NCBI gene entry for PTEN in humans", "expect": ["pubmed_search_gene"], "lang": "en"}
+{"id": 23, "query": "幫我查 APOE 這個基因", "expect": ["pubmed_search_gene"], "lang": "zh"}
+{"id": 24, "query": "show full record for NCBI gene 5728", "expect": ["pubmed_get_gene_details"], "lang": "en"}
+{"id": 25, "query": "which papers are curated against gene id 5728?", "expect": ["pubmed_get_gene_literature"], "lang": "en"}
+{"id": 26, "query": "look up ketamine on PubChem", "expect": ["pubmed_search_compound"], "lang": "en"}
+{"id": 27, "query": "midazolam 的分子式和結構", "expect": ["pubmed_search_compound"], "lang": "zh"}
+{"id": 28, "query": "give me everything PubChem has on CID 3821", "expect": ["pubmed_get_compound_details"], "lang": "en"}
+{"id": 29, "query": "papers linked to CID 3821 in PubMed please", "expect": ["pubmed_get_compound_literature"], "lang": "en"}
+{"id": 30, "query": "ClinVar significance of BRCA2 c.5946delT?", "expect": ["pubmed_search_clinvar"], "lang": "en"}
+{"id": 31, "query": "rs80357906 是良性還是致病?", "expect": ["pubmed_search_clinvar"], "lang": "zh"}
+{"id": 32, "query": "draw me the citation network around PMID 28123456, both directions", "expect": ["pubmed_build_citation_tree"], "lang": "en"}
+{"id": 33, "query": "track how the evidence for 'dexmedetomidine delirium prevention' has evolved and save it as a versioned chronicle", "expect": ["pubmed_build_research_chronicle"], "lang": "en"}
+{"id": 34, "query": "open my saved chronicle on dexmedetomidine and tell me what changed since last time", "expect": ["pubmed_read_research_chronicle"], "lang": "en"}
+{"id": 35, "query": "I have a screenshot of a forest plot from a paper; help me search for the source study", "expect": ["pubmed_prepare_figure_search"], "lang": "en"}
+{"id": 36, "query": "show open-i pictures of melanoma dermoscopy", "expect": ["pubmed_search_biomedical_images"], "lang": "en"}
+{"id": 37, "query": "set my university's OpenURL resolver so PDFs go through the library proxy", "expect": ["pubmed_configure_institutional_access"], "lang": "en"}
+{"id": 38, "query": "give me the library proxy link to read PMID 30987654", "expect": ["pubmed_get_institutional_link"], "lang": "en"}
+{"id": 39, "query": "which institutions have ready-made resolver presets?", "expect": ["pubmed_list_resolver_presets"], "lang": "en"}
+{"id": 40, "query": "does my resolver setup actually work? run a test", "expect": ["pubmed_test_institutional_access"], "lang": "en"}
+{"id": 41, "query": "why does the library link for PMID 30987654 fail? figure it out", "expect": ["pubmed_diagnose_institutional_access"], "lang": "en"}
+{"id": 42, "query": "ICD-10 I21.9 maps to which MeSH?", "expect": ["pubmed_convert_icd_mesh"], "lang": "en"}
+{"id": 43, "query": "把 MeSH 'Sepsis' 轉成 ICD 碼", "expect": ["pubmed_convert_icd_mesh"], "lang": "zh"}
+{"id": 44, "query": "save this search setup as 'weekly_sga' with tag anesthesia", "expect": ["pubmed_save_pipeline"], "lang": "en"}
+{"id": 45, "query": "show me all my pipelines", "expect": ["pubmed_list_pipelines"], "lang": "en"}
+{"id": 46, "query": "load weekly_sga", "expect": ["pubmed_load_pipeline"], "lang": "en"}
+{"id": 47, "query": "trash the pipeline weekly_sga and its history", "expect": ["pubmed_delete_pipeline"], "lang": "en"}
+{"id": 48, "query": "what did weekly_sga find new in its last run?", "expect": ["pubmed_get_pipeline_history"], "lang": "en"}
+{"id": 49, "query": "run weekly_sga every Friday 08:00", "expect": ["pubmed_schedule_pipeline"], "lang": "en"}
+{"id": 50, "query": "stop scheduling weekly_sga", "expect": ["pubmed_unschedule_pipeline"], "lang": "en"}
+{"id": 51, "query": "what PMIDs do I have in this session so far?", "expect": ["pubmed_read_session"], "lang": "en"}
+{"id": 52, "query": "目前 session 有哪些已讀文章", "expect": ["pubmed_read_session"], "lang": "zh"}
+{"id": 53, "query": "find RCTs on remimazolam and then export them to RIS", "expect": ["pubmed_unified_search"], "lang": "en"}
+{"id": 54, "query": "tell me about that paper PMID 33445566 and who cited it", "expect": ["pubmed_fetch_article_details"], "lang": "en"}
+{"id": 55, "query": "幫我找 GLP-1 的文獻然後存成筆記", "expect": ["pubmed_unified_search"], "lang": "zh"}
+{"id": 56, "query": "hello! how are you today?", "expect": [], "lang": "en"}
+{"id": 57, "query": "explain in plain words what a p-value is", "expect": [], "lang": "en"}
+{"id": 58, "query": "你好,請用繁體中文自我介紹", "expect": [], "lang": "zh"}
+{"id": 59, "query": "write a haiku about autumn rain", "expect": [], "lang": "en"}
+{"id": 60, "query": "what is 17 * 23?", "expect": [], "lang": "en"}
+{"id": 61, "query": "summarize the difference between RCT and cohort study design", "expect": [], "lang": "en"}
+{"id": 62, "query": "幫我把這段話翻成英文:今天天氣很好", "expect": [], "lang": "zh"}
+{"id": 63, "query": "what does PICO stand for?", "expect": [], "lang": "en"}
+{"id": 64, "query": "thanks, that's all", "expect": [], "lang": "en"}
+{"id": 65, "query": "how should I structure the discussion section of a manuscript?", "expect": [], "lang": "en"}
+{"id": 66, "query": "給我一個學習統計學的建議", "expect": [], "lang": "zh"}
+{"id": 67, "query": "rewrite this sentence to be more formal: gonna send the draft tmrw", "expect": [], "lang": "en"}
+{"id": 68, "query": "is Zotero running and reachable right now?", "expect": ["zotero_check_connection"], "lang": "en"}
+{"id": 69, "query": "確認 Zotero 有沒有正常連線", "expect": ["zotero_check_connection"], "lang": "zh"}
+{"id": 70, "query": "search my Zotero library for papers about remimazolam", "expect": ["zotero_search_items"], "lang": "en"}
+{"id": 71, "query": "在我的 Zotero 裡找有關敗血症的文獻", "expect": ["zotero_search_items"], "lang": "zh"}
+{"id": 72, "query": "show the full record of Zotero item ABCD1234", "expect": ["zotero_get_item"], "lang": "en"}
+{"id": 73, "query": "取得 Zotero 項目 key XYZ98765 的完整資料", "expect": ["zotero_get_item"], "lang": "zh"}
+{"id": 74, "query": "list the 20 items I added to Zotero most recently", "expect": ["zotero_list_items"], "lang": "en"}
+{"id": 75, "query": "列出我 Zotero 最近新增的文獻", "expect": ["zotero_list_items"], "lang": "zh"}
+{"id": 76, "query": "what tags do I use in my Zotero library?", "expect": ["zotero_list_tags"], "lang": "en"}
+{"id": 77, "query": "列出我 Zotero 裡所有的標籤", "expect": ["zotero_list_tags"], "lang": "zh"}
+{"id": 78, "query": "which item types does Zotero support?", "expect": ["zotero_get_item_types"], "lang": "en"}
+{"id": 79, "query": "show all my Zotero collections", "expect": ["zotero_list_collections"], "lang": "en"}
+{"id": 80, "query": "我的 Zotero 有哪些收藏夾", "expect": ["zotero_list_collections"], "lang": "zh"}
+{"id": 81, "query": "give me the details of Zotero collection key COLL1234", "expect": ["zotero_get_collection"], "lang": "en"}
+{"id": 82, "query": "which papers are inside collection COLL1234?", "expect": ["zotero_get_collection_items"], "lang": "en"}
+{"id": 83, "query": "收藏夾 COLL1234 裡面有哪些文獻", "expect": ["zotero_get_collection_items"], "lang": "zh"}
+{"id": 84, "query": "show my Zotero collections as a tree with sub-collections", "expect": ["zotero_get_collection_tree"], "lang": "en"}
+{"id": 85, "query": "find the Zotero collection called 'Sepsis'", "expect": ["zotero_find_collection"], "lang": "en"}
+{"id": 86, "query": "用名稱幫我找收藏夾 'Delirium'", "expect": ["zotero_find_collection"], "lang": "zh"}
+{"id": 87, "query": "I want to save a paper into Zotero but let me choose the collection first", "expect": ["zotero_interactive_save"], "lang": "en"}
+{"id": 88, "query": "save PMID 31452104 straight into my Zotero collection COLL1234, no questions", "expect": ["zotero_quick_save"], "lang": "en"}
+{"id": 89, "query": "list the saved searches in my Zotero", "expect": ["zotero_list_saved_searches"], "lang": "en"}
+{"id": 90, "query": "列出我 Zotero 裡已儲存的搜尋條件", "expect": ["zotero_list_saved_searches"], "lang": "zh"}
+{"id": 91, "query": "run my Zotero saved search with key SRCH5678", "expect": ["zotero_run_saved_search"], "lang": "en"}
+{"id": 92, "query": "what conditions does my Zotero saved search SRCH5678 use?", "expect": ["zotero_get_saved_search_details"], "lang": "en"}
+{"id": 93, "query": "in Zotero find journal articles tagged 'sedation' published after 2020", "expect": ["zotero_advanced_search"], "lang": "en"}
+{"id": 94, "query": "在 Zotero 用多重條件找:標籤 delirium、年份 2021 之後", "expect": ["zotero_advanced_search"], "lang": "zh"}
+{"id": 95, "query": "show statistics of my Zotero library: years, authors, journals", "expect": ["zotero_get_library_stats"], "lang": "en"}
+{"id": 96, "query": "find Zotero items that are in no collection", "expect": ["zotero_find_orphan_items"], "lang": "en"}
+{"id": 97, "query": "找出我 Zotero 裡沒有標籤也沒有收藏夾的孤兒文獻", "expect": ["zotero_find_orphan_items"], "lang": "zh"}
+{"id": 98, "query": "import these PubMed articles into my Zotero collection ICU", "expect": ["zotero_import_articles"], "lang": "en"}
+{"id": 99, "query": "把這幾篇 PubMed 文獻匯入 Zotero", "expect": ["zotero_import_articles"], "lang": "zh"}
+{"id": 100, "query": "put these RIS records into Zotero", "expect": ["zotero_import_articles"], "lang": "en"}
+{"id": 101, "query": "search PubMed for remimazolam in ICU sedation", "expect": ["pubmed_unified_search"], "lang": "en"}
+{"id": 102, "query": "去 PubMed 找 remimazolam 的研究", "expect": ["pubmed_unified_search"], "lang": "zh"}
+{"id": 103, "query": "list my saved search pipelines", "expect": ["pubmed_list_pipelines"], "lang": "en"}
+{"id": 104, "query": "列出我儲存的搜尋管線", "expect": ["pubmed_list_pipelines"], "lang": "zh"}
+{"id": 105, "query": "export PMIDs 31452104 and 33301246 to a BibTeX file", "expect": ["pubmed_prepare_export"], "lang": "en"}
+{"id": 106, "query": "把這些 PMID 匯出成 RIS 檔", "expect": ["pubmed_prepare_export"], "lang": "zh"}
+{"id": 107, "query": "get the abstract of PMID 31452104 from PubMed", "expect": ["pubmed_fetch_article_details"], "lang": "en"}
+{"id": 108, "query": "save the papers I found as markdown notes in my wiki", "expect": ["pubmed_save_literature_notes"], "lang": "en"}
+{"id": 109, "query": "find new papers on semaglutide and kidney disease", "expect": ["pubmed_unified_search"], "lang": "en"}
+{"id": 110, "query": "generate a publication-ready figure illustrating the mechanism of action of remimazolam", "expect": ["figures_generate_figure", "figures_plan_figure"], "lang": "en"}
+{"id": 111, "query": "check my figure against the 8-domain quality checklist", "expect": ["figures_evaluate_figure", "figures_verify_figure"], "lang": "en"}
+{"id": 112, "query": "把這三張 panel 合成一張投稿用的圖", "expect": ["figures_composite_figure"], "lang": "zh"}
+{"id": 113, "query": "resize this image and set it to 300 DPI for journal submission", "expect": ["figures_prepare_publication_image"], "lang": "en"}
+{"id": 114, "query": "which workflow domains exist in this workspace?", "expect": ["workflow_list_domains"], "lang": "en"}
+{"id": 115, "query": "validate the irb-submission workflow and report its issues", "expect": ["workflow_validate_workflow"], "lang": "en"}
+{"id": 116, "query": "train an AutoML model on my dataset and wait until it's done", "expect": ["automl_train_and_wait", "automl_submit_automl_job"], "lang": "en"}
+{"id": 117, "query": "compare the ROC curves of these two models with a DeLong test", "expect": ["automl_compare_roc_curves"], "lang": "en"}
+{"id": 118, "query": "做 Kaplan-Meier 存活分析並做 log-rank 檢定", "expect": ["automl_kaplan_meier_survival", "rde_run_clinical_study"], "lang": "zh"}
+{"id": 119, "query": "power analysis for a two-group t-test with effect size 0.5", "expect": ["automl_power_ttest"], "lang": "en"}
+{"id": 120, "query": "check VIF multicollinearity among my predictors", "expect": ["automl_check_multicollinearity", "rde_correlation_matrix"], "lang": "en"}
+{"id": 121, "query": "幫我針對『降低術後譫妄』發想一些有創意的點子", "expect": ["cgu_cgu_session", "cgu_cgu_diverge", "cgu_cgu_ideas"], "lang": "zh"}
+{"id": 122, "query": "compare these two ideas pairwise and judge which one is better", "expect": ["cgu_cgu_judge"], "lang": "en"}
+{"id": 123, "query": "convert report.docx to PDF", "expect": ["libre_convert_document"], "lang": "en"}
+{"id": 124, "query": "read the data in the budget.ods spreadsheet", "expect": ["libre_read_spreadsheet_data"], "lang": "en"}
+{"id": 125, "query": "把資料夾裡所有 .doc 檔批次轉成 .docx", "expect": ["libre_batch_convert_documents"], "lang": "zh"}
+{"id": 126, "query": "start drafting the Methods section of my manuscript", "expect": ["paper_draft_action"], "lang": "en"}
+{"id": 127, "query": "save PMID 31452104 with verified metadata into my paper project's references", "expect": ["paper_save_reference_mcp", "paper_reference_action"], "lang": "en"}
+{"id": 128, "query": "export my manuscript as a Word file for submission", "expect": ["paper_export_document"], "lang": "en"}
+{"id": 129, "query": "find the patient with MRN S6534835 in FHIR", "expect": ["medagent_get_patient_by_mrn", "medagent_search_patient"], "lang": "en"}
+{"id": 130, "query": "show this patient's latest potassium lab results", "expect": ["medagent_get_lab_observations"], "lang": "en"}
+{"id": 131, "query": "幫這位病人記錄一筆血壓 120/80", "expect": ["medagent_create_vital_sign"], "lang": "zh"}
+{"id": 132, "query": "order 1 g IV cefazolin for this patient", "expect": ["medagent_create_medication_order"], "lang": "en"}
+{"id": 133, "query": "calculate the CHA2DS2-VASc score for a 75-year-old woman with hypertension", "expect": ["medcalc_calculate", "medcalc_discover"], "lang": "en"}
+{"id": 134, "query": "有哪些醫學計算器可以用來評估腎功能?", "expect": ["medcalc_discover", "medcalc_get_related_tools"], "lang": "zh"}
+{"id": 135, "query": "start a new derivation of the one-compartment PK model", "expect": ["nsforge_derivation_start"], "lang": "en"}
+{"id": 136, "query": "roll my derivation back to step 3", "expect": ["nsforge_derivation_rollback"], "lang": "en"}
+{"id": 137, "query": "look up the Michaelis-Menten formula", "expect": ["nsforge_formula_search"], "lang": "en"}
+{"id": 138, "query": "取得普朗克常數的數值", "expect": ["nsforge_formula_constants"], "lang": "zh"}
+{"id": 139, "query": "ask OpenEvidence what the first-line treatment for community-acquired pneumonia is", "expect": ["openevidence_oe_ask"], "lang": "en"}
+{"id": 140, "query": "list my OpenEvidence question history", "expect": ["openevidence_oe_history_list"], "lang": "en"}
+{"id": 141, "query": "check the interaction between warfarin and amiodarone", "expect": ["pharmacy_check_drug_interaction", "pharmacy_check_multi_drug_interactions"], "lang": "en"}
+{"id": 142, "query": "calculate creatinine clearance for a 70-year-old, 60 kg, creatinine 1.5", "expect": ["pharmacy_calculate_creatinine_clearance", "medcalc_calculate"], "lang": "en"}
+{"id": 143, "query": "Rivaroxaban 健保有給付嗎?", "expect": ["pharmacy_get_nhi_coverage"], "lang": "zh"}
+{"id": 144, "query": "pediatric dose of amoxicillin for a 15 kg child", "expect": ["pharmacy_calculate_pediatric_dose", "pharmacy_calculate_dose_by_weight"], "lang": "en"}
+{"id": 145, "query": "set the project tempo to 120 BPM", "expect": ["reaper_set_tempo"], "lang": "en"}
+{"id": 146, "query": "add a reverb effect to track 2", "expect": ["reaper_add_fx"], "lang": "en"}
+{"id": 147, "query": "render the music project to a WAV file", "expect": ["reaper_render_project"], "lang": "en"}
+{"id": 148, "query": "在 REAPER 新增一條叫 Vocals 的軌道", "expect": ["reaper_create_track"], "lang": "zh"}
+{"id": 149, "query": "掃描 data 資料夾,列出可以分析的檔案", "expect": ["rde_scan_data_folder", "automl_list_available_files"], "lang": "zh"}
+{"id": 150, "query": "assess the data quality of my dataset and detect PII", "expect": ["rde_assess_quality"], "lang": "en"}
+{"id": 151, "query": "generate a Table 1 of baseline characteristics", "expect": ["rde_generate_table_one", "automl_generate_tableone_directly"], "lang": "en"}
+{"id": 152, "query": "draft a prospective sample size plan for my study", "expect": ["rde_draft_sample_size_plan"], "lang": "en"}
+{"id": 153, "query": "export the EDA report to Word", "expect": ["rde_export_report", "rde_export_final_report"], "lang": "en"}
+{"id": 154, "query": "start a new root cause analysis for last night's medication error", "expect": ["rca_rc_start_session"], "lang": "en"}
+{"id": 155, "query": "ask why again to drill down the 5-Why chain", "expect": ["rca_rc_ask_why"], "lang": "en"}
+{"id": 156, "query": "add a cause under 'Method' in the fishbone diagram", "expect": ["rca_rc_add_cause"], "lang": "en"}
+{"id": 157, "query": "建議這個原因的 HFACS 分類", "expect": ["rca_rc_suggest_hfacs"], "lang": "zh"}
+{"id": 158, "query": "solve x^2 - 5x + 6 = 0", "expect": ["sympy_solve_algebraically", "nsforge_derivation_solve_for"], "lang": "en"}
+{"id": 159, "query": "compute the eigenvalues of the matrix [[2,1],[1,2]]", "expect": ["sympy_matrix_eigenvalues"], "lang": "en"}
+{"id": 160, "query": "solve the ODE y'' + y = 0", "expect": ["sympy_dsolve_ode"], "lang": "en"}
+{"id": 161, "query": "calculate the curl of the vector field F = (y, -x, 0)", "expect": ["sympy_calculate_curl"], "lang": "en"}
+{"id": 162, "query": "把 5 英里換算成公里", "expect": ["sympy_convert_to_units"], "lang": "zh"}
+{"id": 163, "query": "search the hospital medication catalog for propofol", "expect": ["pharmacy_search_formulary"], "lang": "en"}
+{"id": 164, "query": "commit the approved medication plan to the HIS", "expect": ["pharmacy_submit_order"], "lang": "en"}
+{"id": 165, "query": "is metformin contraindicated for a patient with eGFR 25?", "expect": ["pharmacy_get_drug_warnings"], "lang": "en"}
+{"id": 167, "query": "calculate eGFR with CKD-EPI 2021: creatinine 1.2, 65-year-old male", "expect": ["medcalc_calculate"], "lang": "en"}

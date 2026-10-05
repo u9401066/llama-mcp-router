@@ -1,0 +1,590 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "search_patient",
+   "description": "Search for patients in the FHIR server.\n\nUse this to find patient information by name, birthdate, identifier (MRN), or other demographics.\nReturns patient demographic information including FHIR ID and MRN.\n\nArgs:\n    name: Patient name (any part) - ignored if family/given used\n    family: Patient family (last) name\n    given: Patient given (first) name\n    birthdate: Date of birth (YYYY-MM-DD)\n    identifier: Patient MRN (e.g., S6534835)\n    gender: Patient's legal sex\n    address: Patient's street address\n    address_city: City for patient's home address\n    address_state: State for patient's home address\n    address_postalcode: Postal code for patient's home address\n    telecom: Patient's phone number or email\n",
+   "parameters": {
+    "properties": {
+     "name": {
+      "default": null,
+      "title": "Name",
+      "type": "string"
+     },
+     "family": {
+      "default": null,
+      "title": "Family",
+      "type": "string"
+     },
+     "given": {
+      "default": null,
+      "title": "Given",
+      "type": "string"
+     },
+     "birthdate": {
+      "default": null,
+      "title": "Birthdate",
+      "type": "string"
+     },
+     "identifier": {
+      "default": null,
+      "title": "Identifier",
+      "type": "string"
+     },
+     "gender": {
+      "default": null,
+      "title": "Gender",
+      "type": "string"
+     },
+     "address": {
+      "default": null,
+      "title": "Address",
+      "type": "string"
+     },
+     "address_city": {
+      "default": null,
+      "title": "Address City",
+      "type": "string"
+     },
+     "address_state": {
+      "default": null,
+      "title": "Address State",
+      "type": "string"
+     },
+     "address_postalcode": {
+      "default": null,
+      "title": "Address Postalcode",
+      "type": "string"
+     },
+     "telecom": {
+      "default": null,
+      "title": "Telecom",
+      "type": "string"
+     }
+    },
+    "title": "search_patientArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_patient_by_mrn",
+   "description": "Get patient FHIR ID from MRN.\n\nUse this first when you have an MRN and need to call other FHIR APIs.\nReturns the patient's FHIR ID, name, birthDate, and other demographics.\nAlso loads any existing patient notes from memory.\n\nArgs:\n    mrn: Patient MRN (e.g., S6534835)\n",
+   "parameters": {
+    "properties": {
+     "mrn": {
+      "title": "Mrn",
+      "type": "string"
+     }
+    },
+    "required": [
+     "mrn"
+    ],
+    "title": "get_patient_by_mrnArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_lab_observations",
+   "description": "Get lab results for a patient.\n\nUse this to retrieve laboratory values. The code parameter is REQUIRED.\n\n⚠️ PAGINATION: If response shows `has_more=true`, call again with `offset` \nto get remaining entries. Data is NOT sorted - you must check ALL pages \nto find the most recent value.\n\nCommon lab codes:\n- MG: Magnesium\n- K: Potassium  \n- GLU: Glucose/CBG\n- A1C: HbA1C\n- NA: Sodium\n- BUN: Blood Urea Nitrogen\n- CR: Creatinine\n\nArgs:\n    patient_id: Patient FHIR ID (for MedAgentBench, MRN works as patient_id)\n    code: Lab observation code (REQUIRED) - e.g., MG, K, GLU, A1C\n    date: Date filter (e.g., 'ge2023-11-12T10:15:00+00:00' for after this time)\n    offset: Starting index for pagination (default 0). Use when has_more=true.\n",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "date": {
+      "default": null,
+      "title": "Date",
+      "type": "string"
+     },
+     "offset": {
+      "default": 0,
+      "title": "Offset",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "patient_id",
+     "code"
+    ],
+    "title": "get_lab_observationsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_vital_signs",
+   "description": "Get vital signs for a patient.\n\nUse this to retrieve vital sign observations from flowsheets.\nReturns blood pressure, heart rate, temperature, etc.\n\n⚠️ PAGINATION: If response shows `has_more=true`, call again with `offset` \nto get remaining entries. Data is NOT sorted.\n\nArgs:\n    patient_id: Patient FHIR ID (for MedAgentBench, MRN works as patient_id)\n    date: Date range filter (e.g., 'ge2023-11-12T10:15:00+00:00')\n    offset: Starting index for pagination (default 0). Use when has_more=true.\n",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     },
+     "date": {
+      "default": null,
+      "title": "Date",
+      "type": "string"
+     },
+     "offset": {
+      "default": 0,
+      "title": "Offset",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "patient_id"
+    ],
+    "title": "get_vital_signsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_conditions",
+   "description": "Get conditions (problems) from a patient's problem list.\n\nArgs:\n    patient_id: Patient FHIR ID\n",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "patient_id"
+    ],
+    "title": "get_conditionsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_medication_requests",
+   "description": "Get medication orders for a patient.\n\nArgs:\n    patient_id: Patient FHIR ID\n    category: Category (Inpatient, Outpatient, Community, Discharge)\n    date: Date filter for when medication was administered\n",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     },
+     "category": {
+      "default": null,
+      "title": "Category",
+      "type": "string"
+     },
+     "date": {
+      "default": null,
+      "title": "Date",
+      "type": "string"
+     }
+    },
+    "required": [
+     "patient_id"
+    ],
+    "title": "get_medication_requestsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_procedures",
+   "description": "Get procedures (surgeries, biopsies, etc.) for a patient.\n\nReturns completed procedures from the patient's chart.\n\nArgs:\n    patient_id: Patient FHIR ID\n    code: External CPT code for the procedure\n    date: Date or period when procedure was performed (required)\n",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     },
+     "code": {
+      "default": null,
+      "title": "Code",
+      "type": "string"
+     },
+     "date": {
+      "default": null,
+      "title": "Date",
+      "type": "string"
+     }
+    },
+    "required": [
+     "patient_id"
+    ],
+    "title": "get_proceduresArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_vital_sign",
+   "description": "Record a vital sign observation for a patient.\n\nUse this to record blood pressure or other vital signs.\nThe flowsheet ID for blood pressure is 'BP'.\n\nArgs:\n    patient_id: Patient FHIR ID\n    code: Vital sign code (e.g., 'BP')\n    value: Measurement value (e.g., '118/77 mmHg')\n    datetime: DateTime in ISO format (e.g., '2023-11-12T15:30:00+00:00')\n",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     },
+     "datetime": {
+      "title": "Datetime",
+      "type": "string"
+     }
+    },
+    "required": [
+     "patient_id",
+     "code",
+     "value",
+     "datetime"
+    ],
+    "title": "create_vital_signArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_medication_order",
+   "description": "Create a medication order for a patient.\n\nUse this to order medications like IV magnesium or potassium replacement.\n\nCommon NDC codes:\n- 0338-1715-40: IV Magnesium Sulfate\n- 40032-917-01: Oral Potassium\n\nMagnesium dosing:\n- Mild (1.5-1.9 mg/dL): 1g over 1 hour\n- Moderate (1.0-<1.5 mg/dL): 2g over 2 hours\n- Severe (<1.0 mg/dL): 4g over 4 hours\n\nPotassium dosing:\n- For every 0.1 mEq/L below 3.5, order 10 mEq\n\nArgs:\n    patient_id: Patient FHIR ID\n    medication_code: NDC code (e.g., '0338-1715-40')\n    medication_name: Medication display name\n    dose_value: Dose amount\n    dose_unit: Dose unit (g, mEq, etc.)\n    datetime: Order datetime in ISO format\n    route: Route (IV, oral, etc.) - MUST be string like \"IV\" or \"oral\"\n    rate_value: Infusion rate (for IV medications)\n    rate_unit: Rate unit (h for hours)\n",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     },
+     "medication_code": {
+      "title": "Medication Code",
+      "type": "string"
+     },
+     "medication_name": {
+      "title": "Medication Name",
+      "type": "string"
+     },
+     "dose_value": {
+      "title": "Dose Value",
+      "type": "number"
+     },
+     "dose_unit": {
+      "title": "Dose Unit",
+      "type": "string"
+     },
+     "datetime": {
+      "title": "Datetime",
+      "type": "string"
+     },
+     "route": {
+      "default": null,
+      "title": "Route",
+      "type": "string"
+     },
+     "rate_value": {
+      "default": null,
+      "title": "Rate Value",
+      "type": "number"
+     },
+     "rate_unit": {
+      "default": null,
+      "title": "Rate Unit",
+      "type": "string"
+     }
+    },
+    "required": [
+     "patient_id",
+     "medication_code",
+     "medication_name",
+     "dose_value",
+     "dose_unit",
+     "datetime"
+    ],
+    "title": "create_medication_orderArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_service_request",
+   "description": "Create a service request (lab order, referral) for a patient.\n\nUse this to order lab tests or create referrals.\n\nCommon codes:\n- SNOMED 306181000000106: Orthopedic surgery referral\n- LOINC 2823-3: Serum potassium level\n- LOINC 4548-4: HbA1C\n\nFor referrals, include SBAR note in the 'note' field.\n\nArgs:\n    patient_id: Patient FHIR ID\n    code_system: Code system (http://snomed.info/sct or http://loinc.org)\n    code: Service code\n    display: Display name\n    datetime: Order datetime in ISO format\n    note: Free text note (SBAR for referrals) - will be wrapped in {\"text\": note}\n    occurrence_datetime: When to perform (ISO format)\n",
+   "parameters": {
+    "properties": {
+     "patient_id": {
+      "title": "Patient Id",
+      "type": "string"
+     },
+     "code_system": {
+      "title": "Code System",
+      "type": "string"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "display": {
+      "title": "Display",
+      "type": "string"
+     },
+     "datetime": {
+      "title": "Datetime",
+      "type": "string"
+     },
+     "note": {
+      "default": null,
+      "title": "Note",
+      "type": "string"
+     },
+     "occurrence_datetime": {
+      "default": null,
+      "title": "Occurrence Datetime",
+      "type": "string"
+     }
+    },
+    "required": [
+     "patient_id",
+     "code_system",
+     "code",
+     "display",
+     "datetime"
+    ],
+    "title": "create_service_requestArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_constitution",
+   "description": "Get the MedAgent Constitution - rules for memory usage and privacy protection.\n\nCall this at the start of a session to understand the rules.\nThe constitution is also reminded in every tool response.\n\nReturns:\n    Full constitution text with memory architecture and privacy rules.\n",
+   "parameters": {
+    "properties": {},
+    "title": "get_constitutionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "load_patient_context",
+   "description": "Load patient context and memory for the current task.\n\nThis loads any existing notes/memory for this patient.\nUse add_patient_note() to save important observations.\n\nArgs:\n    mrn: Patient MRN to load (e.g., S6534835)\n    task_id: Optional task ID for tracking\n\nReturns:\n    Patient info and any existing notes.\n",
+   "parameters": {
+    "properties": {
+     "mrn": {
+      "title": "Mrn",
+      "type": "string"
+     },
+     "task_id": {
+      "default": null,
+      "title": "Task Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "mrn"
+    ],
+    "title": "load_patient_contextArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "add_patient_note",
+   "description": "Add a note to the current patient's memory.\n\n⚠️ Only save IMPORTANT observations, not everything from FHIR.\nGood examples: \"Patient allergic to penicillin\", \"Chronic kidney disease stage 3\"\nBad examples: Full lab results, entire medication list\n\nArgs:\n    note: The note content (keep it concise)\n    category: Note category (general, clinical, alert, medication, etc.)\n\nReturns:\n    Confirmation with updated notes.\n",
+   "parameters": {
+    "properties": {
+     "note": {
+      "title": "Note",
+      "type": "string"
+     },
+     "category": {
+      "default": "general",
+      "title": "Category",
+      "type": "string"
+     }
+    },
+    "required": [
+     "note"
+    ],
+    "title": "add_patient_noteArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_current_patient_context",
+   "description": "Get the currently loaded patient context and notes.\n\nReturns:\n    Current patient MRN, FHIR ID, and saved notes.\n",
+   "parameters": {
+    "properties": {},
+    "title": "get_current_patient_contextArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "load_tasks",
+   "description": "Load MedAgentBench tasks from JSON file.\n\nCall this first to load the task file. Then use get_next_task to get tasks one by one.\nCan be called again to reset and reload tasks.\n\nFiltering options (applied in order: task_ids > task_type > range):\n- task_ids: Load specific task IDs (e.g., [\"task7_10\", \"task7_11\", \"task10_5\"])\n- task_type: Load all tasks of a type (1-10)\n- start_index/end_index: Load a range of tasks (0-based)\n\nArgs:\n    version: Test version (v1 or v2). v1 has 100 tasks, v2 has 300 tasks.\n    task_type: Optional filter for specific task type (1-10).\n    task_ids: Optional list of specific task IDs to load (for re-testing failed tasks).\n    start_index: Optional start index (0-based, inclusive).\n    end_index: Optional end index (0-based, exclusive).\n\nReturns:\n    Summary of loaded tasks.\n",
+   "parameters": {
+    "properties": {
+     "version": {
+      "default": "v1",
+      "title": "Version",
+      "type": "string"
+     },
+     "task_type": {
+      "default": null,
+      "title": "Task Type",
+      "type": "integer"
+     },
+     "task_ids": {
+      "default": null,
+      "items": {},
+      "title": "Task Ids",
+      "type": "array"
+     },
+     "start_index": {
+      "default": null,
+      "title": "Start Index",
+      "type": "integer"
+     },
+     "end_index": {
+      "default": null,
+      "title": "End Index",
+      "type": "integer"
+     }
+    },
+    "title": "load_tasksArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_next_task",
+   "description": "Get the next task to process.\n\n⚠️ IMPORTANT: You must call submit_answer() before getting the next task!\n\nReturns the task instruction and context. After completing the task,\nuse submit_answer to record your answer, then call get_next_task again.\n\nReturns:\n    Next task details or completion message if all tasks are done.\n",
+   "parameters": {
+    "properties": {},
+    "title": "get_next_taskArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "submit_answer",
+   "description": "Submit your answer for the current task.\n\nAfter completing a task, call this to record your answer.\nThe answer will be immediately saved to the results file.\n\n⚠️ CRITICAL FORMAT - ALL ANSWERS MUST BE JSON ARRAYS:\n\n| Task | Format | Example |\n|------|--------|---------|\n| task1 | '[\"MRN\"]' or '[\"Patient not found\"]' | '[\"S6534835\"]' |\n| task2 | '[age]' as integer | '[60]' NOT '[\"60\"]' |\n| task3 | Any (POST history matters) | '' |\n| task4 | '[mg_value]' or '[-1]' | '[2.7]' |\n| task5 | '[]' or '[mg_value]' | '[1.8]' |\n| task6 | '[avg]' KEEP DECIMALS! | '[89.88888889]' NOT '[90]' |\n| task7 | '[cbg_value]' | '[123.0]' |\n| task8 | Any (POST history matters) | '' |\n| task9 | '[]' or '[k_value]' | '[]' |\n| task10 | '[value, \"datetime\"]' or '[-1]' | '[5.9, \"2023-11-09T03:05:00+00:00\"]' |\n\nUSE: import json; answer = json.dumps([value]) or json.dumps([value, datetime_str])\n\nArgs:\n    task_id: The task ID (e.g., \"task1_1\")\n    answer: Your answer as JSON array string. Use json.dumps([...])\n\nReturns:\n    Confirmation and prompt to get next task.\n",
+   "parameters": {
+    "properties": {
+     "task_id": {
+      "title": "Task Id",
+      "type": "string"
+     },
+     "answer": {
+      "title": "Answer",
+      "type": "string"
+     }
+    },
+    "required": [
+     "task_id",
+     "answer"
+    ],
+    "title": "submit_answerArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "save_results",
+   "description": "Save all submitted answers to a JSON file.\n\nCall this after completing all tasks to save your answers.\nResults are auto-saved to the run folder, this is for explicit save.\n\nArgs:\n    filename: Optional custom filename (ignored, uses run folder structure)\n\nReturns:\n    Path to the saved file.\n",
+   "parameters": {
+    "properties": {
+     "filename": {
+      "default": null,
+      "title": "Filename",
+      "type": "string"
+     }
+    },
+    "title": "save_resultsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "evaluate_results",
+   "description": "Evaluate saved results using OFFICIAL MedAgentBench evaluator.\n\nThis calls the official refsol.py evaluation functions.\nResults are saved to evaluation.json in the run folder.\nAlso generates memory usage report.\n\nArgs:\n    results_file: Ignored, uses current run folder\n\nReturns:\n    Evaluation summary with accuracy and details.\n",
+   "parameters": {
+    "properties": {
+     "results_file": {
+      "default": null,
+      "title": "Results File",
+      "type": "string"
+     }
+    },
+    "title": "evaluate_resultsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_task_status",
+   "description": "Get current task processing status.\n\nShows how many tasks are loaded, completed, and remaining.\nCan be called anytime to check progress.\n\nReturns:\n    Current status summary.\n",
+   "parameters": {
+    "properties": {},
+    "title": "get_task_statusArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "reset_tasks",
+   "description": "Reset task state to start over.\n\nUse this if you want to restart the task processing from the beginning.\n\nReturns:\n    Confirmation message.\n",
+   "parameters": {
+    "properties": {},
+    "title": "reset_tasksArguments",
+    "type": "object"
+   }
+  }
+ }
+]

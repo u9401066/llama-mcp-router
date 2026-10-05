@@ -1,0 +1,394 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "create_document",
+   "description": "Create a new LibreOffice document\n    \n    Args:\n        path: Full path where the document should be created\n        doc_type: Type of document to create (writer, calc, impress, draw)\n        content: Initial content for the document (for writer documents)\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     },
+     "doc_type": {
+      "default": "writer",
+      "title": "Doc Type",
+      "type": "string"
+     },
+     "content": {
+      "default": "",
+      "title": "Content",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "create_documentArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "read_document_text",
+   "description": "Extract text content from a LibreOffice document\n    \n    Args:\n        path: Path to the document file\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "read_document_textArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "convert_document",
+   "description": "Convert a document to a different format\n    \n    Args:\n        source_path: Path to the source document\n        target_path: Path where converted document should be saved\n        target_format: Target format (pdf, docx, xlsx, pptx, html, txt, etc.)\n    ",
+   "parameters": {
+    "properties": {
+     "source_path": {
+      "title": "Source Path",
+      "type": "string"
+     },
+     "target_path": {
+      "title": "Target Path",
+      "type": "string"
+     },
+     "target_format": {
+      "title": "Target Format",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source_path",
+     "target_path",
+     "target_format"
+    ],
+    "title": "convert_documentArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_document_info",
+   "description": "Get detailed information about a LibreOffice document\n    \n    Args:\n        path: Path to the document file\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "get_document_infoArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "read_spreadsheet_data",
+   "description": "Read data from a LibreOffice Calc spreadsheet\n    \n    Args:\n        path: Path to the spreadsheet file (.ods, .xlsx, etc.)\n        sheet_name: Name of the specific sheet to read (if None, reads first sheet)\n        max_rows: Maximum number of rows to read (default 100)\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     },
+     "sheet_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sheet Name"
+     },
+     "max_rows": {
+      "default": 100,
+      "title": "Max Rows",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "read_spreadsheet_dataArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "insert_text_at_position",
+   "description": "Insert text into a LibreOffice Writer document\n    \n    Args:\n        path: Path to the document file\n        text: Text to insert\n        position: Where to insert the text (\"start\", \"end\", or \"replace\")\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "position": {
+      "default": "end",
+      "title": "Position",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path",
+     "text"
+    ],
+    "title": "insert_text_at_positionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "search_documents",
+   "description": "Search for documents containing specific text\n    \n    Args:\n        query: Text to search for\n        search_path: Directory to search in (default: common document locations)\n    ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "search_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Search Path"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "title": "search_documentsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "batch_convert_documents",
+   "description": "Convert multiple documents in a directory to a different format\n    \n    Args:\n        source_dir: Directory containing source documents\n        target_dir: Directory where converted documents should be saved\n        target_format: Target format for conversion\n        source_extensions: List of source file extensions to convert (default: common formats)\n    ",
+   "parameters": {
+    "properties": {
+     "source_dir": {
+      "title": "Source Dir",
+      "type": "string"
+     },
+     "target_dir": {
+      "title": "Target Dir",
+      "type": "string"
+     },
+     "target_format": {
+      "title": "Target Format",
+      "type": "string"
+     },
+     "source_extensions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source Extensions"
+     }
+    },
+    "required": [
+     "source_dir",
+     "target_dir",
+     "target_format"
+    ],
+    "title": "batch_convert_documentsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "merge_text_documents",
+   "description": "Merge multiple text documents into a single document\n    \n    Args:\n        document_paths: List of paths to documents to merge\n        output_path: Path where merged document should be saved\n        separator: Text to insert between merged documents\n    ",
+   "parameters": {
+    "properties": {
+     "document_paths": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Document Paths",
+      "type": "array"
+     },
+     "output_path": {
+      "title": "Output Path",
+      "type": "string"
+     },
+     "separator": {
+      "default": "\n\n---\n\n",
+      "title": "Separator",
+      "type": "string"
+     }
+    },
+    "required": [
+     "document_paths",
+     "output_path"
+    ],
+    "title": "merge_text_documentsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_document_statistics",
+   "description": "Get detailed statistics about a document\n    \n    Args:\n        path: Path to the document file\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "get_document_statisticsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "open_document_in_libreoffice",
+   "description": "Open a document in LibreOffice GUI for live viewing\n    \n    Args:\n        path: Path to the document to open\n        readonly: Whether to open in read-only mode (default: False)\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     },
+     "readonly": {
+      "default": false,
+      "title": "Readonly",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "open_document_in_libreofficeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "refresh_document_in_libreoffice",
+   "description": "Send a refresh signal to LibreOffice to reload a document\n    \n    Args:\n        path: Path to the document that should be refreshed\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "refresh_document_in_libreofficeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "watch_document_changes",
+   "description": "Watch a document for changes and provide live updates\n    \n    Args:\n        path: Path to the document to watch\n        duration_seconds: How long to watch for changes (default: 30 seconds)\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     },
+     "duration_seconds": {
+      "default": 30,
+      "title": "Duration Seconds",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "watch_document_changesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_live_editing_session",
+   "description": "Create a live editing session with automatic refresh capabilities\n    \n    Args:\n        path: Path to the document for live editing\n        auto_refresh: Whether to enable automatic refresh detection\n    ",
+   "parameters": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     },
+     "auto_refresh": {
+      "default": true,
+      "title": "Auto Refresh",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "create_live_editing_sessionArguments",
+    "type": "object"
+   }
+  }
+ }
+]

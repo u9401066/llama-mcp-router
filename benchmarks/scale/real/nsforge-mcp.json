@@ -1,0 +1,3105 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_start",
+   "description": "\n        開始新的推導會話\n\n        這是所有推導的起點。會話會自動持久化，防止中斷。\n\n        Args:\n            name: 推導名稱（如 \"溫度修正消除率\"）\n            description: 推導描述\n            author: 作者\n\n        Returns:\n            會話資訊\n\n        Example:\n            derivation_start(\"temp_corrected_elimination\", \"Temperature-corrected drug elimination rate\")\n            → {\"session_id\": \"a1b2c3d4\", \"name\": \"temp_corrected_elimination\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "author": {
+      "default": "",
+      "title": "Author",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object",
+    "title": "derivation_startArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_resume",
+   "description": "\n        恢復暫停的推導會話\n\n        如果推導過程中斷，可以用這個工具恢復。\n\n        Args:\n            session_id: 會話 ID\n\n        Returns:\n            會話狀態\n        ",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object",
+    "title": "derivation_resumeArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_list_sessions",
+   "description": "\n        列出所有推導會話\n\n        Returns:\n            所有會話列表\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "derivation_list_sessionsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_status",
+   "description": "\n        取得當前會話狀態\n\n        Returns:\n            當前會話詳細狀態\n        ",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_statusArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_show",
+   "description": "\n        顯示當前推導狀態和公式（類似 SymPy-MCP 的 print_latex_expression）\n\n        ═══════════════════════════════════════════════════════════════════════\n        ⚠️ 重要：Agent 必須在每次推導操作後調用此工具向用戶展示結果！\n        ═══════════════════════════════════════════════════════════════════════\n\n        這個工具確保用戶能看到：\n        1. 當前公式的 LaTeX 渲染結果\n        2. 推導進度（第幾步）\n        3. 會話名稱和狀態\n\n        Args:\n            format: 輸出格式\n                - \"all\": 完整資訊（預設）\n                - \"latex\": 只返回 LaTeX\n                - \"sympy\": 只返回 SymPy 字串\n                - \"summary\": 簡短摘要\n            show_steps: 是否顯示所有步驟歷史\n\n        Returns:\n            當前公式和推導狀態\n\n        Example:\n            derivation_show()\n            → {\n                \"latex\": \"C_{0} e^{- k t}\",\n                \"sympy\": \"C_0*exp(-k*t)\",\n                \"session_name\": \"drug_elimination\",\n                \"step_count\": 3,\n                \"status\": \"active\",\n                \"display_text\": \"📊 **drug_elimination** (Step 3)\\n\\n$$C_{0} e^{- k t}$$\"\n              }\n        ",
+   "parameters": {
+    "properties": {
+     "format": {
+      "default": "all",
+      "title": "Format",
+      "type": "string"
+     },
+     "show_steps": {
+      "default": false,
+      "title": "Show Steps",
+      "type": "boolean"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_showArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_load_formula",
+   "description": "\n        載入公式到當前會話\n\n        支援多種格式輸入：\n        - SymPy 字串: \"C_0 * exp(-k*t)\"\n        - LaTeX: \"C_0 e^{-kt}\" 或 \"\\frac{dC}{dt} = -kC\"\n        - 字典: {\"expression\": \"...\", \"variables\": {...}}\n\n        Args:\n            formula: 公式（多種格式）\n            formula_id: 公式 ID（可選，自動生成）\n            source: 來源標記 (\"user_input\", \"textbook\", \"sympy_builtin\", \"derived\", \"external_mcp\")\n            source_detail: 詳細來源（如 \"Goodman & Gilman Ch.2\"）\n            name: 公式名稱\n            description: 公式描述\n\n        Returns:\n            載入結果\n\n        Examples:\n            # SymPy 格式\n            derivation_load_formula(\"C_0 * exp(-k*t)\", formula_id=\"one_compartment\")\n\n            # LaTeX 格式\n            derivation_load_formula(\"\\frac{dC}{dt} = -k \\cdot C\")\n\n            # 字典格式（含變數資訊）\n            derivation_load_formula({\n                \"expression\": \"k_ref * exp(E_a/R * (1/T_ref - 1/T))\",\n                \"name\": \"Arrhenius temperature correction\",\n                \"variables\": {\n                    \"k_ref\": {\"description\": \"Reference rate constant\", \"unit\": \"1/h\"},\n                    \"E_a\": {\"description\": \"Activation energy\", \"unit\": \"J/mol\"},\n                    \"T\": {\"description\": \"Temperature\", \"unit\": \"K\"},\n                }\n            })\n        ",
+   "parameters": {
+    "properties": {
+     "formula": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "additionalProperties": true,
+        "type": "object"
+       }
+      ],
+      "title": "Formula"
+     },
+     "formula_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Formula Id"
+     },
+     "source": {
+      "default": "user_input",
+      "title": "Source",
+      "type": "string"
+     },
+     "source_detail": {
+      "default": "",
+      "title": "Source Detail",
+      "type": "string"
+     },
+     "name": {
+      "default": "",
+      "title": "Name",
+      "type": "string"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "formula"
+    ],
+    "type": "object",
+    "title": "derivation_load_formulaArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_substitute",
+   "description": "\n        代入操作（帶人類知識記錄）\n\n        將公式中的變數替換為另一個表達式。\n        這是組合公式的關鍵操作。\n\n        ═══════════════════════════════════════════════════════════════════════\n        ⚡ 每一步都可以加入人類知識！\n        ═══════════════════════════════════════════════════════════════════════\n\n        Args:\n            variable: 要替換的變數名\n            replacement: 替換的表達式\n            in_formula: 在哪個公式中代入（預設為當前）\n            description: 操作描述\n            notes: 人類洞見（為什麼這樣做、觀察、警告）\n            assumptions: 這步的假設條件\n            limitations: 這步的限制\n\n        Returns:\n            代入結果（含記錄的知識）\n\n        Example:\n            derivation_substitute(\n                variable=\"k\",\n                replacement=\"k_ref * exp(E_a/R * (1/T_ref - 1/T))\",\n                description=\"Apply Arrhenius equation for temperature dependence\",\n                notes=\"⚠️ 假設 V_max 遵循 Arrhenius，但酵素在 >42°C 會變性\",\n                assumptions=[\"Temperature range 32-42°C\", \"No enzyme denaturation\"],\n                limitations=[\"Not valid for high temperature\"]\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "variable": {
+      "title": "Variable",
+      "type": "string"
+     },
+     "replacement": {
+      "title": "Replacement",
+      "type": "string"
+     },
+     "in_formula": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "In Formula"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "variable",
+     "replacement"
+    ],
+    "type": "object",
+    "title": "derivation_substituteArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_simplify",
+   "description": "\n        簡化當前表達式（帶人類知識記錄）\n\n        Args:\n            method: 簡化方法\n                - \"auto\": 自動選擇（預設）\n                - \"trig\": 三角函數簡化\n                - \"radical\": 根式簡化\n                - \"expand_then_simplify\": 先展開再簡化\n            description: 操作描述\n            notes: 人類洞見\n            assumptions: 這步的假設\n            limitations: 這步的限制\n\n        Returns:\n            簡化結果\n        ",
+   "parameters": {
+    "properties": {
+     "method": {
+      "default": "auto",
+      "title": "Method",
+      "type": "string"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_simplifyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_solve_for",
+   "description": "\n        求解變數（帶人類知識記錄）\n\n        將當前表達式求解為指定變數的函數。\n\n        Args:\n            variable: 要求解的變數\n            description: 操作描述\n            notes: 人類洞見\n            assumptions: 這步的假設\n            limitations: 這步的限制\n\n        Returns:\n            求解結果（可能有多個解）\n\n        Example:\n            derivation_load_formula(\"m*a - F\", formula_id=\"newton\")\n            derivation_solve_for(\n                variable=\"a\",\n                notes=\"假設質量不變\",\n                assumptions=[\"Constant mass\"]\n            )\n            → a = F/m\n        ",
+   "parameters": {
+    "properties": {
+     "variable": {
+      "title": "Variable",
+      "type": "string"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "variable"
+    ],
+    "type": "object",
+    "title": "derivation_solve_forArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_differentiate",
+   "description": "\n        對當前表達式微分（帶人類知識記錄）\n\n        Args:\n            variable: 微分變數\n            order: 階數（預設 1）\n            description: 操作描述\n            notes: 人類洞見\n            assumptions: 這步的假設\n            limitations: 這步的限制\n\n        Returns:\n            微分結果\n        ",
+   "parameters": {
+    "properties": {
+     "variable": {
+      "title": "Variable",
+      "type": "string"
+     },
+     "order": {
+      "default": 1,
+      "title": "Order",
+      "type": "integer"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "variable"
+    ],
+    "type": "object",
+    "title": "derivation_differentiateArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_integrate",
+   "description": "\n        對當前表達式積分（帶人類知識記錄）\n\n        Args:\n            variable: 積分變數\n            lower: 下界（可選，定積分時需要）\n            upper: 上界（可選，定積分時需要）\n            description: 操作描述\n            notes: 人類洞見\n            assumptions: 這步的假設\n            limitations: 這步的限制\n\n        Returns:\n            積分結果\n        ",
+   "parameters": {
+    "properties": {
+     "variable": {
+      "title": "Variable",
+      "type": "string"
+     },
+     "lower": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Lower"
+     },
+     "upper": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Upper"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "variable"
+    ],
+    "type": "object",
+    "title": "derivation_integrateArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_record_step",
+   "description": "\n        記錄一個推導步驟（從 SymPy-MCP 或手動）\n\n        ═══════════════════════════════════════════════════════════════════════\n        這是 SymPy-MCP 和 NSForge 之間的橋樑！\n        ═══════════════════════════════════════════════════════════════════════\n\n        用途：\n        1. 在 SymPy-MCP 計算後，把結果記錄到 NSForge 會話\n        2. 可以加入 notes 說明「為什麼這步要這樣做」\n        3. 保持完整的推導歷史\n\n        工作流程：\n        1. SymPy-MCP: intro + introduce_expression + substitute...\n        2. SymPy-MCP: print_latex_expression (確認結果)\n        3. NSForge: derivation_record_step (記錄這步 + 加入說明)\n        4. 重複 1-3\n        5. NSForge: derivation_complete\n\n        Args:\n            expression: SymPy 格式的表達式（從 SymPy-MCP 結果複製）\n            description: 這步做了什麼\n            latex: LaTeX 格式（可選，會自動生成）\n            notes: 額外說明（非計算性的人類知識！）\n                   例如：「這裡假設線性，但酵素活性實際上是 S 型曲線」\n            source: 來源 (\"sympy_mcp\", \"manual\", \"literature\")\n            operation_type: 操作類型 (\"substitute\", \"simplify\", \"solve\", \"custom\")\n            set_as_current: 是否設為當前表達式（預設 True）\n\n        Returns:\n            記錄結果\n\n        Example:\n            # 在 SymPy-MCP 計算完成後\n            derivation_record_step(\n                expression=\"C*V_max_ref*exp(E_a*(1/T_ref - 1/T)/R)/(C + K_m)\",\n                description=\"Substituted Arrhenius equation for Vmax\",\n                notes=\"假設 Vmax 的溫度依賴遵循 Arrhenius，但實際上酵素在高溫會變性\",\n                source=\"sympy_mcp\"\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "latex": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Latex"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Notes"
+     },
+     "source": {
+      "default": "sympy_mcp",
+      "title": "Source",
+      "type": "string"
+     },
+     "operation_type": {
+      "default": "custom",
+      "title": "Operation Type",
+      "type": "string"
+     },
+     "set_as_current": {
+      "default": true,
+      "title": "Set As Current",
+      "type": "boolean"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression",
+     "description"
+    ],
+    "type": "object",
+    "title": "derivation_record_stepArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_add_note",
+   "description": "\n        在推導中加入說明（不是計算步驟）\n\n        ═══════════════════════════════════════════════════════════════════════\n        用於記錄「人類知識」- 不是計算，而是洞見、假設、警告、修正建議\n        ═══════════════════════════════════════════════════════════════════════\n\n        這很重要！數學推導不只是公式變換，還包含：\n        - 為什麼選擇這個模型\n        - 這個假設何時會失效\n        - 臨床/物理意義是什麼\n        - 需要注意什麼\n\n        Args:\n            note: 說明內容\n            note_type: 說明類型\n                - \"assumption\": 假設條件\n                - \"limitation\": 限制/警告\n                - \"observation\": 觀察/洞見\n                - \"correction\": 修正建議\n                - \"clinical\": 臨床意義\n                - \"physical\": 物理意義\n            related_variables: 相關的變數\n            related_step: 相關的步驟編號（可選）\n\n        Returns:\n            記錄結果\n\n        Example:\n            # 在代入 Arrhenius 後加入說明\n            derivation_add_note(\n                note=\"酵素活性 vs 溫度不是線性的！在高溫 (>42°C) 酵素會變性，\"\n                     \"此時 Arrhenius 方程不再適用。應考慮加入校正因子 γ(T)。\",\n                note_type=\"limitation\",\n                related_variables=[\"V_max\", \"T\"]\n            )\n\n            # 加入修正建議\n            derivation_add_note(\n                note=\"建議加入 Hill-type 校正因子：γ(T) = 1 / (1 + (T/T_denat)^n)\",\n                note_type=\"correction\",\n                related_variables=[\"gamma\", \"T_denat\"]\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "note": {
+      "title": "Note",
+      "type": "string"
+     },
+     "note_type": {
+      "default": "observation",
+      "title": "Note Type",
+      "type": "string"
+     },
+     "related_variables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Related Variables"
+     },
+     "related_step": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Related Step"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "note"
+    ],
+    "type": "object",
+    "title": "derivation_add_noteArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_get_steps",
+   "description": "\n        取得所有推導步驟\n\n        返回完整的步驟歷史，包含：\n        - 每步的操作類型\n        - 輸入輸出表達式\n        - SymPy 指令\n        - 時間戳\n\n        Returns:\n            步驟列表\n        ",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_get_stepsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_get_step",
+   "description": "\n        取得單一步驟的詳細資訊\n\n        用於檢視特定步驟的完整記錄，包含：\n        - 操作類型和描述\n        - 輸入/輸出表達式\n        - SymPy 指令\n        - 人類知識（notes、assumptions、limitations）\n\n        Args:\n            step_number: 步驟編號（1-based）\n\n        Returns:\n            步驟詳情\n\n        Example:\n            derivation_get_step(11)\n            → {\"success\": True, \"step\": {\"step_number\": 11, \"operation\": \"substitute\", ...}}\n        ",
+   "parameters": {
+    "properties": {
+     "step_number": {
+      "title": "Step Number",
+      "type": "integer"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "step_number"
+    ],
+    "type": "object",
+    "title": "derivation_get_stepArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_update_step",
+   "description": "\n        更新步驟的元資料\n\n        ═══════════════════════════════════════════════════════════════════════\n        ⚠️ 只能更新「說明性」欄位，不能改變計算結果！\n        ═══════════════════════════════════════════════════════════════════════\n\n        可更新的欄位：\n        - description: 步驟描述\n        - notes: 人類洞見、觀察、解釋\n        - assumptions: 這步的假設條件\n        - limitations: 這步的限制\n\n        不可更新（需要用 rollback 重做）：\n        - 表達式\n        - 操作類型\n\n        Args:\n            step_number: 步驟編號（1-based）\n            description: 新描述（None = 不更新）\n            notes: 新註記（None = 不更新）\n            assumptions: 新假設（None = 不更新）\n            limitations: 新限制（None = 不更新）\n\n        Returns:\n            更新結果\n\n        Example:\n            derivation_update_step(\n                step_number=11,\n                notes=\"此假設在高溫時不成立\",\n                limitations=[\"Valid only for T < 42°C\"]\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "step_number": {
+      "title": "Step Number",
+      "type": "integer"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Description"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Notes"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "step_number"
+    ],
+    "type": "object",
+    "title": "derivation_update_stepArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_delete_step",
+   "description": "\n        刪除單一步驟\n\n        ═══════════════════════════════════════════════════════════════════════\n        ⚠️ 只能刪除最後一步！\n        ═══════════════════════════════════════════════════════════════════════\n\n        如需刪除中間步驟，請使用 derivation_rollback() 回滾到該步驟之前，\n        然後重新執行推導。\n\n        Args:\n            step_number: 步驟編號（必須是最後一步）\n\n        Returns:\n            刪除結果\n\n        Example:\n            derivation_delete_step(16)  # 假設有 16 步，刪除最後一步\n            → {\"success\": True, \"deleted_step\": {...}, \"new_step_count\": 15}\n        ",
+   "parameters": {
+    "properties": {
+     "step_number": {
+      "title": "Step Number",
+      "type": "integer"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "step_number"
+    ],
+    "type": "object",
+    "title": "derivation_delete_stepArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_rollback",
+   "description": "\n        回滾到指定步驟\n\n        ═══════════════════════════════════════════════════════════════════════\n        ⚡ 這是「跳回某一步」的核心工具！\n        ═══════════════════════════════════════════════════════════════════════\n\n        保留指定步驟及之前的所有步驟，刪除之後的步驟。\n        回滾後可以從該步驟繼續推導（走不同的路徑）。\n\n        Args:\n            to_step: 回滾到的步驟編號（1-based，該步驟會保留）\n                     0 = 清空所有步驟，從頭開始\n\n        Returns:\n            回滾結果，包含：\n            - 刪除了哪些步驟\n            - 當前的表達式\n            - 新的步驟數\n\n        Example:\n            # 假設有 16 步，發現第 11 步開始走錯方向\n            derivation_rollback(to_step=10)\n            → {\n                \"success\": True,\n                \"rolled_back_to\": 10,\n                \"deleted_count\": 6,\n                \"deleted_steps\": [11, 12, 13, 14, 15, 16],\n                \"current_expression\": \"CL_int*(1 - f_b)\",\n                \"message\": \"Rolled back to step 10. Deleted 6 step(s).\"\n              }\n            # 現在可以從步驟 10 的表達式繼續，走不同的推導路徑\n        ",
+   "parameters": {
+    "properties": {
+     "to_step": {
+      "title": "To Step",
+      "type": "integer"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "to_step"
+    ],
+    "type": "object",
+    "title": "derivation_rollbackArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_insert_note",
+   "description": "\n        在指定位置插入說明\n\n        ═══════════════════════════════════════════════════════════════════════\n        📝 用於在推導中間補充說明，不改變計算流程\n        ═══════════════════════════════════════════════════════════════════════\n\n        插入後會自動重新編號後續步驟。\n\n        Args:\n            after_step: 在此步驟之後插入（0 = 最開頭）\n            note: 說明內容\n            note_type: 說明類型\n                - \"assumption\": 📋 假設條件\n                - \"limitation\": ⚠️ 限制/警告\n                - \"observation\": 💡 觀察/洞見\n                - \"correction\": 🔧 修正建議\n                - \"clinical\": 🏥 臨床意義\n                - \"physical\": 🔬 物理意義\n            related_variables: 相關變數\n\n        Returns:\n            插入結果\n\n        Example:\n            # 在步驟 5 和 6 之間插入說明\n            derivation_insert_note(\n                after_step=5,\n                note=\"此處假設達穩態，實際臨床可能需要 5 個半衰期\",\n                note_type=\"clinical\",\n                related_variables=[\"t_half\"]\n            )\n            → {\"success\": True, \"inserted_at\": 6, \"new_step_count\": 17}\n        ",
+   "parameters": {
+    "properties": {
+     "after_step": {
+      "title": "After Step",
+      "type": "integer"
+     },
+     "note": {
+      "title": "Note",
+      "type": "string"
+     },
+     "note_type": {
+      "default": "observation",
+      "title": "Note Type",
+      "type": "string"
+     },
+     "related_variables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Related Variables"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "after_step",
+     "note"
+    ],
+    "type": "object",
+    "title": "derivation_insert_noteArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_complete",
+   "description": "\n        完成推導並自動存檔\n\n        標記推導為完成，返回完整的推導記錄。\n        Agent 應該提供描述性知識（公式的物理/臨床意義、使用時機等）。\n\n        Args:\n            description: 公式描述（物理/化學/臨床意義）\n            clinical_context: 臨床應用場景（何時使用這個公式）\n            assumptions: 推導假設條件\n            limitations: 使用限制\n            references: 參考文獻\n            tags: 標籤（用於分類和搜尋）\n            auto_save: 是否自動存檔（預設 True）\n\n        Returns:\n            完整推導記錄，包含：\n            - 最終表達式\n            - 所有步驟\n            - 使用的公式及其來源\n            - 溯源資訊\n            - 存檔路徑（如果 auto_save=True）\n\n        Example:\n            derivation_complete(\n                description=\"Temperature-corrected drug elimination rate combining first-order kinetics with Arrhenius equation\",\n                clinical_context=\"Use when adjusting drug dosing for febrile patients or hypothermia protocols\",\n                assumptions=[\"First-order elimination kinetics\", \"Arrhenius temperature dependence\"],\n                limitations=[\"Valid only for temperature range 32-42°C\", \"Assumes linear protein binding\"],\n                references=[\"Goodman & Gilman Ch.2\", \"Atkins Physical Chemistry Ch.22\"],\n                tags=[\"pharmacokinetics\", \"temperature\", \"elimination\"]\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "clinical_context": {
+      "default": "",
+      "title": "Clinical Context",
+      "type": "string"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "references": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "References"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "auto_save": {
+      "default": true,
+      "title": "Auto Save",
+      "type": "boolean"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_completeArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_abort",
+   "description": "\n        放棄當前推導\n\n        會話仍然保存在磁碟上，可以之後用 derivation_resume 恢復。\n\n        Returns:\n            操作結果\n        ",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_abortArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_list_saved",
+   "description": "\n        列出所有已存檔的推導結果\n\n        Args:\n            category: 類別篩選（可選）\n\n        Returns:\n            已存檔的推導列表\n\n        Example:\n            derivation_list_saved()\n            → {\"success\": True, \"results\": [\"temp_corrected_elimination\", ...], \"count\": 5}\n        ",
+   "parameters": {
+    "properties": {
+     "category": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Category"
+     }
+    },
+    "type": "object",
+    "title": "derivation_list_savedArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_get_saved",
+   "description": "\n        取得已存檔的推導結果詳情\n\n        Args:\n            result_id: 推導結果 ID\n\n        Returns:\n            完整的推導結果，包含：\n            - 公式表達式\n            - 推導步驟\n            - 來源公式\n            - 臨床/物理意義\n            - 使用限制\n            - 參考文獻\n\n        Example:\n            derivation_get_saved(\"temp_corrected_elimination\")\n            → {\"success\": True, \"name\": \"...\", \"expression\": \"...\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "result_id": {
+      "title": "Result Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result_id"
+    ],
+    "type": "object",
+    "title": "derivation_get_savedArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_search_saved",
+   "description": "\n        搜尋已存檔的推導結果\n\n        在公式名稱、描述、標籤中搜尋關鍵字。\n\n        Args:\n            query: 搜尋關鍵字\n\n        Returns:\n            符合的推導結果列表\n\n        Example:\n            derivation_search_saved(\"temperature\")\n            → {\"success\": True, \"results\": [{\"id\": \"...\", \"name\": \"...\", ...}], \"count\": 2}\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object",
+    "title": "derivation_search_savedArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_repository_stats",
+   "description": "\n        取得推導庫統計資訊\n\n        Returns:\n            統計資訊：\n            - 總數\n            - 已驗證數量\n            - 未驗證數量\n            - 分類統計\n\n        Example:\n            derivation_repository_stats()\n            → {\"total\": 10, \"verified\": 5, \"categories\": {\"pk\": 3, \"pd\": 2, ...}}\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "derivation_repository_statsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_update_saved",
+   "description": "\n        更新已存檔推導的元資料\n\n        允許 Agent 更新推導的描述性知識、分類、驗證狀態等。\n        不能修改推導表達式本身（那需要重新推導）。\n\n        Args:\n            result_id: 推導結果 ID\n            name: 新名稱\n            description: 新描述\n            clinical_context: 新臨床情境\n            assumptions: 新假設清單\n            limitations: 新限制清單\n            references: 新參考文獻\n            tags: 新標籤\n            category: 新分類\n            verified: 驗證狀態\n            verification_method: 驗證方法\n\n        Returns:\n            更新結果\n\n        Example:\n            derivation_update_saved(\n                \"temp_corrected_elimination\",\n                description=\"Updated description with more details\",\n                tags=[\"pharmacokinetics\", \"temperature\", \"elimination\", \"fever\"],\n                verified=True,\n                verification_method=\"dimensional_analysis + clinical_validation\"\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "result_id": {
+      "title": "Result Id",
+      "type": "string"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Name"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Description"
+     },
+     "clinical_context": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Clinical Context"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "references": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "References"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tags"
+     },
+     "category": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Category"
+     },
+     "verified": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Verified"
+     },
+     "verification_method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Verification Method"
+     }
+    },
+    "required": [
+     "result_id"
+    ],
+    "type": "object",
+    "title": "derivation_update_savedArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_delete_saved",
+   "description": "\n        刪除已存檔的推導結果\n\n        ⚠️ 警告：此操作不可逆！推導記錄和 YAML 檔案都會被刪除。\n\n        Args:\n            result_id: 推導結果 ID\n            confirm: 必須設為 True 才會執行刪除（安全機制）\n\n        Returns:\n            刪除結果\n\n        Example:\n            # 必須明確確認才能刪除\n            derivation_delete_saved(\"temp_corrected_elimination\", confirm=True)\n        ",
+   "parameters": {
+    "properties": {
+     "result_id": {
+      "title": "Result Id",
+      "type": "string"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "result_id"
+    ],
+    "type": "object",
+    "title": "derivation_delete_savedArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_export_for_sympy",
+   "description": "\n        導出當前推導狀態給 SymPy-MCP\n\n        ═══════════════════════════════════════════════════════════════════════\n        🔄 HANDOFF 機制 - 當 NSForge 無法處理時，交給 SymPy-MCP！\n        ═══════════════════════════════════════════════════════════════════════\n\n        使用時機：\n        - 需要解 ODE/PDE\n        - 需要矩陣運算\n        - 需要複雜的 SymPy 操作（如 limit, series, dsolve）\n        - NSForge 工具返回錯誤時\n\n        這個工具會輸出：\n        1. 所有已定義的變數（可直接貼到 intro_many）\n        2. 當前表達式（可直接貼到 introduce_expression）\n        3. 建議的下一步操作\n\n        Returns:\n            包含可直接使用的 SymPy-MCP 指令\n\n        Example:\n            # NSForge 中遇到無法處理的操作\n            derivation_export_for_sympy()\n            → {\n                \"intro_many_command\": \"intro_many(['k', 'T', 'Ea', 'R'], 'real positive')\",\n                \"current_expression\": \"k * exp(-Ea/(R*T))\",\n                \"suggested_actions\": [...]\n              }\n\n            # 然後在 SymPy-MCP 中執行\n            intro_many(['k', 'T', 'Ea', 'R'], 'real positive')\n            introduce_expression(\"k * exp(-Ea/(R*T))\", \"arrhenius\")\n        ",
+   "parameters": {
+    "properties": {
+     "include_variables": {
+      "default": true,
+      "title": "Include Variables",
+      "type": "boolean"
+     },
+     "include_current_expression": {
+      "default": true,
+      "title": "Include Current Expression",
+      "type": "boolean"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_export_for_sympyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_import_from_sympy",
+   "description": "\n        從 SymPy-MCP 導入結果回 NSForge\n\n        ═══════════════════════════════════════════════════════════════════════\n        🔄 HANDOFF 機制 - 把 SymPy-MCP 的結果帶回 NSForge 繼續！\n        ═══════════════════════════════════════════════════════════════════════\n\n        使用時機：\n        - 在 SymPy-MCP 完成複雜計算後\n        - 想要繼續使用 NSForge 的步進式記錄\n        - 需要為 SymPy-MCP 的結果加入人類知識\n\n        這個工具會：\n        1. 將 SymPy-MCP 的結果記錄為新步驟\n        2. 更新當前表達式\n        3. 記錄使用的假設和限制\n\n        Args:\n            expression: SymPy-MCP 返回的表達式（字串格式）\n            operation_performed: 執行了什麼操作（如 \"Solved ODE\"）\n            sympy_tool_used: 使用的 SymPy-MCP 工具名稱\n            latex: LaTeX 格式（可選，會自動生成）\n            notes: 額外說明\n            assumptions_used: 使用的假設（從 SymPy-MCP 的 intro 來的）\n            limitations: 這個結果的限制\n\n        Returns:\n            導入結果\n\n        Example:\n            # SymPy-MCP 解完 ODE 後\n            derivation_import_from_sympy(\n                expression=\"C*exp(k*t)\",\n                operation_performed=\"Solved first-order ODE\",\n                sympy_tool_used=\"dsolve_ode\",\n                notes=\"General solution with integration constant C\",\n                assumptions_used=[\"k is real positive\", \"t is real\"],\n                limitations=[\"Requires initial condition to determine C\"]\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "operation_performed": {
+      "title": "Operation Performed",
+      "type": "string"
+     },
+     "sympy_tool_used": {
+      "title": "Sympy Tool Used",
+      "type": "string"
+     },
+     "latex": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Latex"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Notes"
+     },
+     "assumptions_used": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions Used"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Limitations"
+     },
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression",
+     "operation_performed",
+     "sympy_tool_used"
+    ],
+    "type": "object",
+    "title": "derivation_import_from_sympyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_handoff_status",
+   "description": "\n        顯示 Handoff 狀態和可用選項\n\n        這個工具幫助你了解：\n        1. NSForge 能做什麼\n        2. 什麼需要交給 SymPy-MCP\n        3. 當前推導的狀態\n\n        Returns:\n            Handoff 狀態和建議\n        ",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_handoff_statusArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_prepare_for_optimization",
+   "description": "\n        準備推導結果給優化求解器（如 USolver）\n\n        將 NSForge 推導的符號公式轉換為優化求解器可用的格式。\n\n        工作流程：\n        1. NSForge 推導修正後的公式（考慮領域知識）\n        2. 調用此工具取得優化器輸入格式\n        3. 送給 USolver 等優化器找最優解\n\n        Returns:\n            優化器輸入資料\n\n        Example:\n            # 在 NSForge 完成推導後\n            derivation_prepare_for_optimization()\n            → {\n                \"function_str\": \"dose/15.875 * exp(-0.476*t/15.875)\",\n                \"variables\": [\"dose\", \"t\"],\n                \"parameters\": {\"CL\": 0.476, \"V1\": 15.875},\n                \"suggested_constraints\": [\n                    \"dose >= 0.01\",\n                    \"dose <= 0.10\",\n                    \"t >= 0\"\n                ],\n                \"usolver_template\": \"...\"\n              }\n        ",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "default": "",
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "derivation_prepare_for_optimizationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "formula_search",
+   "description": "\n        搜尋公式（跨多個來源）\n\n        這是科學運算 Agent 的核心工具，可從多個權威來源檢索準確的公式。\n        使用直接精確檢索（非 RAG），確保公式正確性。\n\n        Args:\n            query: 搜尋關鍵字\n                   - 英文名稱: \"Reynolds number\", \"Arrhenius equation\"\n                   - 領域術語: \"pharmacokinetics\", \"Michaelis-Menten\"\n            source: 資料來源\n                   - \"all\": 搜尋所有來源（預設）\n                   - \"wikidata\": 僅 Wikidata（跨領域）\n                   - \"biomodels\": 僅 BioModels（藥學/生物）\n                   - \"scipy\": 僅 SciPy 常數\n            domain: 限定領域（可選）\n                   - \"mechanics\", \"thermodynamics\", \"electromagnetism\"\n                   - \"pharmacokinetics\", \"pharmacodynamics\", \"enzyme_kinetics\"\n            limit: 返回數量上限\n\n        Returns:\n            {\n                \"success\": true,\n                \"results\": [\n                    {\n                        \"id\": \"Q179057\",\n                        \"name\": \"Reynolds number\",\n                        \"latex\": \"Re = \\frac{\\rho v L}{\\mu}\",\n                        \"sympy_str\": \"rho * v * L / mu\",\n                        \"source\": \"wikidata\",\n                        \"url\": \"https://www.wikidata.org/wiki/Q179057\"\n                    }\n                ],\n                \"total\": 1,\n                \"sources_searched\": [\"wikidata\"]\n            }\n\n        Example:\n            # 搜尋雷諾數\n            formula_search(\"Reynolds number\")\n\n            # 搜尋藥動學模型\n            formula_search(\"one compartment\", source=\"biomodels\")\n\n            # 按領域搜尋\n            formula_search(\"diffusion\", domain=\"thermodynamics\")\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "source": {
+      "default": "all",
+      "title": "Source",
+      "type": "string"
+     },
+     "domain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Domain"
+     },
+     "limit": {
+      "default": 10,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object",
+    "title": "formula_searchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "formula_get",
+   "description": "\n        獲取公式詳細資訊\n\n        根據 ID 獲取完整的公式資訊，包括 LaTeX、SymPy 表達式、變數定義等。\n\n        Args:\n            formula_id: 公式識別碼\n                       - Wikidata: Q 號（如 \"Q179057\"）\n                       - BioModels: 模型 ID（如 \"BIOMD0000000012\"）\n                       - SciPy: 常數名（如 \"speed_of_light\"）\n            source: 資料來源\n                   - \"wikidata\": Wikidata（預設）\n                   - \"biomodels\": BioModels\n                   - \"scipy\": SciPy 常數\n\n        Returns:\n            {\n                \"success\": true,\n                \"formula\": {\n                    \"id\": \"Q179057\",\n                    \"name\": \"Reynolds number\",\n                    \"latex\": \"Re = \\frac{\\rho v L}{\\mu}\",\n                    \"sympy_str\": \"rho * v * L / mu\",\n                    \"variables\": {\n                        \"rho\": {\"description\": \"密度\", \"unit\": \"kg/m³\"},\n                        \"v\": {\"description\": \"流速\", \"unit\": \"m/s\"},\n                        \"L\": {\"description\": \"特徵長度\", \"unit\": \"m\"},\n                        \"mu\": {\"description\": \"動力黏度\", \"unit\": \"Pa·s\"}\n                    },\n                    \"source\": \"wikidata\",\n                    \"url\": \"https://www.wikidata.org/wiki/Q179057\"\n                }\n            }\n\n        Example:\n            # 獲取 Wikidata 公式\n            formula_get(\"Q179057\", source=\"wikidata\")\n\n            # 獲取 BioModels 模型\n            formula_get(\"BIOMD0000000012\", source=\"biomodels\")\n\n            # 獲取物理常數\n            formula_get(\"speed_of_light\", source=\"scipy\")\n        ",
+   "parameters": {
+    "properties": {
+     "formula_id": {
+      "title": "Formula Id",
+      "type": "string"
+     },
+     "source": {
+      "default": "wikidata",
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "required": [
+     "formula_id"
+    ],
+    "type": "object",
+    "title": "formula_getArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "formula_categories",
+   "description": "\n        列出可用的公式分類\n\n        獲取各資料來源支援的分類，用於更精確的搜尋。\n\n        Args:\n            source: 資料來源\n                   - \"all\": 所有來源（預設）\n                   - \"wikidata\", \"biomodels\", \"scipy\"\n\n        Returns:\n            {\n                \"success\": true,\n                \"categories\": {\n                    \"wikidata\": [\"mechanics\", \"thermodynamics\", ...],\n                    \"biomodels\": [\"pharmacokinetics\", \"enzyme_kinetics\", ...],\n                    \"scipy\": [\"fundamental\", \"electromagnetic\", ...]\n                }\n            }\n        ",
+   "parameters": {
+    "properties": {
+     "source": {
+      "default": "all",
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "formula_categoriesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "formula_pk_models",
+   "description": "\n        搜尋藥動學 (PK) 模型\n\n        專門從 BioModels 搜尋藥動學相關模型。\n\n        Args:\n            query: 搜尋關鍵字（如 \"absorption\", \"elimination\"）\n            drug: 藥物名稱（可選）\n            limit: 返回數量上限\n\n        Returns:\n            藥動學模型列表\n\n        Example:\n            # 搜尋吸收模型\n            formula_pk_models(query=\"absorption\")\n\n            # 搜尋特定藥物\n            formula_pk_models(drug=\"warfarin\")\n        ",
+   "parameters": {
+    "properties": {
+     "query": {
+      "default": "",
+      "title": "Query",
+      "type": "string"
+     },
+     "drug": {
+      "default": "",
+      "title": "Drug",
+      "type": "string"
+     },
+     "limit": {
+      "default": 10,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "title": "formula_pk_modelsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "formula_kinetic_laws",
+   "description": "\n        獲取 BioModels 模型的動力學公式\n\n        從 SBML 模型中提取所有動力學方程式。\n\n        Args:\n            model_id: BioModels 模型 ID（如 \"BIOMD0000000012\"）\n\n        Returns:\n            {\n                \"success\": true,\n                \"model_id\": \"BIOMD0000000012\",\n                \"kinetic_laws\": [\n                    {\n                        \"reaction_id\": \"v1\",\n                        \"name\": \"Enzyme binding\",\n                        \"math\": \"k1 * E * S\",\n                        \"parameters\": [\n                            {\"id\": \"k1\", \"value\": \"0.1\", \"units\": \"per_second\"}\n                        ]\n                    }\n                ]\n            }\n\n        Example:\n            formula_kinetic_laws(\"BIOMD0000000012\")\n        ",
+   "parameters": {
+    "properties": {
+     "model_id": {
+      "title": "Model Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "model_id"
+    ],
+    "type": "object",
+    "title": "formula_kinetic_lawsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "formula_constants",
+   "description": "\n        列出物理常數\n\n        從 SciPy CODATA 2018 獲取物理常數。\n\n        Args:\n            category: 分類\n                     - \"fundamental\": 基本常數（c, h, G）\n                     - \"electromagnetic\": 電磁常數\n                     - \"atomic\": 原子常數\n                     - \"conversion\": 換算因子\n            query: 搜尋關鍵字（可選）\n\n        Returns:\n            物理常數列表（含數值、單位、不確定度）\n\n        Example:\n            # 列出所有基本常數\n            formula_constants(category=\"fundamental\")\n\n            # 搜尋電子相關常數\n            formula_constants(query=\"electron\")\n        ",
+   "parameters": {
+    "properties": {
+     "category": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Category"
+     },
+     "query": {
+      "default": "",
+      "title": "Query",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "formula_constantsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "parse_expression",
+   "description": "\n        Parse a mathematical expression into SymPy-computable form.\n\n        This tool converts human-readable formula notation into validated SymPy\n        expressions, extracting symbols and their relationships.\n\n        Args:\n            expression: Mathematical expression (e.g., \"v' = M1*v*cos(θ)/(M1+M2)\")\n            description: Optional description of what this formula represents\n            symbol_hints: Optional hints for symbol types (e.g., {\"m\": \"positive_real\"})\n\n        Returns:\n            Parsed expression with:\n            - sympy_expr: SymPy expression string\n            - symbols: List of extracted symbols with inferred types\n            - latex: LaTeX representation\n            - is_equation: Whether it's an equation (has '=')\n\n        Examples:\n            parse_expression(\"F = m*a\")\n            → {\"sympy_expr\": \"Eq(F, m*a)\", \"symbols\": [\"F\", \"m\", \"a\"], ...}\n\n            parse_expression(\"∫x²dx\", description=\"Integral of x squared\")\n            → {\"sympy_expr\": \"Integral(x**2, x)\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Description"
+     },
+     "symbol_hints": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Symbol Hints"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "parse_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "validate_expression",
+   "description": "\n        Validate a mathematical expression for correctness.\n\n        Checks syntax, symbol consistency, and optionally dimensional consistency.\n\n        Args:\n            expression: Expression to validate\n            expected_symbols: List of symbols that should appear\n            check_dimensions: Whether to perform dimensional analysis\n            units_map: Map of symbol to unit (e.g., {\"v\": \"m/s\", \"m\": \"kg\"})\n\n        Returns:\n            Validation result with:\n            - valid: Whether expression is valid\n            - issues: List of issues found\n            - warnings: Non-critical warnings\n\n        Examples:\n            validate_expression(\"F = m*a\", expected_symbols=[\"F\", \"m\", \"a\"])\n            → {\"valid\": True, ...}\n\n            validate_expression(\"F = m*a + v\", units_map={\"F\": \"N\", \"m\": \"kg\", \"a\": \"m/s²\", \"v\": \"m/s\"})\n            → {\"valid\": False, \"issues\": [\"Dimension mismatch: m*a (N) + v (m/s)\"]}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "expected_symbols": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Symbols"
+     },
+     "check_dimensions": {
+      "default": false,
+      "title": "Check Dimensions",
+      "type": "boolean"
+     },
+     "units_map": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Units Map"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "validate_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "extract_symbols",
+   "description": "\n        Extract symbols from an expression with inferred metadata.\n\n        Args:\n            expression: Mathematical expression\n            context: Optional context hint (e.g., \"mechanics\", \"thermodynamics\")\n\n        Returns:\n            List of symbols with:\n            - name: Symbol name\n            - type: Inferred type (real, positive_real, integer, etc.)\n            - suggested_unit: Suggested SI unit based on context\n            - description: Inferred description\n\n        Examples:\n            extract_symbols(\"F = m*a\", context=\"mechanics\")\n            → [\n                {\"name\": \"F\", \"type\": \"real\", \"suggested_unit\": \"N\", \"description\": \"Force\"},\n                {\"name\": \"m\", \"type\": \"positive_real\", \"suggested_unit\": \"kg\", \"description\": \"Mass\"},\n                {\"name\": \"a\", \"type\": \"real\", \"suggested_unit\": \"m/s²\", \"description\": \"Acceleration\"}\n              ]\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "context": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Context"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "extract_symbolsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_limit",
+   "description": "\n        Calculate the limit of an expression.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Use cases:\n        - Steady-state analysis (t → ∞)\n        - Boundary behavior (x → 0)\n        - Asymptotic behavior\n        - L'Hôpital's rule situations\n\n        Args:\n            expression: The expression to take limit of\n            variable: The variable approaching the point\n            point: The point to approach (can be \"oo\", \"-oo\", \"0\", \"1\", etc.)\n            direction: Direction of approach\n                - \"+-\" or \"\": Two-sided (default)\n                - \"+\": From the right (x → 0⁺)\n                - \"-\": From the left (x → 0⁻)\n\n        Returns:\n            Limit result with LaTeX\n\n        Examples:\n            # Steady-state concentration\n            calculate_limit(\"C0 * exp(-k*t)\", \"t\", \"oo\")\n            → {\"result\": \"0\", \"latex\": \"0\"}\n\n            # Indeterminate form (0/0)\n            calculate_limit(\"sin(x)/x\", \"x\", \"0\")\n            → {\"result\": \"1\", \"latex\": \"1\"}\n\n            # One-sided limit\n            calculate_limit(\"1/x\", \"x\", \"0\", direction=\"+\")\n            → {\"result\": \"oo\", \"latex\": \"\\infty\"}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "variable": {
+      "title": "Variable",
+      "type": "string"
+     },
+     "point": {
+      "title": "Point",
+      "type": "string"
+     },
+     "direction": {
+      "default": "+-",
+      "title": "Direction",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression",
+     "variable",
+     "point"
+    ],
+    "type": "object",
+    "title": "calculate_limitArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_series",
+   "description": "\n        Calculate series expansion of an expression.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Use cases:\n        - Approximate functions near a point\n        - Linearization (order=1)\n        - Small-signal analysis\n        - Perturbation methods\n\n        Args:\n            expression: The expression to expand\n            variable: The expansion variable\n            point: The expansion point (default: \"0\" for Maclaurin series)\n            order: Number of terms (default: 6)\n            series_type: Type of series\n                - \"taylor\": Taylor/Maclaurin series (default)\n                - \"laurent\": Laurent series (for singularities)\n                - \"fourier\": Fourier series (periodic functions)\n\n        Returns:\n            Series expansion with LaTeX\n\n        Examples:\n            # Maclaurin series of sin(x)\n            calculate_series(\"sin(x)\", \"x\", \"0\", order=5)\n            → {\"result\": \"x - x**3/6 + x**5/120\", ...}\n\n            # Taylor series around x=1\n            calculate_series(\"ln(x)\", \"x\", \"1\", order=4)\n            → {\"result\": \"-1 + x - (x-1)**2/2 + ...\", ...}\n\n            # Linearization (first-order approximation)\n            calculate_series(\"exp(-E/(R*T))\", \"T\", \"T0\", order=1)\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "variable": {
+      "title": "Variable",
+      "type": "string"
+     },
+     "point": {
+      "default": "0",
+      "title": "Point",
+      "type": "string"
+     },
+     "order": {
+      "default": 6,
+      "title": "Order",
+      "type": "integer"
+     },
+     "series_type": {
+      "default": "taylor",
+      "title": "Series Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression",
+     "variable"
+    ],
+    "type": "object",
+    "title": "calculate_seriesArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_summation",
+   "description": "\n        Calculate symbolic summation.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Use cases:\n        - Finite sums (Σ from n=1 to N)\n        - Infinite series (Σ from n=1 to ∞)\n        - Partition functions\n        - Probability mass functions\n\n        Args:\n            expression: The summand (term being summed)\n            index: Summation index variable\n            lower: Lower bound (integer or symbol)\n            upper: Upper bound (integer, symbol, or \"oo\" for infinity)\n\n        Returns:\n            Summation result with LaTeX\n\n        Examples:\n            # Finite sum: Σ k from k=1 to n\n            calculate_summation(\"k\", \"k\", \"1\", \"n\")\n            → {\"result\": \"n*(n+1)/2\", ...}\n\n            # Infinite geometric series: Σ r^n from n=0 to ∞\n            calculate_summation(\"r**n\", \"n\", \"0\", \"oo\")\n            → {\"result\": \"1/(1-r)\", \"condition\": \"|r| < 1\"}\n\n            # Partition function: Σ exp(-E_i/(k*T)) from i=0 to N\n            calculate_summation(\"exp(-E*i/(k*T))\", \"i\", \"0\", \"N\")\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "index": {
+      "title": "Index",
+      "type": "string"
+     },
+     "lower": {
+      "title": "Lower",
+      "type": "string"
+     },
+     "upper": {
+      "title": "Upper",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression",
+     "index",
+     "lower",
+     "upper"
+    ],
+    "type": "object",
+    "title": "calculate_summationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "solve_inequality",
+   "description": "\n        Solve a single inequality.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Use cases:\n        - Find valid parameter ranges\n        - Stability conditions\n        - Convergence criteria\n        - Domain restrictions\n\n        Args:\n            inequality: The inequality (use <, >, <=, >=)\n            variable: Variable to solve for\n            domain: Domain restriction (\"real\", \"positive\", \"integer\")\n\n        Returns:\n            Solution set with interval notation\n\n        Examples:\n            # Simple inequality\n            solve_inequality(\"x**2 - 4 < 0\", \"x\")\n            → {\"result\": \"(-2, 2)\", \"latex\": \"-2 < x < 2\"}\n\n            # Rational inequality\n            solve_inequality(\"(x-1)/(x+2) >= 0\", \"x\")\n            → {\"result\": \"(-oo, -2) ∪ [1, oo)\", ...}\n\n            # With domain restriction\n            solve_inequality(\"x**2 < 9\", \"x\", domain=\"positive\")\n            → {\"result\": \"(0, 3)\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "inequality": {
+      "title": "Inequality",
+      "type": "string"
+     },
+     "variable": {
+      "title": "Variable",
+      "type": "string"
+     },
+     "domain": {
+      "default": "real",
+      "title": "Domain",
+      "type": "string"
+     }
+    },
+    "required": [
+     "inequality",
+     "variable"
+    ],
+    "type": "object",
+    "title": "solve_inequalityArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "solve_inequality_system",
+   "description": "\n        Solve a system of inequalities (find the intersection).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Use cases:\n        - Find valid parameter ranges satisfying multiple constraints\n        - Optimization feasibility regions\n        - Multiple stability conditions\n\n        Args:\n            inequalities: List of inequalities\n            variable: Variable to solve for\n\n        Returns:\n            Solution set (intersection of all solutions)\n\n        Examples:\n            # Multiple constraints\n            solve_inequality_system([\"x > 0\", \"x < 10\", \"x**2 < 25\"], \"x\")\n            → {\"result\": \"(0, 5)\", ...}\n\n            # Therapeutic window\n            solve_inequality_system([\"C > MIC\", \"C < toxic_level\"], \"C\")\n        ",
+   "parameters": {
+    "properties": {
+     "inequalities": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Inequalities",
+      "type": "array"
+     },
+     "variable": {
+      "title": "Variable",
+      "type": "string"
+     }
+    },
+    "required": [
+     "inequalities",
+     "variable"
+    ],
+    "type": "object",
+    "title": "solve_inequality_systemArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "define_distribution",
+   "description": "\n        Define a probability distribution.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP! Uses sympy.stats module.\n        ═══════════════════════════════════════════════════════════════════════\n\n        Use cases:\n        - Model measurement uncertainty\n        - Population variability in pharmacokinetics\n        - Error propagation\n        - Monte Carlo preparation\n\n        Supported distributions:\n        - Continuous: normal, exponential, uniform, gamma, beta, lognormal\n        - Discrete: poisson, binomial, geometric\n\n        Args:\n            distribution_type: Type of distribution\n            parameters: Distribution parameters (as strings for symbolic)\n            name: Name of the random variable\n\n        Returns:\n            Distribution definition with PDF/PMF\n\n        Examples:\n            # Normal distribution\n            define_distribution(\"normal\", {\"mean\": \"mu\", \"std\": \"sigma\"}, \"X\")\n\n            # Exponential (for waiting times)\n            define_distribution(\"exponential\", {\"rate\": \"lambda\"}, \"T\")\n\n            # Log-normal (for PK parameters)\n            define_distribution(\"lognormal\", {\"mean\": \"mu\", \"std\": \"sigma\"}, \"CL\")\n        ",
+   "parameters": {
+    "properties": {
+     "distribution_type": {
+      "title": "Distribution Type",
+      "type": "string"
+     },
+     "parameters": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Parameters",
+      "type": "object"
+     },
+     "name": {
+      "default": "X",
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "distribution_type",
+     "parameters"
+    ],
+    "type": "object",
+    "title": "define_distributionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "distribution_stats",
+   "description": "\n        Compute statistics of a distribution.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Args:\n            distribution_type: Type of distribution\n            parameters: Distribution parameters\n            stats_to_compute: Which statistics (default: all available)\n                - \"mean\", \"variance\", \"std\", \"skewness\", \"kurtosis\", \"entropy\"\n\n        Returns:\n            Computed statistics\n\n        Examples:\n            distribution_stats(\"normal\", {\"mean\": \"mu\", \"std\": \"sigma\"})\n            → {\"mean\": \"mu\", \"variance\": \"sigma**2\", \"std\": \"sigma\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "distribution_type": {
+      "title": "Distribution Type",
+      "type": "string"
+     },
+     "parameters": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Parameters",
+      "type": "object"
+     },
+     "stats_to_compute": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Stats To Compute"
+     }
+    },
+    "required": [
+     "distribution_type",
+     "parameters"
+    ],
+    "type": "object",
+    "title": "distribution_statsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "distribution_probability",
+   "description": "\n        Calculate probability P(condition).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Args:\n            distribution_type: Type of distribution\n            parameters: Distribution parameters\n            condition: Condition string using X as the random variable\n                - \"X < 5\", \"X > 2\", \"X >= 3\", \"X <= 1\"\n                - \"2 < X < 5\" (between two values)\n\n        Returns:\n            Probability (symbolic or numeric)\n\n        Examples:\n            # P(X < 0) for standard normal\n            distribution_probability(\"normal\", {\"mean\": \"0\", \"std\": \"1\"}, \"X < 0\")\n            → {\"probability\": \"1/2\", ...}\n\n            # P(1 < X < 3) for exponential\n            distribution_probability(\"exponential\", {\"rate\": \"lambda\"}, \"1 < X < 3\")\n        ",
+   "parameters": {
+    "properties": {
+     "distribution_type": {
+      "title": "Distribution Type",
+      "type": "string"
+     },
+     "parameters": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Parameters",
+      "type": "object"
+     },
+     "condition": {
+      "title": "Condition",
+      "type": "string"
+     }
+    },
+    "required": [
+     "distribution_type",
+     "parameters",
+     "condition"
+    ],
+    "type": "object",
+    "title": "distribution_probabilityArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "query_assumptions",
+   "description": "\n        Query properties of an expression based on assumptions.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP! Uses sympy.assumptions module.\n        ═══════════════════════════════════════════════════════════════════════\n\n        Use cases:\n        - Check if expression is always positive\n        - Verify domain validity\n        - Check for potential singularities\n\n        Available queries:\n        - positive, negative, nonnegative, nonpositive\n        - real, imaginary, complex\n        - integer, rational, irrational\n        - even, odd, prime\n        - finite, infinite, zero, nonzero\n\n        Args:\n            expression: Expression to query about\n            query: Property to check\n            assumptions: Assumptions about symbols\n                {\"x\": [\"positive\", \"real\"], \"n\": [\"integer\"]}\n\n        Returns:\n            Query result (True, False, or None if unknown)\n\n        Examples:\n            # Is x**2 always positive?\n            query_assumptions(\"x**2\", \"positive\", {\"x\": [\"real\", \"nonzero\"]})\n            → {\"result\": True, ...}\n\n            # Is exp(x) always real?\n            query_assumptions(\"exp(x)\", \"real\", {\"x\": [\"real\"]})\n            → {\"result\": True, ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "assumptions": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assumptions"
+     }
+    },
+    "required": [
+     "expression",
+     "query"
+    ],
+    "type": "object",
+    "title": "query_assumptionsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "refine_expression",
+   "description": "\n        Simplify expression using assumptions.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 NOT AVAILABLE IN SYMPY-MCP!\n        ═══════════════════════════════════════════════════════════════════════\n\n        SymPy can simplify expressions differently when it knows\n        properties of the variables. For example:\n        - sqrt(x**2) → x when x is positive\n        - Abs(x) → x when x is positive\n\n        Args:\n            expression: Expression to refine\n            assumptions: Assumptions about symbols\n\n        Returns:\n            Refined expression\n\n        Examples:\n            # sqrt(x**2) simplifies to x when x is positive\n            refine_expression(\"sqrt(x**2)\", {\"x\": [\"positive\"]})\n            → {\"result\": \"x\", ...}\n\n            # Abs simplifies under assumptions\n            refine_expression(\"Abs(a*b)\", {\"a\": [\"positive\"], \"b\": [\"positive\"]})\n            → {\"result\": \"a*b\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "assumptions": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Assumptions",
+      "type": "object"
+     }
+    },
+    "required": [
+     "expression",
+     "assumptions"
+    ],
+    "type": "object",
+    "title": "refine_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "evaluate_numeric",
+   "description": "\n        Evaluate expression numerically.\n\n        ⚠️ USE AFTER SYMBOLIC WORK: This tool is for final numeric evaluation\n        after you've done symbolic calculations with SymPy-MCP.\n\n        Correct Workflow:\n        1. Use SymPy-MCP for symbolic calculations (solve, simplify, etc.)\n        2. Use print_latex_expression() to show result to user\n        3. Use this tool for final numeric values\n\n        Args:\n            expression: Expression to evaluate\n            values: Numeric values for all variables\n            precision: Decimal precision\n\n        Returns:\n            Numeric result\n\n        Examples:\n            evaluate_numeric(\"sin(pi/4)\", {}) → 0.707107\n            evaluate_numeric(\"m * v**2 / 2\", {\"m\": 70, \"v\": 10}) → 3500.0\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "values": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "title": "Values",
+      "type": "object"
+     },
+     "precision": {
+      "default": 6,
+      "title": "Precision",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "expression",
+     "values"
+    ],
+    "type": "object",
+    "title": "evaluate_numericArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "symbolic_equal",
+   "description": "\n        Check if two expressions are symbolically equivalent.\n\n        Useful for quick verification of derivation steps.\n        For more thorough verification, use verify.py tools.\n\n        Args:\n            expr1: First expression\n            expr2: Second expression\n\n        Returns:\n            Whether expressions are equivalent\n\n        Examples:\n            symbolic_equal(\"(x+1)**2\", \"x**2 + 2*x + 1\") → True\n            symbolic_equal(\"sin(x)**2 + cos(x)**2\", \"1\") → True\n        ",
+   "parameters": {
+    "properties": {
+     "expr1": {
+      "title": "Expr1",
+      "type": "string"
+     },
+     "expr2": {
+      "title": "Expr2",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expr1",
+     "expr2"
+    ],
+    "type": "object",
+    "title": "symbolic_equalArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "expand_expression",
+   "description": "\n        Expand algebraic expression.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        DETERMINISTIC: Always expands products and powers (unlike `simplify()`).\n\n        Use cases:\n        - Expand polynomial products: (x+1)(x-1) → x²-1\n        - Expand powers: (x+a)² → x²+2ax+a²\n        - Prepare for coefficient extraction\n        - Expand logarithms: log(xy) → log(x)+log(y)\n\n        Args:\n            expression: Expression to expand\n            deep: Expand recursively into subexpressions (default: True)\n            modulus: Modular arithmetic (for finite fields)\n            power_base: Expand (x*y)^n → x^n*y^n (default: True)\n            power_exp: Expand x^(a+b) → x^a*x^b (default: True)\n            mul: Expand products (default: True)\n            log: Expand log(xy) → log(x)+log(y) (default: True)\n            multinomial: Use multinomial expansion (default: True)\n            basic: Apply basic expansion rules (default: True)\n\n        Returns:\n            Expanded expression with LaTeX\n\n        Examples:\n            # Polynomial expansion\n            expand_expression(\"(x + 1)**2\")\n            → {\"result\": \"x**2 + 2*x + 1\", ...}\n\n            # Product expansion\n            expand_expression(\"(x + y)*(x - y)\")\n            → {\"result\": \"x**2 - y**2\", ...}\n\n            # Exponential expansion\n            expand_expression(\"exp(x + y)\")\n            → {\"result\": \"exp(x)*exp(y)\", ...}\n\n            # Log expansion\n            expand_expression(\"log(x*y)\")\n            → {\"result\": \"log(x) + log(y)\", ...}\n\n            # PK model: Expand dose calculation\n            expand_expression(\"dose/(V1 + V2) * exp(-k*t)\")\n            → {\"result\": \"dose*exp(-k*t)/(V1 + V2)\", ...}\n\n            # Michaelis-Menten expanded\n            expand_expression(\"(V_max*S + V_max*I)/(K_m + S)\")\n            → {\"result\": \"V_max*S/(K_m + S) + V_max*I/(K_m + S)\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "deep": {
+      "default": true,
+      "title": "Deep",
+      "type": "boolean"
+     },
+     "modulus": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Modulus"
+     },
+     "power_base": {
+      "default": true,
+      "title": "Power Base",
+      "type": "boolean"
+     },
+     "power_exp": {
+      "default": true,
+      "title": "Power Exp",
+      "type": "boolean"
+     },
+     "mul": {
+      "default": true,
+      "title": "Mul",
+      "type": "boolean"
+     },
+     "log": {
+      "default": true,
+      "title": "Log",
+      "type": "boolean"
+     },
+     "multinomial": {
+      "default": true,
+      "title": "Multinomial",
+      "type": "boolean"
+     },
+     "basic": {
+      "default": true,
+      "title": "Basic",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "expand_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "factor_expression",
+   "description": "\n        Factorize algebraic expression.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        DETERMINISTIC: Always attempts factorization (unlike `simplify()`).\n\n        Use cases:\n        - Find roots: x²-1 → (x-1)(x+1) ⇒ roots at x=±1\n        - Simplify rational functions\n        - Characteristic equations (eigenvalues)\n        - Stability analysis (find poles)\n\n        Args:\n            expression: Expression to factorize\n            deep: Factor recursively into subexpressions (default: False)\n            modulus: Modular arithmetic (for finite fields)\n\n        Returns:\n            Factored expression with LaTeX\n\n        Examples:\n            # Quadratic factorization\n            factor_expression(\"x**2 - 1\")\n            → {\"result\": \"(x - 1)*(x + 1)\", ...}\n\n            # Find roots\n            factor_expression(\"x**2 + 5*x + 6\")\n            → {\"result\": \"(x + 2)*(x + 3)\", ...}\n\n            # Compartment model characteristic equation\n            factor_expression(\"s**2 + (k12 + k21 + k10)*s + k21*k10\")\n            → {\"result\": \"(s + λ1)*(s + λ2)\", ...}  # eigenvalues\n\n            # Rational function numerator\n            factor_expression(\"C**2 - K_m**2\")\n            → {\"result\": \"(C - K_m)*(C + K_m)\", ...}\n\n            # Difference of cubes\n            factor_expression(\"x**3 - 8\")\n            → {\"result\": \"(x - 2)*(x**2 + 2*x + 4)\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "deep": {
+      "default": false,
+      "title": "Deep",
+      "type": "boolean"
+     },
+     "modulus": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Modulus"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "factor_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "collect_expression",
+   "description": "\n        Collect terms by specified variable(s).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Groups expression by powers of variable, useful for:\n        - Polynomial standard form\n        - Coefficient extraction\n        - Preparing for numerical evaluation\n\n        Args:\n            expression: Expression to collect\n            variable: Variable(s) to collect by (string or list)\n            evaluate: Evaluate coefficients (default: True)\n            exact: Use exact arithmetic (default: False)\n\n        Returns:\n            Collected expression with LaTeX\n\n        Examples:\n            # Collect by x\n            collect_expression(\"x*y + x - 3 + 2*x**2 - y*x**2 + x**3\", \"x\")\n            → {\"result\": \"x**3 + x**2*(2 - y) + x*(y + 1) - 3\", ...}\n\n            # Extract polynomial coefficients\n            collect_expression(\"a*x**2 + b*x + c + x**2\", \"x\")\n            → {\"result\": \"x**2*(a + 1) + b*x + c\", ...}\n\n            # Multiple variables\n            collect_expression(\"x*y + x*z + y*z\", [\"x\", \"y\"])\n            → Groups by x and y powers\n\n            # PK: Collect by exp terms\n            collect_expression(\"A*exp(-alpha*t) + B*exp(-beta*t)\", \"exp(-alpha*t)\")\n            → {\"result\": \"A*exp(-alpha*t) + B*exp(-beta*t)\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      ],
+      "title": "Variable"
+     },
+     "evaluate": {
+      "default": true,
+      "title": "Evaluate",
+      "type": "boolean"
+     },
+     "exact": {
+      "default": false,
+      "title": "Exact",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "expression",
+     "variable"
+    ],
+    "type": "object",
+    "title": "collect_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "trigsimp_expression",
+   "description": "\n        Simplify trigonometric expressions.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Applies trigonometric identities to simplify expressions.\n\n        Use cases:\n        - Simplify sin²+cos² → 1\n        - Simplify tan(x) → sin(x)/cos(x)\n        - Oscillating chemical reactions\n        - Phase analysis in PK/PD\n\n        Args:\n            expression: Expression to simplify\n            deep: Apply to subexpressions (default: False)\n            recursive: Apply repeatedly (default: False)\n            method: Simplification method\n                - \"matching\": Pattern matching (default, fast)\n                - \"groebner\": Gröbner basis (slower, more powerful)\n                - \"combined\": Try both\n\n        Returns:\n            Simplified expression with LaTeX\n\n        Examples:\n            # Pythagorean identity\n            trigsimp_expression(\"sin(x)**2 + cos(x)**2\")\n            → {\"result\": \"1\", ...}\n\n            # Tan identity\n            trigsimp_expression(\"sin(x)/cos(x)\")\n            → {\"result\": \"tan(x)\", ...}\n\n            # Double angle\n            trigsimp_expression(\"2*sin(x)*cos(x)\")\n            → {\"result\": \"sin(2*x)\", ...}\n\n            # Oscillating kinetics\n            trigsimp_expression(\"sin(omega*t)**2 + cos(omega*t)**2\")\n            → {\"result\": \"1\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "deep": {
+      "default": false,
+      "title": "Deep",
+      "type": "boolean"
+     },
+     "recursive": {
+      "default": false,
+      "title": "Recursive",
+      "type": "boolean"
+     },
+     "method": {
+      "default": "matching",
+      "title": "Method",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "trigsimp_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "powsimp_expression",
+   "description": "\n        Simplify powers and exponentials.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Combines and simplifies powers using algebraic rules.\n\n        Use cases:\n        - Combine exponentials: exp(x)*exp(y) → exp(x+y)\n        - Simplify powers: x²·x³ → x⁵\n        - Nested powers: (x^a)^b → x^(ab)\n\n        Args:\n            expression: Expression to simplify\n            deep: Apply to subexpressions (default: False)\n            combine: How to combine bases\n                - \"all\": Combine all (default)\n                - \"base\": Only combine same base\n                - \"exp\": Only exponentials\n            force: Force transformation even if not valid for all values\n\n        Returns:\n            Simplified expression with LaTeX\n\n        Examples:\n            # Combine powers\n            powsimp_expression(\"x**2 * x**3\")\n            → {\"result\": \"x**5\", ...}\n\n            # Nested powers\n            powsimp_expression(\"(x**a)**b\")\n            → {\"result\": \"x**(a*b)\", ...}\n\n            # Exponentials\n            powsimp_expression(\"exp(x)*exp(y)\")\n            → {\"result\": \"exp(x + y)\", ...}\n\n            # PK: Combine elimination terms\n            powsimp_expression(\"exp(-k*t)*exp(-k*τ)\")\n            → {\"result\": \"exp(-k*(t + τ))\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "deep": {
+      "default": false,
+      "title": "Deep",
+      "type": "boolean"
+     },
+     "combine": {
+      "default": "all",
+      "title": "Combine",
+      "type": "string"
+     },
+     "force": {
+      "default": false,
+      "title": "Force",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "powsimp_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "radsimp_expression",
+   "description": "\n        Simplify radicals (square roots, cube roots, etc.).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Rationalizes denominators and simplifies radical expressions.\n\n        Use cases:\n        - Rationalize denominators: 1/(√3+√2)\n        - Simplify nested radicals\n        - Standard form for half-life calculations\n        - Geometric mean calculations\n\n        Args:\n            expression: Expression to simplify\n            symbolic: Allow symbolic radicals (default: True)\n            max_terms: Maximum terms in denominator for rationalization\n\n        Returns:\n            Simplified expression with LaTeX\n\n        Examples:\n            # Rationalize denominator\n            radsimp_expression(\"1/(sqrt(3) + sqrt(2))\")\n            → {\"result\": \"-sqrt(2) + sqrt(3)\", ...}\n\n            # Simplify radical\n            radsimp_expression(\"sqrt(12)\")\n            → {\"result\": \"2*sqrt(3)\", ...}\n\n            # PK: Half-life with roots\n            radsimp_expression(\"ln(2)/sqrt(k1*k2)\")\n            → {\"result\": \"sqrt(k1*k2)*ln(2)/(k1*k2)\", ...}\n\n            # Nested radicals\n            radsimp_expression(\"sqrt(2 + sqrt(2))\")\n            → Attempts simplification\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "symbolic": {
+      "default": true,
+      "title": "Symbolic",
+      "type": "boolean"
+     },
+     "max_terms": {
+      "default": 4,
+      "title": "Max Terms",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "radsimp_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "combsimp_expression",
+   "description": "\n        Simplify combinatorial expressions (factorials, binomials).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Simplifies expressions involving:\n        - Factorials: n!/(n-k)!\n        - Binomial coefficients: C(n,k)\n        - Permutations: P(n,k)\n\n        Use cases:\n        - Taylor series coefficients\n        - Probability calculations\n        - Statistical formulas\n        - Series expansions\n\n        Args:\n            expression: Expression with factorials/binomials\n\n        Returns:\n            Simplified expression with LaTeX\n\n        Examples:\n            # Falling factorial\n            combsimp_expression(\"factorial(n)/factorial(n - 3)\")\n            → {\"result\": \"n*(n - 1)*(n - 2)\", ...}\n\n            # Binomial identity\n            combsimp_expression(\"binomial(n, k) * factorial(k)\")\n            → {\"result\": \"factorial(n)/factorial(n - k)\", ...}\n\n            # Taylor coefficient\n            combsimp_expression(\"x**n / factorial(n)\")\n            → Standard form for Taylor series\n\n            # Rising factorial\n            combsimp_expression(\"rf(x, 3)\")\n            → {\"result\": \"x*(x + 1)*(x + 2)\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "combsimp_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "apart_expression",
+   "description": "\n        Partial fraction decomposition.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Decomposes rational functions into sum of simpler fractions.\n\n        CRITICAL FOR:\n        - Inverse Laplace transform\n        - Integration of rational functions\n        - Compartment model analysis\n        - Transfer function decomposition\n\n        Args:\n            expression: Rational function to decompose\n            variable: Variable for decomposition (auto-detect if None)\n            full: Return full decomposition (default: False)\n\n        Returns:\n            Partial fraction decomposition with LaTeX\n\n        Examples:\n            # Simple decomposition\n            apart_expression(\"(x**2 + 3*x + 2)/(x**2 + 5*x + 6)\", \"x\")\n            → {\"result\": \"1 - 2/(x + 3)\", ...}\n\n            # Compartment model transfer function\n            apart_expression(\"dose*k12 / ((s + λ1)*(s + λ2))\", \"s\")\n            → {\"result\": \"A/(s + λ1) + B/(s + λ2)\", ...}\n            # Prepare for inverse Laplace!\n\n            # Integration preparation\n            apart_expression(\"1/(x**2 - 1)\", \"x\")\n            → {\"result\": \"1/(2*(x - 1)) - 1/(2*(x + 1))\", ...}\n\n            # Complex poles\n            apart_expression(\"1/(x**2 + 1)\", \"x\")\n            → {\"result\": \"-I/(2*(x - I)) + I/(2*(x + I))\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Variable"
+     },
+     "full": {
+      "default": false,
+      "title": "Full",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "apart_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cancel_expression",
+   "description": "\n        Cancel common factors in rational expression.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Reduces rational functions to lowest terms by canceling common factors.\n\n        Use cases:\n        - Simplify PK models\n        - Remove singularities\n        - Numerical stability\n        - Standard form\n\n        Args:\n            expression: Rational expression to cancel\n\n        Returns:\n            Canceled expression with LaTeX\n\n        Examples:\n            # Simple cancellation\n            cancel_expression(\"(x**2 - 1)/(x - 1)\")\n            → {\"result\": \"x + 1\", ...}  # Removed (x-1) factor\n\n            # PK clearance\n            cancel_expression(\"(V*CL)/(V)\")\n            → {\"result\": \"CL\", ...}\n\n            # Multiple factors\n            cancel_expression(\"(x**2 - 4)/(x**2 + 4*x + 4)\")\n            → {\"result\": \"(x - 2)/(x + 2)\", ...}\n\n            # Remove common exponentials\n            cancel_expression(\"exp(-k*t)*C0 / exp(-k*t)\")\n            → {\"result\": \"C0\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "cancel_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "together_expression",
+   "description": "\n        Combine rational expressions over a common denominator.\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 1 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Combines separate fractions into a single fraction.\n\n        Use cases:\n        - Combine clearance terms\n        - Total bioavailability\n        - Multiple dosing routes\n        - Fraction addition\n\n        Args:\n            expression: Sum of rational expressions\n            deep: Apply to subexpressions (default: False)\n\n        Returns:\n            Combined expression with LaTeX\n\n        Examples:\n            # Simple addition\n            together_expression(\"1/x + 1/y\")\n            → {\"result\": \"(x + y)/(x*y)\", ...}\n\n            # Multiple clearances\n            together_expression(\"CL_renal/V + CL_hepatic/V\")\n            → {\"result\": \"(CL_renal + CL_hepatic)/V\", ...}\n\n            # Complex fractions\n            together_expression(\"1/(x-1) + 1/(x+1)\")\n            → {\"result\": \"2*x/(x**2 - 1)\", ...}\n\n            # PK: Total clearance\n            together_expression(\"Q/V1 + CL/V1\")\n            → {\"result\": \"(Q + CL)/V1\", ...}\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "deep": {
+      "default": false,
+      "title": "Deep",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "together_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "laplace_transform_expression",
+   "description": "\n        Laplace transform: f(t) → F(s).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 2 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Transforms time-domain functions to s-domain (Laplace domain).\n\n        CRITICAL FOR:\n        - ODE solving (time → algebraic in s-domain)\n        - Stability analysis (poles in s-plane)\n        - Transfer functions (system response)\n        - Compartment model analysis\n\n        Args:\n            expression: Time-domain expression f(t)\n            time_var: Time variable (default: \"t\")\n            freq_var: Frequency variable (default: \"s\")\n\n        Returns:\n            Laplace transform F(s) with convergence conditions\n\n        Examples:\n            # Exponential decay\n            laplace_transform_expression(\"exp(-k*t)\", \"t\", \"s\")\n            → {\"result\": \"1/(s + k)\", \"convergence\": \"Re(s) > -Re(k)\"}\n\n            # Compartment elimination\n            laplace_transform_expression(\"C0*exp(-k*t)\", \"t\", \"s\")\n            → {\"result\": \"C0/(s + k)\", ...}\n\n            # Step function response\n            laplace_transform_expression(\"Heaviside(t)\", \"t\", \"s\")\n            → {\"result\": \"1/s\", \"convergence\": \"Re(s) > 0\"}\n\n            # Dosing with absorption\n            laplace_transform_expression(\"D*ka*exp(-ka*t)\", \"t\", \"s\")\n            → {\"result\": \"D*ka/(s + ka)\", ...}\n\n            # PK: Convert ODE to algebra\n            # dC/dt + k*C = 0 → s*C(s) - C(0) + k*C(s) = 0\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "time_var": {
+      "default": "t",
+      "title": "Time Var",
+      "type": "string"
+     },
+     "freq_var": {
+      "default": "s",
+      "title": "Freq Var",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "laplace_transform_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "inverse_laplace_transform_expression",
+   "description": "\n        Inverse Laplace transform: F(s) → f(t).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 2 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Transforms s-domain (Laplace) back to time-domain.\n\n        CRITICAL FOR:\n        - Getting time response from transfer function\n        - Multi-compartment PK model solutions\n        - Impulse/step response analysis\n        - Converting algebraic solutions back to ODE solutions\n\n        Args:\n            expression: Frequency-domain expression F(s)\n            freq_var: Frequency variable (default: \"s\")\n            time_var: Time variable (default: \"t\")\n\n        Returns:\n            Time-domain function f(t)\n\n        Examples:\n            # Simple pole\n            inverse_laplace_transform_expression(\"1/(s + k)\", \"s\", \"t\")\n            → {\"result\": \"exp(-k*t)*Heaviside(t)\", ...}\n\n            # Two-compartment model (after partial fractions)\n            inverse_laplace_transform_expression(\"A/(s + λ1) + B/(s + λ2)\", \"s\", \"t\")\n            → {\"result\": \"A*exp(-λ1*t) + B*exp(-λ2*t)\", ...}\n\n            # Step response\n            inverse_laplace_transform_expression(\"1/(s*(s + k))\", \"s\", \"t\")\n            → {\"result\": \"(1 - exp(-k*t))/k\", ...}\n\n            # PK: Bolus injection response\n            inverse_laplace_transform_expression(\"dose/(V*(s + k))\", \"s\", \"t\")\n            → {\"result\": \"dose*exp(-k*t)/V\", ...}\n\n            # WORKFLOW: Use with apart_expression!\n            # 1. apart_expression(\"F(s)\", \"s\") → partial fractions\n            # 2. inverse_laplace_transform_expression(...) → f(t)\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "freq_var": {
+      "default": "s",
+      "title": "Freq Var",
+      "type": "string"
+     },
+     "time_var": {
+      "default": "t",
+      "title": "Time Var",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "inverse_laplace_transform_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "fourier_transform_expression",
+   "description": "\n        Fourier transform: f(x) → F(k).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 2 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Transforms spatial/time function to frequency domain.\n\n        USE CASES:\n        - Periodic dosing analysis (repeated administration)\n        - Spectral analysis (frequency components)\n        - Signal processing (filter design)\n        - Diffusion problems (spatial frequency)\n\n        Args:\n            expression: Space/time-domain expression f(x)\n            space_var: Space/time variable (default: \"x\")\n            freq_var: Frequency variable (default: \"k\")\n\n        Returns:\n            Fourier transform F(k)\n\n        Examples:\n            # Gaussian pulse\n            fourier_transform_expression(\"exp(-x**2)\", \"x\", \"k\")\n            → {\"result\": \"sqrt(pi)*exp(-pi**2*k**2)\", ...}\n\n            # Exponential decay\n            fourier_transform_expression(\"exp(-abs(x))\", \"x\", \"k\")\n            → {\"result\": \"2/(1 + k**2)\", ...}\n\n            # Rectangular pulse\n            fourier_transform_expression(\"Heaviside(x+1) - Heaviside(x-1)\", \"x\", \"k\")\n            → {\"result\": \"2*sin(k)/k\", ...}\n\n            # PK: Periodic dosing spectrum\n            # Analyze frequency components of repeated doses\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "space_var": {
+      "default": "x",
+      "title": "Space Var",
+      "type": "string"
+     },
+     "freq_var": {
+      "default": "k",
+      "title": "Freq Var",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "fourier_transform_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "inverse_fourier_transform_expression",
+   "description": "\n        Inverse Fourier transform: F(k) → f(x).\n\n        ═══════════════════════════════════════════════════════════════════════\n        🆕 PHASE 2 - NOT IN SYMPY-MCP OR NSFORGE v0.2.3!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Transforms frequency domain back to spatial/time domain.\n\n        USE CASES:\n        - Reconstruct signal from spectrum\n        - Inverse filter design\n        - Synthesize periodic patterns\n        - Diffusion problem solutions\n\n        Args:\n            expression: Frequency-domain expression F(k)\n            freq_var: Frequency variable (default: \"k\")\n            space_var: Space/time variable (default: \"x\")\n\n        Returns:\n            Spatial/time-domain function f(x)\n\n        Examples:\n            # Lorentzian spectrum\n            inverse_fourier_transform_expression(\"1/(1 + k**2)\", \"k\", \"x\")\n            → {\"result\": \"pi*exp(-abs(x))\", ...}\n\n            # Sinc function\n            inverse_fourier_transform_expression(\"Heaviside(k+1) - Heaviside(k-1)\", \"k\", \"x\")\n            → {\"result\": \"sin(x)/(pi*x)\", ...}\n\n            # PK: Reconstruct concentration profile from spectrum\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "freq_var": {
+      "default": "k",
+      "title": "Freq Var",
+      "type": "string"
+     },
+     "space_var": {
+      "default": "x",
+      "title": "Space Var",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression"
+    ],
+    "type": "object",
+    "title": "inverse_fourier_transform_expressionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "verify_equality",
+   "description": "\n        Verify that two expressions are symbolically equal.\n\n        Args:\n            expression1: First expression\n            expression2: Second expression\n\n        Returns:\n            Verification result\n\n        Examples:\n            verify_equality(\"(x+1)**2\", \"x**2 + 2*x + 1\") → verified: True\n            verify_equality(\"sin(x)**2 + cos(x)**2\", \"1\") → verified: True\n        ",
+   "parameters": {
+    "properties": {
+     "expression1": {
+      "title": "Expression1",
+      "type": "string"
+     },
+     "expression2": {
+      "title": "Expression2",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expression1",
+     "expression2"
+    ],
+    "type": "object",
+    "title": "verify_equalityArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "verify_derivative",
+   "description": "\n        Verify a derivative by computing and comparing.\n\n        Args:\n            function: Original function\n            claimed_derivative: Claimed derivative\n            variable: Variable (default: \"x\")\n\n        Returns:\n            Verification result\n\n        Examples:\n            verify_derivative(\"x**3\", \"3*x**2\") → verified: True\n        ",
+   "parameters": {
+    "properties": {
+     "function": {
+      "title": "Function",
+      "type": "string"
+     },
+     "claimed_derivative": {
+      "title": "Claimed Derivative",
+      "type": "string"
+     },
+     "variable": {
+      "default": "x",
+      "title": "Variable",
+      "type": "string"
+     }
+    },
+    "required": [
+     "function",
+     "claimed_derivative"
+    ],
+    "type": "object",
+    "title": "verify_derivativeArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "verify_integral",
+   "description": "\n        Verify an integral by differentiating the result.\n\n        Args:\n            integrand: Original function to integrate\n            claimed_integral: Claimed integral result\n            variable: Variable (default: \"x\")\n\n        Returns:\n            Verification result\n\n        Examples:\n            verify_integral(\"x**2\", \"x**3/3\") → verified: True\n        ",
+   "parameters": {
+    "properties": {
+     "integrand": {
+      "title": "Integrand",
+      "type": "string"
+     },
+     "claimed_integral": {
+      "title": "Claimed Integral",
+      "type": "string"
+     },
+     "variable": {
+      "default": "x",
+      "title": "Variable",
+      "type": "string"
+     }
+    },
+    "required": [
+     "integrand",
+     "claimed_integral"
+    ],
+    "type": "object",
+    "title": "verify_integralArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "verify_solution",
+   "description": "\n        Verify that a value satisfies an equation.\n\n        Args:\n            equation: Equation (\"lhs = rhs\" or \"expr\" for expr = 0)\n            solution: Claimed solution\n            variable: Variable (default: \"x\")\n\n        Returns:\n            Verification result\n\n        Examples:\n            verify_solution(\"x**2 - 4 = 0\", \"2\") → verified: True\n        ",
+   "parameters": {
+    "properties": {
+     "equation": {
+      "title": "Equation",
+      "type": "string"
+     },
+     "solution": {
+      "title": "Solution",
+      "type": "string"
+     },
+     "variable": {
+      "default": "x",
+      "title": "Variable",
+      "type": "string"
+     }
+    },
+    "required": [
+     "equation",
+     "solution"
+    ],
+    "type": "object",
+    "title": "verify_solutionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "check_dimensions",
+   "description": "\n        Check dimensional consistency of an expression.\n\n        Uses sympy.physics.units for dimensional analysis.\n\n        Args:\n            expression: Expression to check\n            units_map: Map of symbol to SI unit string\n                       e.g., {\"v\": \"m/s\", \"m\": \"kg\", \"F\": \"N\"}\n\n        Returns:\n            Dimensional analysis result\n\n        Examples:\n            check_dimensions(\"F\", {\"F\": \"kg*m/s**2\"})\n            → dimension: [mass]*[length]/[time]**2\n\n            check_dimensions(\"m*a\", {\"m\": \"kg\", \"a\": \"m/s**2\"})\n            → dimension: [mass]*[length]/[time]**2 (Force)\n        ",
+   "parameters": {
+    "properties": {
+     "expression": {
+      "title": "Expression",
+      "type": "string"
+     },
+     "units_map": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Units Map",
+      "type": "object"
+     }
+    },
+    "required": [
+     "expression",
+     "units_map"
+    ],
+    "type": "object",
+    "title": "check_dimensionsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "reverse_verify",
+   "description": "\n        Verify a result by applying the reverse operation.\n\n        This is a key verification method:\n        - Derivative → integrate back\n        - Integral → differentiate back\n        - Solve → substitute back\n\n        Args:\n            result_expr: The computed result\n            original_expr: The original expression\n            operation: \"differentiate\", \"integrate\", or \"solve\"\n            variable: Variable involved\n\n        Returns:\n            Verification result\n\n        Examples:\n            reverse_verify(\"3*x**2\", \"x**3\", \"differentiate\")\n            → Integrates 3*x² and checks if it gives x³\n\n            reverse_verify(\"x**3/3\", \"x**2\", \"integrate\")\n            → Differentiates x³/3 and checks if it gives x²\n        ",
+   "parameters": {
+    "properties": {
+     "result_expr": {
+      "title": "Result Expr",
+      "type": "string"
+     },
+     "original_expr": {
+      "title": "Original Expr",
+      "type": "string"
+     },
+     "operation": {
+      "title": "Operation",
+      "type": "string"
+     },
+     "variable": {
+      "default": "x",
+      "title": "Variable",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result_expr",
+     "original_expr",
+     "operation"
+    ],
+    "type": "object",
+    "title": "reverse_verifyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "generate_python_function",
+   "description": "\n        Generate a Python function from VERIFIED derivation steps.\n\n        ═══════════════════════════════════════════════════════════════════════\n        ⚠️ PREREQUISITE: All expressions must be verified with SymPy-MCP first!\n        ═══════════════════════════════════════════════════════════════════════\n\n        Correct workflow:\n        1. Use SymPy-MCP to derive and verify each expression\n        2. Use print_latex_expression() to show results to user\n        3. User confirms the derivation is correct\n        4. Call this tool with the verified expressions\n\n        The generated code uses SymPy for computation, ensuring correctness.\n        This is NOT Agent-generated code - it's assembled from verified steps.\n\n        Args:\n            name: Function name (e.g., \"calculate_seatbelt_tension\")\n            description: Function docstring description\n            parameters: List of {\"name\": str, \"type\": str, \"description\": str}\n            steps: List of {\"description\": str, \"expression\": str, \"result_var\": str}\n            return_vars: Variables to return\n\n        Returns:\n            Generated Python code\n\n        Example:\n            generate_python_function(\n                name=\"calculate_tension\",\n                description=\"Calculate seatbelt tension from collision\",\n                parameters=[\n                    {\"name\": \"M1\", \"type\": \"float\", \"description\": \"Vehicle 1 mass (kg)\"},\n                    {\"name\": \"M2\", \"type\": \"float\", \"description\": \"Vehicle 2 mass (kg)\"},\n                    {\"name\": \"v\", \"type\": \"float\", \"description\": \"Initial velocity (m/s)\"},\n                    {\"name\": \"m\", \"type\": \"float\", \"description\": \"Person mass (kg)\"},\n                    {\"name\": \"k\", \"type\": \"float\", \"description\": \"Seatbelt constant (N/m)\"},\n                ],\n                steps=[\n                    {\"description\": \"Final velocity after collision\",\n                     \"expression\": \"M1 * v / (M1 + M2)\",\n                     \"result_var\": \"v_f\"},\n                    {\"description\": \"Velocity change\",\n                     \"expression\": \"v - v_f\",\n                     \"result_var\": \"delta_v\"},\n                    {\"description\": \"Maximum tension\",\n                     \"expression\": \"delta_v * sqrt(m * k)\",\n                     \"result_var\": \"T_max\"},\n                ],\n                return_vars=[\"v_f\", \"delta_v\", \"T_max\"]\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "parameters": {
+      "items": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Parameters",
+      "type": "array"
+     },
+     "steps": {
+      "items": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Steps",
+      "type": "array"
+     },
+     "return_vars": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Return Vars",
+      "type": "array"
+     }
+    },
+    "required": [
+     "name",
+     "description",
+     "parameters",
+     "steps",
+     "return_vars"
+    ],
+    "type": "object",
+    "title": "generate_python_functionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "generate_latex_derivation",
+   "description": "\n        Generate LaTeX documentation for a derivation.\n\n        Args:\n            title: Derivation title\n            steps: List of {\"description\": str, \"latex\": str}\n            final_result: Final result in LaTeX\n\n        Returns:\n            LaTeX document string\n        ",
+   "parameters": {
+    "properties": {
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "steps": {
+      "items": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Steps",
+      "type": "array"
+     },
+     "final_result": {
+      "title": "Final Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "steps",
+     "final_result"
+    ],
+    "type": "object",
+    "title": "generate_latex_derivationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "generate_derivation_report",
+   "description": "\n        Generate a complete derivation report in Markdown.\n\n        Args:\n            problem: Problem description\n            given: Given parameters {\"symbol\": \"value with unit\"}\n            steps: Derivation steps\n            results: Final results {\"symbol\": \"expression\"}\n            verification: Optional verification status\n\n        Returns:\n            Markdown report\n        ",
+   "parameters": {
+    "properties": {
+     "problem": {
+      "title": "Problem",
+      "type": "string"
+     },
+     "given": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Given",
+      "type": "object"
+     },
+     "steps": {
+      "items": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Steps",
+      "type": "array"
+     },
+     "results": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Results",
+      "type": "object"
+     },
+     "verification": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "boolean"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Verification"
+     }
+    },
+    "required": [
+     "problem",
+     "given",
+     "steps",
+     "results"
+    ],
+    "type": "object",
+    "title": "generate_derivation_reportArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "generate_sympy_script",
+   "description": "\n        Generate a standalone SymPy script for a computation.\n\n        This generates a complete, runnable Python script that can be\n        executed independently to reproduce the derivation.\n\n        Args:\n            expressions: List of {\"name\": str, \"expr\": str, \"description\": str}\n            operations: List of operations to perform\n                {\"op\": \"simplify|solve|diff|integrate\", \"input\": str, ...}\n\n        Returns:\n            Complete Python script\n\n        Example:\n            generate_sympy_script(\n                expressions=[\n                    {\"name\": \"momentum\", \"expr\": \"m1*v1 + m2*v2\", \"description\": \"Total momentum\"},\n                ],\n                operations=[\n                    {\"op\": \"solve\", \"input\": \"momentum = (m1+m2)*v_f\", \"for\": \"v_f\"},\n                ]\n            )\n        ",
+   "parameters": {
+    "properties": {
+     "expressions": {
+      "items": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Expressions",
+      "type": "array"
+     },
+     "operations": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Operations",
+      "type": "array"
+     }
+    },
+    "required": [
+     "expressions",
+     "operations"
+    ],
+    "type": "object",
+    "title": "generate_sympy_scriptArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "task_plan",
+   "description": "\n        Reify a Derivation Task Spec (DTS) into an ordered plan of tool calls.\n\n        Each planned step names the tool that would produce it (provenance),\n        spanning the reification ladder: symbol -> derivation -> algorithm.\n\n        Args:\n            spec: A DTS dict with keys: name, goal, given, unknowns, assumptions,\n                  base_formulas, modifications, acceptance, metadata.\n\n        Returns:\n            {\"success\": bool, \"spec\": str, \"total\": int, \"steps\": [...]}.\n        ",
+   "parameters": {
+    "properties": {
+     "spec": {
+      "additionalProperties": true,
+      "title": "Spec",
+      "type": "object"
+     }
+    },
+    "required": [
+     "spec"
+    ],
+    "type": "object",
+    "title": "task_planArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "task_run",
+   "description": "\n        Run the DTS through the reification ladder.\n\n        Concept (validation), symbol (registry), and derivation (composing base\n        formulas via substitution + solving on the SymPy engine) rungs execute\n        deterministically; when a derivation is produced, the algorithm rung\n        reifies it into a Python function. The composed formula is returned in\n        \"derived_expression\" and the code in \"generated_code\".\n\n        Args:\n            spec: A DTS dict (see task_plan).\n            timeout_s: Optional hard wall-clock cap (seconds). When set, the\n                derivation runs in a separate process and is killed if it\n                overruns, returning {\"success\": False, \"timed_out\": True}.\n\n        Returns:\n            {\"success\", \"spec\", \"derived_expression\", \"generated_code\", \"phases\"}.\n        ",
+   "parameters": {
+    "properties": {
+     "spec": {
+      "additionalProperties": true,
+      "title": "Spec",
+      "type": "object"
+     },
+     "timeout_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Timeout S"
+     }
+    },
+    "required": [
+     "spec"
+    ],
+    "type": "object",
+    "title": "task_runArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "task_explore",
+   "description": "\n        Explore a branching derivation tree from a DTS.\n\n        Runs the base derivation plus each ``alternatives`` candidate through the\n        full loop and returns ALL candidates -- each with its acceptance result\n        and provenance -- ranked best-first (verified > more oracles passed >\n        simpler). Unlike task_run (which self-corrects to the first passing\n        branch), this surfaces the whole space of verified answers.\n\n        Args:\n            spec: A DTS dict (see task_plan); ``alternatives`` are the branches.\n            timeout_s: Optional hard wall-clock cap (seconds). When set, the\n                exploration runs in a separate process and is killed if it\n                overruns, returning {\"success\": False, \"timed_out\": True}.\n\n        Returns:\n            {\"success\", \"concept\", \"candidates\": [...]} ranked best-first.\n        ",
+   "parameters": {
+    "properties": {
+     "spec": {
+      "additionalProperties": true,
+      "title": "Spec",
+      "type": "object"
+     },
+     "timeout_s": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Timeout S"
+     }
+    },
+    "required": [
+     "spec"
+    ],
+    "type": "object",
+    "title": "task_exploreArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "derivation_suggest_next",
+   "description": "Rank candidate next steps for a derivation by relevance.\n\n        Retrieval-augmented: you supply ``candidates`` retrieved from open sources\n        (``formula_search`` over Wikidata/BioModels/SciPy, the session's formulas,\n        or generic operations); this tool ranks them by how well they advance the\n        derivation. A candidate scores highest when it defines a symbol currently\n        in ``current_expression`` (so it can be substituted in) and matches the\n        goal's terms.\n\n        Args:\n            goal: What the derivation is trying to reach (natural language).\n            current_expression: The expression derived so far, e.g. \"C0*exp(-k*t)\".\n            candidates: Each ``{\"id\", \"expression\"?, \"description\"?, \"kind\"?,\n                \"provides\"?}`` — a formula, modification, or operation.\n\n        Returns:\n            ``{\"success\", \"goal\", \"suggestions\": [{\"id\", \"score\", \"kind\",\n            \"expression\", \"rationale\"}]}`` ordered best-first.\n        ",
+   "parameters": {
+    "properties": {
+     "goal": {
+      "title": "Goal",
+      "type": "string"
+     },
+     "current_expression": {
+      "title": "Current Expression",
+      "type": "string"
+     },
+     "candidates": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Candidates",
+      "type": "array"
+     }
+    },
+    "required": [
+     "goal",
+     "current_expression",
+     "candidates"
+    ],
+    "type": "object",
+    "title": "derivation_suggest_nextArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "nsforge_health",
+   "description": "Liveness + inventory: server name, version, tool count, engine versions.\n\n        A connected agent calls this first to confirm the server is up and learn\n        what it is talking to — no repo access required.\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "nsforge_healthArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "nsforge_manifest",
+   "description": "Return the full capability manifest (tools, gates, commands, north star).\n\n        The runtime mirror of ``docs/agent/capabilities.json`` — how an agent\n        discovers every tool and how to verify a change.\n        ",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "nsforge_manifestArguments"
+   }
+  }
+ }
+]

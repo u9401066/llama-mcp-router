@@ -1,0 +1,1396 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "project_action",
+   "description": "\n        Run consolidated project-management actions through one stable entrypoint.\n\n        Actions:\n        - create\n        - list\n        - switch\n        - current\n        - update\n        - setup\n        - update_authors\n        - journal_profile\n        - source_materials\n        - record_asset_ingestion\n        - exemplar_usage\n        - start_exploration\n        - convert_exploration\n        - archive\n        - delete\n        - save_diagram\n        - list_diagrams\n        - open_files\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "name": {
+      "default": "",
+      "title": "Name",
+      "type": "string"
+     },
+     "slug": {
+      "default": "",
+      "title": "Slug",
+      "type": "string"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "target_journal": {
+      "default": "",
+      "title": "Target Journal",
+      "type": "string"
+     },
+     "paper_type": {
+      "default": "",
+      "title": "Paper Type",
+      "type": "string"
+     },
+     "workflow_mode": {
+      "default": "",
+      "title": "Workflow Mode",
+      "type": "string"
+     },
+     "authors_json": {
+      "default": "",
+      "title": "Authors Json",
+      "type": "string"
+     },
+     "memo": {
+      "default": "",
+      "title": "Memo",
+      "type": "string"
+     },
+     "status": {
+      "default": "",
+      "title": "Status",
+      "type": "string"
+     },
+     "citation_style": {
+      "default": "",
+      "title": "Citation Style",
+      "type": "string"
+     },
+     "interaction_style": {
+      "default": "",
+      "title": "Interaction Style",
+      "type": "string"
+     },
+     "language_preference": {
+      "default": "",
+      "title": "Language Preference",
+      "type": "string"
+     },
+     "writing_style": {
+      "default": "",
+      "title": "Writing Style",
+      "type": "string"
+     },
+     "graph_views_json": {
+      "default": "",
+      "title": "Graph Views Json",
+      "type": "string"
+     },
+     "keep_exploration": {
+      "default": false,
+      "title": "Keep Exploration",
+      "type": "boolean"
+     },
+     "include_files": {
+      "default": false,
+      "title": "Include Files",
+      "type": "boolean"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "filename": {
+      "default": "",
+      "title": "Filename",
+      "type": "string"
+     },
+     "content": {
+      "default": "",
+      "title": "Content",
+      "type": "string"
+     },
+     "content_format": {
+      "default": "xml",
+      "title": "Content Format",
+      "type": "string"
+     },
+     "output_dir": {
+      "default": "",
+      "title": "Output Dir",
+      "type": "string"
+     },
+     "rendered_content": {
+      "default": "",
+      "title": "Rendered Content",
+      "type": "string"
+     },
+     "rendered_format": {
+      "default": "",
+      "title": "Rendered Format",
+      "type": "string"
+     },
+     "rendered_content_format": {
+      "default": "auto",
+      "title": "Rendered Content Format",
+      "type": "string"
+     },
+     "rendered_filename": {
+      "default": "",
+      "title": "Rendered Filename",
+      "type": "string"
+     },
+     "source_dir": {
+      "default": "",
+      "title": "Source Dir",
+      "type": "string"
+     },
+     "source_material_id": {
+      "default": "",
+      "title": "Source Material Id",
+      "type": "string"
+     },
+     "source_path": {
+      "default": "",
+      "title": "Source Path",
+      "type": "string"
+     },
+     "exemplar_source_id": {
+      "default": "",
+      "title": "Exemplar Source Id",
+      "type": "string"
+     },
+     "exemplar_roles_json": {
+      "default": "",
+      "title": "Exemplar Roles Json",
+      "type": "string"
+     },
+     "exemplar_target_sections_json": {
+      "default": "",
+      "title": "Exemplar Target Sections Json",
+      "type": "string"
+     },
+     "exemplar_purpose": {
+      "default": "",
+      "title": "Exemplar Purpose",
+      "type": "string"
+     },
+     "exemplar_source_sha256": {
+      "default": "",
+      "title": "Exemplar Source Sha256",
+      "type": "string"
+     },
+     "asset_aware_doc_id": {
+      "default": "",
+      "title": "Asset Aware Doc Id",
+      "type": "string"
+     },
+     "sections_json": {
+      "default": "",
+      "title": "Sections Json",
+      "type": "string"
+     },
+     "artifact_paths_json": {
+      "default": "",
+      "title": "Artifact Paths Json",
+      "type": "string"
+     },
+     "ingestion_status": {
+      "default": "",
+      "title": "Ingestion Status",
+      "type": "string"
+     },
+     "max_depth": {
+      "default": 3,
+      "title": "Max Depth",
+      "type": "integer"
+     },
+     "include_markdown": {
+      "default": false,
+      "title": "Include Markdown",
+      "type": "boolean"
+     },
+     "include_project_files": {
+      "default": false,
+      "title": "Include Project Files",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "project_actionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "library_action",
+   "description": "\n        Run library-wiki note and dashboard actions through one stable entrypoint.\n\n        Actions:\n        - list_notes\n        - read_note\n        - write_note\n        - move_note\n        - triage_note\n        - update_metadata\n        - search_notes\n        - show_queues\n        - create_concept\n        - materialize_concept\n        - explain_path\n        - build_dashboard\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "section": {
+      "default": "all",
+      "title": "Section",
+      "type": "string"
+     },
+     "from_section": {
+      "default": "",
+      "title": "From Section",
+      "type": "string"
+     },
+     "to_section": {
+      "default": "",
+      "title": "To Section",
+      "type": "string"
+     },
+     "filename": {
+      "default": "",
+      "title": "Filename",
+      "type": "string"
+     },
+     "content": {
+      "default": "",
+      "title": "Content",
+      "type": "string"
+     },
+     "title": {
+      "default": "",
+      "title": "Title",
+      "type": "string"
+     },
+     "tags_csv": {
+      "default": "",
+      "title": "Tags Csv",
+      "type": "string"
+     },
+     "add_tags_csv": {
+      "default": "",
+      "title": "Add Tags Csv",
+      "type": "string"
+     },
+     "remove_tags_csv": {
+      "default": "",
+      "title": "Remove Tags Csv",
+      "type": "string"
+     },
+     "related_notes_csv": {
+      "default": "",
+      "title": "Related Notes Csv",
+      "type": "string"
+     },
+     "source_notes_csv": {
+      "default": "",
+      "title": "Source Notes Csv",
+      "type": "string"
+     },
+     "template": {
+      "default": "",
+      "title": "Template",
+      "type": "string"
+     },
+     "note_type": {
+      "default": "",
+      "title": "Note Type",
+      "type": "string"
+     },
+     "status": {
+      "default": "",
+      "title": "Status",
+      "type": "string"
+     },
+     "query": {
+      "default": "",
+      "title": "Query",
+      "type": "string"
+     },
+     "queue": {
+      "default": "all",
+      "title": "Queue",
+      "type": "string"
+     },
+     "view": {
+      "default": "overview",
+      "title": "View",
+      "type": "string"
+     },
+     "limit": {
+      "default": 10,
+      "title": "Limit",
+      "type": "integer"
+     },
+     "source_note": {
+      "default": "",
+      "title": "Source Note",
+      "type": "string"
+     },
+     "target_note": {
+      "default": "",
+      "title": "Target Note",
+      "type": "string"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "library_actionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "workspace_state_action",
+   "description": "\n        Manage workspace recovery state through one stable entrypoint.\n\n        Actions:\n        - get\n        - sync\n        - checkpoint\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "doing": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Doing"
+     },
+     "next_action": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Next Action"
+     },
+     "context": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Context"
+     },
+     "clear": {
+      "default": false,
+      "title": "Clear",
+      "type": "boolean"
+     },
+     "section": {
+      "default": "",
+      "title": "Section",
+      "type": "string"
+     },
+     "plan": {
+      "default": "",
+      "title": "Plan",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "references_in_use": {
+      "default": "",
+      "title": "References In Use",
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "workspace_state_actionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "save_reference_mcp",
+   "description": "\n        🔒 Save reference by PMID with verified metadata from pubmed-search API (RECOMMENDED).\n\n        Args:\n            pmid: PubMed ID (e.g., \"12345678\")\n            agent_notes: Optional AI notes about this reference\n            project: Project slug (default: current)\n        ",
+   "parameters": {
+    "properties": {
+     "pmid": {
+      "title": "Pmid",
+      "type": "string"
+     },
+     "agent_notes": {
+      "default": "",
+      "title": "Agent Notes",
+      "type": "string"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     }
+    },
+    "required": [
+     "pmid"
+    ],
+    "type": "object",
+    "title": "save_reference_mcpArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "reference_action",
+   "description": "Run reference fallback, retrieval, formatting, and analysis actions.\n\n        Actions:\n        - save_agent (unverified fallback only)\n        - list (machine-readable action schema)\n        - list_saved\n        - search\n        - details\n        - fulltext\n        - save_pdf\n        - format\n        - rebuild_aliases\n        - delete\n        - analysis_get\n        - analysis_save\n\n        Use the direct ``save_reference_mcp`` tool for verified PubMed saves.\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "article": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Article"
+     },
+     "query": {
+      "default": "",
+      "title": "Query",
+      "type": "string"
+     },
+     "pmid": {
+      "default": "",
+      "title": "Pmid",
+      "type": "string"
+     },
+     "pmids": {
+      "default": "",
+      "title": "Pmids",
+      "type": "string"
+     },
+     "max_chars": {
+      "default": 10000,
+      "title": "Max Chars",
+      "type": "integer"
+     },
+     "pdf_content": {
+      "default": "",
+      "title": "Pdf Content",
+      "type": "string"
+     },
+     "style": {
+      "default": "vancouver",
+      "title": "Style",
+      "type": "string"
+     },
+     "journal": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Journal"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+     },
+     "methodology": {
+      "default": "",
+      "title": "Methodology",
+      "type": "string"
+     },
+     "key_findings": {
+      "default": "",
+      "title": "Key Findings",
+      "type": "string"
+     },
+     "limitations": {
+      "default": "",
+      "title": "Limitations",
+      "type": "string"
+     },
+     "usage_sections": {
+      "default": "",
+      "title": "Usage Sections",
+      "type": "string"
+     },
+     "relevance_score": {
+      "default": 0,
+      "title": "Relevance Score",
+      "type": "integer"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "reference_actionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "analysis_action",
+   "description": "\n        Run data analysis and figure/table asset actions through one stable entrypoint.\n\n        Actions:\n        - analyze_dataset\n        - run_statistical_test\n        - create_plot\n        - generate_table_one\n        - review_asset\n        - insert_figure\n        - insert_table\n        - list_assets\n        - list\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "filename": {
+      "default": "",
+      "title": "Filename",
+      "type": "string"
+     },
+     "caption": {
+      "default": "",
+      "title": "Caption",
+      "type": "string"
+     },
+     "asset_type": {
+      "default": "",
+      "title": "Asset Type",
+      "type": "string"
+     },
+     "observations": {
+      "default": "",
+      "title": "Observations",
+      "type": "string"
+     },
+     "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+     },
+     "proposed_caption": {
+      "default": "",
+      "title": "Proposed Caption",
+      "type": "string"
+     },
+     "evidence_excerpt": {
+      "default": "",
+      "title": "Evidence Excerpt",
+      "type": "string"
+     },
+     "visible_watermark_review": {
+      "default": "",
+      "title": "Visible Watermark Review",
+      "type": "string"
+     },
+     "figure_number": {
+      "default": 0,
+      "title": "Figure Number",
+      "type": "integer"
+     },
+     "table_number": {
+      "default": 0,
+      "title": "Table Number",
+      "type": "integer"
+     },
+     "draft_filename": {
+      "default": "",
+      "title": "Draft Filename",
+      "type": "string"
+     },
+     "after_section": {
+      "default": "",
+      "title": "After Section",
+      "type": "string"
+     },
+     "table_content": {
+      "default": "",
+      "title": "Table Content",
+      "type": "string"
+     },
+     "plot_type": {
+      "default": "",
+      "title": "Plot Type",
+      "type": "string"
+     },
+     "x_var": {
+      "default": "",
+      "title": "X Var",
+      "type": "string"
+     },
+     "y_var": {
+      "default": "",
+      "title": "Y Var",
+      "type": "string"
+     },
+     "hue_var": {
+      "default": "",
+      "title": "Hue Var",
+      "type": "string"
+     },
+     "title": {
+      "default": "",
+      "title": "Title",
+      "type": "string"
+     },
+     "output_name": {
+      "default": "",
+      "title": "Output Name",
+      "type": "string"
+     },
+     "test_type": {
+      "default": "",
+      "title": "Test Type",
+      "type": "string"
+     },
+     "variables": {
+      "default": "",
+      "title": "Variables",
+      "type": "string"
+     },
+     "group_var": {
+      "default": "",
+      "title": "Group Var",
+      "type": "string"
+     },
+     "group_col": {
+      "default": "",
+      "title": "Group Col",
+      "type": "string"
+     },
+     "continuous_cols": {
+      "default": "",
+      "title": "Continuous Cols",
+      "type": "string"
+     },
+     "categorical_cols": {
+      "default": "",
+      "title": "Categorical Cols",
+      "type": "string"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "analysis_actionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "draft_action",
+   "description": "\n        Run manuscript drafting actions through one stable entrypoint.\n\n        Actions:\n        - check_order\n        - draft_section\n        - write\n        - list\n        - read\n        - delete\n        - insert_citation\n        - sync_references\n        - count_words\n        - list_citations\n        - patch\n        - suggest_citations\n        - scan_citations\n        - insert_figure\n        - insert_table\n        - list_assets\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "filename": {
+      "default": "",
+      "title": "Filename",
+      "type": "string"
+     },
+     "caption": {
+      "default": "",
+      "title": "Caption",
+      "type": "string"
+     },
+     "figure_number": {
+      "default": 0,
+      "title": "Figure Number",
+      "type": "integer"
+     },
+     "table_number": {
+      "default": 0,
+      "title": "Table Number",
+      "type": "integer"
+     },
+     "draft_filename": {
+      "default": "",
+      "title": "Draft Filename",
+      "type": "string"
+     },
+     "after_section": {
+      "default": "",
+      "title": "After Section",
+      "type": "string"
+     },
+     "content": {
+      "default": "",
+      "title": "Content",
+      "type": "string"
+     },
+     "table_content": {
+      "default": "",
+      "title": "Table Content",
+      "type": "string"
+     },
+     "topic": {
+      "default": "",
+      "title": "Topic",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "target_text": {
+      "default": "",
+      "title": "Target Text",
+      "type": "string"
+     },
+     "pmid": {
+      "default": "",
+      "title": "Pmid",
+      "type": "string"
+     },
+     "section": {
+      "default": "",
+      "title": "Section",
+      "type": "string"
+     },
+     "old_text": {
+      "default": "",
+      "title": "Old Text",
+      "type": "string"
+     },
+     "new_text": {
+      "default": "",
+      "title": "New Text",
+      "type": "string"
+     },
+     "claim_type": {
+      "default": "general",
+      "title": "Claim Type",
+      "type": "string"
+     },
+     "max_results": {
+      "default": 5,
+      "title": "Max Results",
+      "type": "integer"
+     },
+     "search_pubmed": {
+      "default": true,
+      "title": "Search Pubmed",
+      "type": "boolean"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "draft_actionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "validation_action",
+   "description": "\n        Run validation actions through one stable entrypoint.\n\n        Actions:\n        - concept\n        - wikilinks\n        - literature\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "filename": {
+      "default": "concept.md",
+      "title": "Filename",
+      "type": "string"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     },
+     "run_novelty_check": {
+      "default": true,
+      "title": "Run Novelty Check",
+      "type": "boolean"
+     },
+     "target_section": {
+      "default": "",
+      "title": "Target Section",
+      "type": "string"
+     },
+     "structure_only": {
+      "default": false,
+      "title": "Structure Only",
+      "type": "boolean"
+     },
+     "auto_fix": {
+      "default": true,
+      "title": "Auto Fix",
+      "type": "boolean"
+     },
+     "idea": {
+      "default": "",
+      "title": "Idea",
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "validation_actionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_quality_checks",
+   "description": "\n        Run consolidated review/audit quality actions through one stable entrypoint.\n\n        Actions:\n        - quality_audit\n        - meta_learning\n        - data_artifacts\n        - writing_hooks\n        - review_hooks\n        - formatting\n        - record_hook_event\n        - verify_evolution\n        - domain_constraints\n        - evolve_constraint\n        - pending_evolutions\n        - tool_health\n        - constraint_ledger\n        - constraint_add\n        - constraint_satisfy\n        - constraint_waive\n        - constraint_reopen\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "scores": {
+      "default": "",
+      "title": "Scores",
+      "type": "string"
+     },
+     "hooks": {
+      "default": "all",
+      "title": "Hooks",
+      "type": "string"
+     },
+     "prefer_language": {
+      "default": "american",
+      "title": "Prefer Language",
+      "type": "string"
+     },
+     "round_num": {
+      "default": 0,
+      "title": "Round Num",
+      "type": "integer"
+     },
+     "issues_fixed": {
+      "default": 0,
+      "title": "Issues Fixed",
+      "type": "integer"
+     },
+     "draft_filename": {
+      "default": "",
+      "title": "Draft Filename",
+      "type": "string"
+     },
+     "journal": {
+      "default": "generic",
+      "title": "Journal",
+      "type": "string"
+     },
+     "check_submission": {
+      "default": false,
+      "title": "Check Submission",
+      "type": "boolean"
+     },
+     "has_cover_letter": {
+      "default": false,
+      "title": "Has Cover Letter",
+      "type": "boolean"
+     },
+     "has_ethics": {
+      "default": false,
+      "title": "Has Ethics",
+      "type": "boolean"
+     },
+     "has_consent": {
+      "default": false,
+      "title": "Has Consent",
+      "type": "boolean"
+     },
+     "has_coi": {
+      "default": false,
+      "title": "Has Coi",
+      "type": "boolean"
+     },
+     "has_author_contributions": {
+      "default": false,
+      "title": "Has Author Contributions",
+      "type": "boolean"
+     },
+     "has_data_availability": {
+      "default": false,
+      "title": "Has Data Availability",
+      "type": "boolean"
+     },
+     "has_keywords": {
+      "default": false,
+      "title": "Has Keywords",
+      "type": "boolean"
+     },
+     "has_highlights": {
+      "default": false,
+      "title": "Has Highlights",
+      "type": "boolean"
+     },
+     "hook_id": {
+      "default": "",
+      "title": "Hook Id",
+      "type": "string"
+     },
+     "event_type": {
+      "default": "",
+      "title": "Event Type",
+      "type": "string"
+     },
+     "response_format": {
+      "default": "markdown",
+      "title": "Response Format",
+      "type": "string"
+     },
+     "compact": {
+      "default": false,
+      "title": "Compact",
+      "type": "boolean"
+     },
+     "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+     },
+     "d7_retrospective": {
+      "default": "",
+      "title": "D7 Retrospective",
+      "type": "string"
+     },
+     "d8_retrospective": {
+      "default": "",
+      "title": "D8 Retrospective",
+      "type": "string"
+     },
+     "content": {
+      "default": "",
+      "title": "Content",
+      "type": "string"
+     },
+     "section": {
+      "default": "manuscript",
+      "title": "Section",
+      "type": "string"
+     },
+     "paper_type": {
+      "default": "",
+      "title": "Paper Type",
+      "type": "string"
+     },
+     "constraint_id": {
+      "default": "",
+      "title": "Constraint Id",
+      "type": "string"
+     },
+     "rule": {
+      "default": "",
+      "title": "Rule",
+      "type": "string"
+     },
+     "category": {
+      "default": "",
+      "title": "Category",
+      "type": "string"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "severity": {
+      "default": "WARNING",
+      "title": "Severity",
+      "type": "string"
+     },
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "source_hook": {
+      "default": "",
+      "title": "Source Hook",
+      "type": "string"
+     },
+     "item_ids": {
+      "default": "",
+      "title": "Item Ids",
+      "type": "string"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "run_quality_checksArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pipeline_action",
+   "description": "\n        Run consolidated pipeline state-machine actions through one stable entrypoint.\n\n        Actions:\n        - validate_phase\n        - heartbeat\n        - start_review\n        - submit_review\n        - validate_structure\n        - rewrite_section\n        - pause\n        - resume\n        - approve_section\n        - approve_concept_review\n        - approve_review_completion\n        - reset_review_loop\n        - list\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "phase": {
+      "default": 0,
+      "title": "Phase",
+      "type": "integer"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     },
+     "max_rounds": {
+      "default": 3,
+      "title": "Max Rounds",
+      "type": "integer"
+     },
+     "min_rounds": {
+      "default": 2,
+      "title": "Min Rounds",
+      "type": "integer"
+     },
+     "quality_threshold": {
+      "default": 7.0,
+      "title": "Quality Threshold",
+      "type": "number"
+     },
+     "scores": {
+      "default": "",
+      "title": "Scores",
+      "type": "string"
+     },
+     "issues_found": {
+      "default": 0,
+      "title": "Issues Found",
+      "type": "integer"
+     },
+     "issues_fixed": {
+      "default": 0,
+      "title": "Issues Fixed",
+      "type": "integer"
+     },
+     "sections": {
+      "default": "",
+      "title": "Sections",
+      "type": "string"
+     },
+     "reason": {
+      "default": "user_requested",
+      "title": "Reason",
+      "type": "string"
+     },
+     "section": {
+      "default": "",
+      "title": "Section",
+      "type": "string"
+     },
+     "decision": {
+      "default": "approve",
+      "title": "Decision",
+      "type": "string"
+     },
+     "feedback": {
+      "default": "",
+      "title": "Feedback",
+      "type": "string"
+     },
+     "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+     },
+     "accepted_risks": {
+      "default": "",
+      "title": "Accepted Risks",
+      "type": "string"
+     },
+     "approved_by": {
+      "default": "human",
+      "title": "Approved By",
+      "type": "string"
+     },
+     "response_format": {
+      "default": "markdown",
+      "title": "Response Format",
+      "type": "string"
+     },
+     "compact": {
+      "default": false,
+      "title": "Compact",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "pipeline_actionArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "export_document",
+   "description": "\n        Run export-producing actions through one stable entrypoint.\n\n        Actions:\n        - docx\n        - pdf\n        - session_start\n        - session_insert\n        - session_save\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "draft_filename": {
+      "default": "",
+      "title": "Draft Filename",
+      "type": "string"
+     },
+     "output_filename": {
+      "default": "",
+      "title": "Output Filename",
+      "type": "string"
+     },
+     "csl_style": {
+      "default": "vancouver",
+      "title": "Csl Style",
+      "type": "string"
+     },
+     "reference_doc": {
+      "default": "",
+      "title": "Reference Doc",
+      "type": "string"
+     },
+     "template_name": {
+      "default": "",
+      "title": "Template Name",
+      "type": "string"
+     },
+     "session_id": {
+      "default": "default",
+      "title": "Session Id",
+      "type": "string"
+     },
+     "section_name": {
+      "default": "",
+      "title": "Section Name",
+      "type": "string"
+     },
+     "content": {
+      "default": "",
+      "title": "Content",
+      "type": "string"
+     },
+     "mode": {
+      "default": "replace",
+      "title": "Mode",
+      "type": "string"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "export_documentArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "inspect_export",
+   "description": "\n        Inspect export inputs and intermediate artifacts through one stable entrypoint.\n\n        Actions:\n        - list_templates\n        - read_template\n        - verify_document\n        - inspect_docx_xml\n        - preview_citations\n        - build_bibliography\n        ",
+   "parameters": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "template_name": {
+      "default": "",
+      "title": "Template Name",
+      "type": "string"
+     },
+     "session_id": {
+      "default": "default",
+      "title": "Session Id",
+      "type": "string"
+     },
+     "limits_json": {
+      "default": "",
+      "title": "Limits Json",
+      "type": "string"
+     },
+     "draft_filename": {
+      "default": "",
+      "title": "Draft Filename",
+      "type": "string"
+     },
+     "output_filename": {
+      "default": "",
+      "title": "Output Filename",
+      "type": "string"
+     },
+     "project": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object",
+    "title": "inspect_exportArguments"
+   }
+  }
+ }
+]

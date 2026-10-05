@@ -1,0 +1,1100 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "intro",
+   "description": "Introduces a sympy variable with specified assumptions and stores it.\n\n    Takes a variable name and a list of positive and negative assumptions.\n    ",
+   "parameters": {
+    "$defs": {
+     "Assumption": {
+      "enum": [
+       "algebraic",
+       "commutative",
+       "complex",
+       "extended_negative",
+       "extended_nonnegative",
+       "extended_nonpositive",
+       "extended_nonzero",
+       "extended_positive",
+       "extended_real",
+       "finite",
+       "hermitian",
+       "imaginary",
+       "infinite",
+       "integer",
+       "irrational",
+       "negative",
+       "noninteger",
+       "nonnegative",
+       "nonpositive",
+       "nonzero",
+       "positive",
+       "rational",
+       "real",
+       "transcendental",
+       "zero"
+      ],
+      "title": "Assumption",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "var_name": {
+      "title": "Var Name",
+      "type": "string"
+     },
+     "pos_assumptions": {
+      "items": {
+       "$ref": "#/$defs/Assumption"
+      },
+      "title": "Pos Assumptions",
+      "type": "array"
+     },
+     "neg_assumptions": {
+      "items": {
+       "$ref": "#/$defs/Assumption"
+      },
+      "title": "Neg Assumptions",
+      "type": "array"
+     }
+    },
+    "required": [
+     "var_name",
+     "pos_assumptions",
+     "neg_assumptions"
+    ],
+    "title": "introArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "intro_many",
+   "description": "Introduces multiple sympy variables with specified assumptions and stores them.\n\n    Takes a list of VariableDefinition objects for the 'variables' parameter.\n    Each object in the list specifies:\n    - var_name: The name of the variable (string).\n    - pos_assumptions: A list of positive assumption strings (e.g., [\"real\", \"positive\"]).\n    - neg_assumptions: A list of negative assumption strings (e.g., [\"complex\"]).\n\n    The JSON payload for the 'variables' argument should be a direct list of these objects, for example:\n    ```json\n    [\n        {\n            \"var_name\": \"x\",\n            \"pos_assumptions\": [\"real\", \"positive\"],\n            \"neg_assumptions\": [\"complex\"]\n        },\n        {\n            \"var_name\": \"y\",\n            \"pos_assumptions\": [],\n            \"neg_assumptions\": [\"commutative\"]\n        }\n    ]\n    ```\n\n    The assumptions must be consistent, so a real number is not allowed to be non-commutative.\n\n    Prefer this over intro() for multiple variables because it's more efficient.\n    ",
+   "parameters": {
+    "$defs": {
+     "VariableDefinition": {
+      "properties": {
+       "var_name": {
+        "title": "Var Name",
+        "type": "string"
+       },
+       "pos_assumptions": {
+        "default": [],
+        "items": {
+         "type": "string"
+        },
+        "title": "Pos Assumptions",
+        "type": "array"
+       },
+       "neg_assumptions": {
+        "default": [],
+        "items": {
+         "type": "string"
+        },
+        "title": "Neg Assumptions",
+        "type": "array"
+       }
+      },
+      "required": [
+       "var_name"
+      ],
+      "title": "VariableDefinition",
+      "type": "object"
+     }
+    },
+    "properties": {
+     "variables": {
+      "items": {
+       "$ref": "#/$defs/VariableDefinition"
+      },
+      "title": "Variables",
+      "type": "array"
+     }
+    },
+    "required": [
+     "variables"
+    ],
+    "title": "intro_manyArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "introduce_expression",
+   "description": "Parses a sympy expression string using available local variables and stores it. Assigns it to either a temporary name (expr_0, expr_1, etc.) or a user-specified global name.\n\n    Uses Sympy parse_expr to parse the expression string.\n\n    Applies default Sympy canonicalization rules unless canonicalize is False.\n\n    For equations (x^2 = 1) make the input string \"Eq(x^2, 1\") not \"x^2 == 1\"\n\n    Examples:\n\n        {expr_str: \"Eq(x^2 + y^2, 1)\"}\n        {expr_str: \"Matrix(((25, 15, -5), (15, 18, 0), (-5, 0, 11)))\"}\n        {expr_str: \"pi+e\", \"expr_var_name\": \"z\"}\n    ",
+   "parameters": {
+    "properties": {
+     "expr_str": {
+      "title": "Expr Str",
+      "type": "string"
+     },
+     "canonicalize": {
+      "default": true,
+      "title": "Canonicalize",
+      "type": "boolean"
+     },
+     "expr_var_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expr Var Name"
+     }
+    },
+    "required": [
+     "expr_str"
+    ],
+    "title": "introduce_expressionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "print_latex_expression",
+   "description": "Prints a stored expression in LaTeX format, along with variable assumptions.",
+   "parameters": {
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expr_key"
+    ],
+    "title": "print_latex_expressionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "solve_algebraically",
+   "description": "Solves an equation (expression = 0) algebraically for a given variable.\n\n    Args:\n        expr_key: The key of the expression (previously introduced) to be solved.\n        solve_for_var_name: The name of the variable (previously introduced) to solve for.\n        domain: The domain to solve in: Domain.COMPLEX, Domain.REAL, Domain.INTEGERS, or Domain.NATURALS. Defaults to Domain.COMPLEX.\n\n    Returns:\n        A LaTeX string representing the set of solutions. Returns an error message string if issues occur.\n    ",
+   "parameters": {
+    "$defs": {
+     "Domain": {
+      "enum": [
+       "complex",
+       "real",
+       "integers",
+       "naturals"
+      ],
+      "title": "Domain",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     },
+     "solve_for_var_name": {
+      "title": "Solve For Var Name",
+      "type": "string"
+     },
+     "domain": {
+      "$ref": "#/$defs/Domain",
+      "default": "complex"
+     }
+    },
+    "required": [
+     "expr_key",
+     "solve_for_var_name"
+    ],
+    "title": "solve_algebraicallyArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "solve_linear_system",
+   "description": "Solves a system of linear equations using SymPy's linsolve.\n\n    Args:\n        expr_keys: The keys of the expressions (previously introduced) forming the system.\n        var_names: The names of the variables to solve for.\n        domain: The domain to solve in (Domain.COMPLEX, Domain.REAL, etc.). Defaults to Domain.COMPLEX.\n\n    Returns:\n        A LaTeX string representing the solution set. Returns an error message string if issues occur.\n    ",
+   "parameters": {
+    "$defs": {
+     "Domain": {
+      "enum": [
+       "complex",
+       "real",
+       "integers",
+       "naturals"
+      ],
+      "title": "Domain",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "expr_keys": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Expr Keys",
+      "type": "array"
+     },
+     "var_names": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Var Names",
+      "type": "array"
+     },
+     "domain": {
+      "$ref": "#/$defs/Domain",
+      "default": "complex"
+     }
+    },
+    "required": [
+     "expr_keys",
+     "var_names"
+    ],
+    "title": "solve_linear_systemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "solve_nonlinear_system",
+   "description": "Solves a system of nonlinear equations using SymPy's nonlinsolve.\n\n    Args:\n        expr_keys: The keys of the expressions (previously introduced) forming the system.\n        var_names: The names of the variables to solve for.\n        domain: The domain to solve in (Domain.COMPLEX, Domain.REAL, etc.). Defaults to Domain.COMPLEX.\n\n    Returns:\n        A LaTeX string representing the solution set. Returns an error message string if issues occur.\n    ",
+   "parameters": {
+    "$defs": {
+     "Domain": {
+      "enum": [
+       "complex",
+       "real",
+       "integers",
+       "naturals"
+      ],
+      "title": "Domain",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "expr_keys": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Expr Keys",
+      "type": "array"
+     },
+     "var_names": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Var Names",
+      "type": "array"
+     },
+     "domain": {
+      "$ref": "#/$defs/Domain",
+      "default": "complex"
+     }
+    },
+    "required": [
+     "expr_keys",
+     "var_names"
+    ],
+    "title": "solve_nonlinear_systemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "introduce_function",
+   "description": "Introduces a SymPy function variable and stores it.\n\n    Takes a function name and creates a SymPy Function object for use in defining differential equations.\n\n    Example:\n        {func_name: \"f\"} will create the function f(x), f(t), etc. that can be used in expressions\n\n    Returns:\n        The name of the created function.\n    ",
+   "parameters": {
+    "properties": {
+     "func_name": {
+      "title": "Func Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "func_name"
+    ],
+    "title": "introduce_functionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "dsolve_ode",
+   "description": "Solves an ordinary differential equation using SymPy's dsolve function.\n\n    Args:\n        expr_key: The key of the expression (previously introduced) containing the differential equation.\n        func_name: The name of the function (previously introduced) to solve for.\n        hint: Optional solving method from ODEHint enum. If None, SymPy will try to determine the best method.\n\n    Example:\n        # First introduce a variable and a function\n        intro(\"x\", [Assumption.REAL], [])\n        introduce_function(\"f\")\n\n        # Create a second-order ODE: f''(x) + 9*f(x) = 0\n        expr_key = introduce_expression(\"Derivative(f(x), x, x) + 9*f(x)\")\n\n        # Solve the ODE\n        result = dsolve_ode(expr_key, \"f\")\n        # Returns solution with sin(3*x) and cos(3*x) terms\n\n    Returns:\n        A LaTeX string representing the solution. Returns an error message string if issues occur.\n    ",
+   "parameters": {
+    "$defs": {
+     "ODEHint": {
+      "enum": [
+       "factorable",
+       "nth_algebraic",
+       "separable",
+       "1st_exact",
+       "1st_linear",
+       "Bernoulli",
+       "1st_rational_riccati",
+       "Riccati_special_minus2",
+       "1st_homogeneous_coeff_best",
+       "1st_homogeneous_coeff_subs_indep_div_dep",
+       "1st_homogeneous_coeff_subs_dep_div_indep",
+       "almost_linear",
+       "linear_coefficients",
+       "separable_reduced",
+       "1st_power_series",
+       "lie_group",
+       "nth_linear_constant_coeff_homogeneous",
+       "nth_linear_euler_eq_homogeneous",
+       "nth_linear_constant_coeff_undetermined_coefficients",
+       "nth_linear_euler_eq_nonhomogeneous_undetermined_coefficients",
+       "nth_linear_constant_coeff_variation_of_parameters",
+       "nth_linear_euler_eq_nonhomogeneous_variation_of_parameters",
+       "Liouville",
+       "2nd_linear_airy",
+       "2nd_linear_bessel",
+       "2nd_hypergeometric",
+       "2nd_hypergeometric_Integral",
+       "nth_order_reducible",
+       "2nd_power_series_ordinary",
+       "2nd_power_series_regular",
+       "nth_algebraic_Integral",
+       "separable_Integral",
+       "1st_exact_Integral",
+       "1st_linear_Integral",
+       "Bernoulli_Integral",
+       "1st_homogeneous_coeff_subs_indep_div_dep_Integral",
+       "1st_homogeneous_coeff_subs_dep_div_indep_Integral",
+       "almost_linear_Integral",
+       "linear_coefficients_Integral",
+       "separable_reduced_Integral",
+       "nth_linear_constant_coeff_variation_of_parameters_Integral",
+       "nth_linear_euler_eq_nonhomogeneous_variation_of_parameters_Integral",
+       "Liouville_Integral",
+       "2nd_nonlinear_autonomous_conserved",
+       "2nd_nonlinear_autonomous_conserved_Integral"
+      ],
+      "title": "ODEHint",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     },
+     "func_name": {
+      "title": "Func Name",
+      "type": "string"
+     },
+     "hint": {
+      "anyOf": [
+       {
+        "$ref": "#/$defs/ODEHint"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "expr_key",
+     "func_name"
+    ],
+    "title": "dsolve_odeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "pdsolve_pde",
+   "description": "Solves a partial differential equation using SymPy's pdsolve function.\n\n    Args:\n        expr_key: The key of the expression (previously introduced) containing the PDE.\n                 If the expression is not an equation (Eq), it will be interpreted as\n                 PDE = 0.\n        func_name: The name of the function (previously introduced) to solve for.\n                   This should be a function of multiple variables.\n\n    Example:\n        # First introduce variables and a function\n        intro(\"x\", [Assumption.REAL], [])\n        intro(\"y\", [Assumption.REAL], [])\n        introduce_function(\"f\")\n\n        # Create a PDE: 1 + 2*(ux/u) + 3*(uy/u) = 0\n        expr_key = introduce_expression(\n            \"Eq(1 + 2*Derivative(f(x, y), x)/f(x, y) + 3*Derivative(f(x, y), y)/f(x, y), 0)\"\n        )\n\n        # Solve the PDE\n        result = pdsolve_pde(expr_key, \"f\")\n        # Returns solution with exponential terms and arbitrary function\n\n    Returns:\n        A LaTeX string representing the solution. Returns an error message string if issues occur.\n    ",
+   "parameters": {
+    "$defs": {
+     "PDEHint": {
+      "enum": [
+       "1st_linear_constant_coeff_homogeneous",
+       "1st_linear_constant_coeff",
+       "1st_linear_constant_coeff_Integral",
+       "1st_linear_variable_coeff"
+      ],
+      "title": "PDEHint",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     },
+     "func_name": {
+      "title": "Func Name",
+      "type": "string"
+     },
+     "hint": {
+      "anyOf": [
+       {
+        "$ref": "#/$defs/PDEHint"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "expr_key",
+     "func_name"
+    ],
+    "title": "pdsolve_pdeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_predefined_metric",
+   "description": "Creates a predefined spacetime metric.",
+   "parameters": {
+    "properties": {
+     "metric_name": {
+      "title": "Metric Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "metric_name"
+    ],
+    "title": "create_predefined_metricArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "search_predefined_metrics",
+   "description": "Searches for predefined metrics in einsteinpy.symbolic.predefined.",
+   "parameters": {
+    "properties": {
+     "query": {
+      "title": "Query",
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "title": "search_predefined_metricsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_tensor",
+   "description": "Calculates a tensor from a metric using einsteinpy.symbolic.",
+   "parameters": {
+    "properties": {
+     "metric_key": {
+      "title": "Metric Key",
+      "type": "string"
+     },
+     "tensor_type": {
+      "title": "Tensor Type",
+      "type": "string"
+     },
+     "simplify_result": {
+      "default": true,
+      "title": "Simplify Result",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "metric_key",
+     "tensor_type"
+    ],
+    "title": "calculate_tensorArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_custom_metric",
+   "description": "Creates a custom metric tensor from provided components and symbols.",
+   "parameters": {
+    "properties": {
+     "components": {
+      "items": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Components",
+      "type": "array"
+     },
+     "symbols": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Symbols",
+      "type": "array"
+     },
+     "config": {
+      "default": "ll",
+      "enum": [
+       "ll",
+       "uu"
+      ],
+      "title": "Config",
+      "type": "string"
+     }
+    },
+    "required": [
+     "components",
+     "symbols"
+    ],
+    "title": "create_custom_metricArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "print_latex_tensor",
+   "description": "Prints a stored tensor expression in LaTeX format.",
+   "parameters": {
+    "properties": {
+     "tensor_key": {
+      "title": "Tensor Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "tensor_key"
+    ],
+    "title": "print_latex_tensorArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "simplify_expression",
+   "description": "Simplifies a mathematical expression using SymPy's simplify function.\n\n    Args:\n        expr_key: The key of the expression (previously introduced) to simplify.\n\n    Example:\n        # Introduce variables\n        intro(\"x\", [Assumption.REAL], [])\n        intro(\"y\", [Assumption.REAL], [])\n\n        # Create an expression to simplify: sin(x)^2 + cos(x)^2\n        expr_key = introduce_expression(\"sin(x)**2 + cos(x)**2\")\n\n        # Simplify the expression\n        simplified = simplify_expression(expr_key)\n        # Returns 1\n\n    Returns:\n        A key for the simplified expression.\n    ",
+   "parameters": {
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expr_key"
+    ],
+    "title": "simplify_expressionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "integrate_expression",
+   "description": "Integrates an expression with respect to a variable using SymPy's integrate function.\n\n    Args:\n        expr_key: The key of the expression (previously introduced) to integrate.\n        var_name: The name of the variable to integrate with respect to.\n        lower_bound: Optional lower bound for definite integration.\n        upper_bound: Optional upper bound for definite integration.\n\n    Example:\n        # Introduce a variable\n        intro(\"x\", [Assumption.REAL], [])\n\n        # Create an expression to integrate: x^2\n        expr_key = introduce_expression(\"x**2\")\n\n        # Indefinite integration\n        indefinite_result = integrate_expression(expr_key, \"x\")\n        # Returns x³/3\n\n        # Definite integration from 0 to 1\n        definite_result = integrate_expression(expr_key, \"x\", \"0\", \"1\")\n        # Returns 1/3\n\n    Returns:\n        A key for the integrated expression.\n    ",
+   "parameters": {
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     },
+     "var_name": {
+      "title": "Var Name",
+      "type": "string"
+     },
+     "lower_bound": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Lower Bound"
+     },
+     "upper_bound": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Upper Bound"
+     }
+    },
+    "required": [
+     "expr_key",
+     "var_name"
+    ],
+    "title": "integrate_expressionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "differentiate_expression",
+   "description": "Differentiates an expression with respect to a variable using SymPy's diff function.\n\n    Args:\n        expr_key: The key of the expression (previously introduced) to differentiate.\n        var_name: The name of the variable to differentiate with respect to.\n        order: The order of differentiation (default is 1 for first derivative).\n\n    Example:\n        # Introduce a variable\n        intro(\"x\", [Assumption.REAL], [])\n\n        # Create an expression to differentiate: x^3\n        expr_key = introduce_expression(\"x**3\")\n\n        # First derivative\n        first_deriv = differentiate_expression(expr_key, \"x\")\n        # Returns 3x²\n\n        # Second derivative\n        second_deriv = differentiate_expression(expr_key, \"x\", 2)\n        # Returns 6x\n\n    Returns:\n        A key for the differentiated expression.\n    ",
+   "parameters": {
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     },
+     "var_name": {
+      "title": "Var Name",
+      "type": "string"
+     },
+     "order": {
+      "default": 1,
+      "title": "Order",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "expr_key",
+     "var_name"
+    ],
+    "title": "differentiate_expressionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_coordinate_system",
+   "description": "Creates a 3D coordinate system for vector calculus operations.\n\n    Args:\n        name: The name for the coordinate system.\n        coord_names: Optional list of coordinate names (3 names for x, y, z).\n                    If not provided, defaults to [name+'_x', name+'_y', name+'_z'].\n\n    Example:\n        # Create a coordinate system\n        coord_sys = create_coordinate_system(\"R\")\n        # Creates a coordinate system R with coordinates R_x, R_y, R_z\n\n        # Create a coordinate system with custom coordinate names\n        coord_sys = create_coordinate_system(\"C\", [\"rho\", \"phi\", \"z\"])\n\n    Returns:\n        The name of the created coordinate system.\n    ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "coord_names": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Coord Names"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "create_coordinate_systemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_vector_field",
+   "description": "Creates a vector field in the specified coordinate system.\n\n    Args:\n        coord_sys_name: The name of the coordinate system to use.\n        component_x: String expression for the x-component of the vector field.\n        component_y: String expression for the y-component of the vector field.\n        component_z: String expression for the z-component of the vector field.\n\n    Example:\n        # First create a coordinate system\n        create_coordinate_system(\"R\")\n\n        # Create a vector field F = (y, -x, z)\n        vector_field = create_vector_field(\"R\", \"R_y\", \"-R_x\", \"R_z\")\n\n    Returns:\n        A key for the vector field expression.\n    ",
+   "parameters": {
+    "properties": {
+     "coord_sys_name": {
+      "title": "Coord Sys Name",
+      "type": "string"
+     },
+     "component_x": {
+      "title": "Component X",
+      "type": "string"
+     },
+     "component_y": {
+      "title": "Component Y",
+      "type": "string"
+     },
+     "component_z": {
+      "title": "Component Z",
+      "type": "string"
+     }
+    },
+    "required": [
+     "coord_sys_name",
+     "component_x",
+     "component_y",
+     "component_z"
+    ],
+    "title": "create_vector_fieldArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_curl",
+   "description": "Calculates the curl of a vector field using SymPy's curl function.\n\n    Args:\n        vector_field_key: The key of the vector field expression.\n\n    Example:\n        # First create a coordinate system\n        create_coordinate_system(\"R\")\n\n        # Create a vector field F = (y, -x, 0)\n        vector_field = create_vector_field(\"R\", \"R_y\", \"-R_x\", \"0\")\n\n        # Calculate curl\n        curl_result = calculate_curl(vector_field)\n        # Returns (0, 0, -2)\n\n    Returns:\n        A key for the curl expression.\n    ",
+   "parameters": {
+    "properties": {
+     "vector_field_key": {
+      "title": "Vector Field Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "vector_field_key"
+    ],
+    "title": "calculate_curlArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_divergence",
+   "description": "Calculates the divergence of a vector field using SymPy's divergence function.\n\n    Args:\n        vector_field_key: The key of the vector field expression.\n\n    Example:\n        # First create a coordinate system\n        create_coordinate_system(\"R\")\n\n        # Create a vector field F = (x, y, z)\n        vector_field = create_vector_field(\"R\", \"R_x\", \"R_y\", \"R_z\")\n\n        # Calculate divergence\n        div_result = calculate_divergence(vector_field)\n        # Returns 3\n\n    Returns:\n        A key for the divergence expression.\n    ",
+   "parameters": {
+    "properties": {
+     "vector_field_key": {
+      "title": "Vector Field Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "vector_field_key"
+    ],
+    "title": "calculate_divergenceArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_gradient",
+   "description": "Calculates the gradient of a scalar field using SymPy's gradient function.\n\n    Args:\n        scalar_field_key: The key of the scalar field expression.\n\n    Example:\n        # First create a coordinate system\n        create_coordinate_system(\"R\")\n\n        # Create a scalar field f = x^2 + y^2 + z^2\n        scalar_field = introduce_expression(\"R_x**2 + R_y**2 + R_z**2\")\n\n        # Calculate gradient\n        grad_result = calculate_gradient(scalar_field)\n        # Returns (2x, 2y, 2z)\n\n    Returns:\n        A key for the gradient vector field expression.\n    ",
+   "parameters": {
+    "properties": {
+     "scalar_field_key": {
+      "title": "Scalar Field Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scalar_field_key"
+    ],
+    "title": "calculate_gradientArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "convert_to_units",
+   "description": "Converts a quantity to the given target units using sympy.physics.units.convert_to.\n\n    Args:\n        expr_key: The key of the expression (previously introduced) to convert.\n        target_units: List of unit names as strings (e.g., [\"meter\", \"1/second\"]).\n        unit_system: Optional unit system (from UnitSystem enum). Defaults to SI.\n\n    The following units are available by default:\n        SI base units: meter, second, kilogram, ampere, kelvin, mole, candela\n        Length: kilometer, millimeter\n        Mass: gram\n        Energy: joule\n        Force: newton\n        Pressure: pascal\n        Power: watt\n        Electric: coulomb, volt, ohm, farad, henry\n        Constants: speed_of_light, gravitational_constant, planck\n\n    IMPORTANT: For compound units like meter/second, you must separate the numerator and\n    denominator into separate units in the list. For example:\n    - For meter/second: use [\"meter\", \"1/second\"]\n    - For newton*meter: use [\"newton\", \"meter\"]\n    - For kilogram*meter²/second²: use [\"kilogram\", \"meter**2\", \"1/second**2\"]\n\n    Example:\n        # Convert speed of light to kilometers per hour\n        expr_key = introduce_expression(\"speed_of_light\")\n        result = convert_to_units(expr_key, [\"kilometer\", \"1/hour\"])\n        # Returns approximately 1.08e9 kilometer/hour\n\n        # Convert gravitational constant to CGS units\n        expr_key = introduce_expression(\"gravitational_constant\")\n        result = convert_to_units(expr_key, [\"centimeter**3\", \"1/gram\", \"1/second**2\"], UnitSystem.CGS)\n\n    SI prefixes (femto, pico, nano, micro, milli, centi, deci, deca, hecto, kilo, mega, giga, tera)\n    can be used directly with base units.\n\n    Returns:\n        A key for the converted expression, or an error message.\n    ",
+   "parameters": {
+    "$defs": {
+     "UnitSystem": {
+      "enum": [
+       "MKS",
+       "MKSA",
+       "natural",
+       "SI",
+       "cgs"
+      ],
+      "title": "UnitSystem",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     },
+     "target_units": {
+      "items": {},
+      "title": "Target Units",
+      "type": "array"
+     },
+     "unit_system": {
+      "anyOf": [
+       {
+        "$ref": "#/$defs/UnitSystem"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "expr_key",
+     "target_units"
+    ],
+    "title": "convert_to_unitsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "quantity_simplify_units",
+   "description": "Simplifies a quantity with units using sympy's built-in simplify method for Quantity objects.\n\n    Args:\n        expr_key: The key of the expression (previously introduced) to simplify.\n        unit_system: Optional unit system (from UnitSystem enum). Not used with direct simplify method.\n\n    The following units are available by default:\n        SI base units: meter, second, kilogram, ampere, kelvin, mole, candela\n        Length: kilometer, millimeter\n        Mass: gram\n        Energy: joule\n        Force: newton\n        Pressure: pascal\n        Power: watt\n        Electric: coulomb, volt, ohm, farad, henry\n        Constants: speed_of_light, gravitational_constant, planck\n\n    Example:\n        # Simplify force expressed in base units\n        expr_key = introduce_expression(\"kilogram*meter/second**2\")\n        result = quantity_simplify_units(expr_key)\n        # Returns newton (as N = kg·m/s²)\n\n        # Simplify a complex expression with mixed units\n        expr_key = introduce_expression(\"joule/(kilogram*meter**2/second**2)\")\n        result = quantity_simplify_units(expr_key)\n        # Returns a dimensionless quantity (1)\n\n        # Simplify electrical power expression\n        expr_key = introduce_expression(\"volt*ampere\")\n        result = quantity_simplify_units(expr_key)\n        # Returns watt\n\n    Example with Speed of Light:\n        # Introduce the speed of light\n        c_key = introduce_expression(\"speed_of_light\")\n\n        # Convert to kilometers per hour\n        km_per_hour_key = convert_to_units(c_key, [\"kilometer\", \"1/hour\"])\n\n        # Simplify to get the numerical value\n        simplified_key = quantity_simplify_units(km_per_hour_key)\n\n        # Print the result\n        print_latex_expression(simplified_key)\n        # Shows the numeric value of speed of light in km/h\n\n    Returns:\n        A key for the simplified expression, or an error message.\n    ",
+   "parameters": {
+    "$defs": {
+     "UnitSystem": {
+      "enum": [
+       "MKS",
+       "MKSA",
+       "natural",
+       "SI",
+       "cgs"
+      ],
+      "title": "UnitSystem",
+      "type": "string"
+     }
+    },
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     },
+     "unit_system": {
+      "anyOf": [
+       {
+        "$ref": "#/$defs/UnitSystem"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "expr_key"
+    ],
+    "title": "quantity_simplify_unitsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "reset_state",
+   "description": "Resets the state of the SymPy MCP server.\n\n    Clears all stored variables, functions, expressions, metrics, tensors,\n    coordinate systems, and resets the expression counter.\n\n    Then reinitializes unit variables.\n\n    Runs after all tool calls for a given computation are done to reset the state for the next computation.\n\n    Returns:\n        A message confirming the reset.\n    ",
+   "parameters": {
+    "properties": {},
+    "title": "reset_stateArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_matrix",
+   "description": "Creates a SymPy matrix from the provided data.\n\n    Args:\n        matrix_data: A list of lists representing the rows and columns of the matrix.\n                    Each element can be a number or a string expression.\n        matrix_var_name: Optional name for storing the matrix. If not provided, a\n                         sequential name will be generated.\n\n    Example:\n        # Create a 2x2 matrix with numeric values\n        matrix_key = create_matrix([[1, 2], [3, 4]], \"M\")\n\n        # Create a matrix with symbolic expressions (assuming x, y are defined)\n        matrix_key = create_matrix([[\"x\", \"y\"], [\"x*y\", \"x+y\"]])\n\n    Returns:\n        A key for the stored matrix.\n    ",
+   "parameters": {
+    "properties": {
+     "matrix_data": {
+      "items": {
+       "items": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "number"
+         },
+         {
+          "type": "string"
+         }
+        ]
+       },
+       "type": "array"
+      },
+      "title": "Matrix Data",
+      "type": "array"
+     },
+     "matrix_var_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Matrix Var Name"
+     }
+    },
+    "required": [
+     "matrix_data"
+    ],
+    "title": "create_matrixArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "matrix_determinant",
+   "description": "Calculates the determinant of a matrix using SymPy's det method.\n\n    Args:\n        matrix_key: The key of the matrix to calculate the determinant for.\n\n    Example:\n        # Create a matrix\n        matrix_key = create_matrix([[1, 2], [3, 4]])\n\n        # Calculate its determinant\n        det_key = matrix_determinant(matrix_key)\n        # Results in -2\n\n    Returns:\n        A key for the determinant expression.\n    ",
+   "parameters": {
+    "properties": {
+     "matrix_key": {
+      "title": "Matrix Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "matrix_key"
+    ],
+    "title": "matrix_determinantArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "matrix_inverse",
+   "description": "Calculates the inverse of a matrix using SymPy's inv method.\n\n    Args:\n        matrix_key: The key of the matrix to invert.\n\n    Example:\n        # Create a matrix\n        matrix_key = create_matrix([[1, 2], [3, 4]])\n\n        # Calculate its inverse\n        inv_key = matrix_inverse(matrix_key)\n\n    Returns:\n        A key for the inverted matrix.\n    ",
+   "parameters": {
+    "properties": {
+     "matrix_key": {
+      "title": "Matrix Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "matrix_key"
+    ],
+    "title": "matrix_inverseArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "matrix_eigenvalues",
+   "description": "Calculates the eigenvalues of a matrix using SymPy's eigenvals method.\n\n    Args:\n        matrix_key: The key of the matrix to calculate eigenvalues for.\n\n    Example:\n        # Create a matrix\n        matrix_key = create_matrix([[1, 2], [2, 1]])\n\n        # Calculate its eigenvalues\n        evals_key = matrix_eigenvalues(matrix_key)\n\n    Returns:\n        A key for the eigenvalues expression (usually a dictionary mapping eigenvalues to their multiplicities).\n    ",
+   "parameters": {
+    "properties": {
+     "matrix_key": {
+      "title": "Matrix Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "matrix_key"
+    ],
+    "title": "matrix_eigenvaluesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "matrix_eigenvectors",
+   "description": "Calculates the eigenvectors of a matrix using SymPy's eigenvects method.\n\n    Args:\n        matrix_key: The key of the matrix to calculate eigenvectors for.\n\n    Example:\n        # Create a matrix\n        matrix_key = create_matrix([[1, 2], [2, 1]])\n\n        # Calculate its eigenvectors\n        evecs_key = matrix_eigenvectors(matrix_key)\n\n    Returns:\n        A key for the eigenvectors expression (usually a list of tuples (eigenvalue, multiplicity, [eigenvectors])).\n    ",
+   "parameters": {
+    "properties": {
+     "matrix_key": {
+      "title": "Matrix Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "matrix_key"
+    ],
+    "title": "matrix_eigenvectorsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "substitute_expression",
+   "description": "Substitutes a variable in an expression with another expression using SymPy's subs method.\n\n    Args:\n        expr_key: The key of the expression to perform substitution on.\n        var_name: The name of the variable to substitute.\n        replacement_expr_key: The key of the expression to substitute in place of the variable.\n\n    Example:\n        # Create variables x and y\n        intro(\"x\", [], [])\n        intro(\"y\", [], [])\n\n        # Create expressions\n        expr1 = introduce_expression(\"x**2 + y**2\")\n        expr2 = introduce_expression(\"sin(x)\")\n\n        # Substitute y with sin(x) in x^2 + y^2\n        result = substitute_expression(expr1, \"y\", expr2)\n        # Results in x^2 + sin^2(x)\n\n    Returns:\n        A key for the resulting expression after substitution.\n    ",
+   "parameters": {
+    "properties": {
+     "expr_key": {
+      "title": "Expr Key",
+      "type": "string"
+     },
+     "var_name": {
+      "title": "Var Name",
+      "type": "string"
+     },
+     "replacement_expr_key": {
+      "title": "Replacement Expr Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "expr_key",
+     "var_name",
+     "replacement_expr_key"
+    ],
+    "title": "substitute_expressionArguments",
+    "type": "object"
+   }
+  }
+ }
+]

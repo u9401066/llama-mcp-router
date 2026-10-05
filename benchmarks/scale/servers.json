@@ -1,0 +1,70 @@
+{
+  "pubmed": {
+    "file": "pubmed-search-mcp",
+    "label": "PubMed literature search, articles, genes, compounds, variants"
+  },
+  "zotero": {
+    "file": "zotero-keeper",
+    "label": "my Zotero reference library and collections"
+  },
+  "rde": {
+    "file": "research-data-explorer",
+    "label": "exploratory analysis of my research dataset (EDA pipeline)"
+  },
+  "paper": {
+    "file": "med-paper-assistant",
+    "label": "writing my medical manuscript: drafts, references, export"
+  },
+  "nsforge": {
+    "file": "nsforge-mcp",
+    "label": "formula derivation sessions and formula library"
+  },
+  "cgu": {
+    "file": "creativity-generation-unit",
+    "label": "creative idea generation and brainstorming"
+  },
+  "rca": {
+    "file": "rootcause-mcp",
+    "label": "clinical root cause analysis: fishbone, 5-why"
+  },
+  "pharmacy": {
+    "file": "pharmacy-mcp",
+    "label": "drug information, interactions, dosing, NHI coverage"
+  },
+  "medcalc": {
+    "file": "medical-calc-mcp",
+    "label": "medical calculators and clinical scores"
+  },
+  "figures": {
+    "file": "academic-figures-mcp",
+    "label": "academic figure generation for papers"
+  },
+  "workflow": {
+    "file": "atomic-workflow",
+    "label": "SOP workflow domains, steps and phase graphs"
+  },
+  "libre": {
+    "file": "mcp-libre",
+    "label": "LibreOffice documents and spreadsheets"
+  },
+  "sympy": {
+    "file": "sympy-mcp",
+    "label": "symbolic math: equations, calculus, matrices, units"
+  },
+  "reaper": {
+    "file": "reaper-reapy-mcp",
+    "label": "REAPER music production: tracks, FX, MIDI"
+  },
+  "automl": {
+    "file": "automl-stat-mcp",
+    "label": "statistics and AutoML model training on datasets"
+  },
+  "medagent": {
+    "file": "medagent-copilot",
+    "label": "patient records in FHIR: labs, vitals, orders"
+  },
+  "openevidence": {
+    "file": "openevidence-mcp",
+    "label": "OpenEvidence clinical Q&A and saved chats"
+  }
+}

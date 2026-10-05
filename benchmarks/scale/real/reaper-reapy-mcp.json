@@ -1,0 +1,1469 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "test_connection",
+   "description": "Test connection to Reaper.",
+   "parameters": {
+    "properties": {},
+    "title": "test_connectionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_region_list",
+   "description": "Get a list of all regions in the project.\n\nReturns:\n    Dict containing status and a list of regions, each with:\n    - index: region index\n    - start: region start position\n    - end: region end position\n",
+   "parameters": {
+    "properties": {},
+    "title": "get_region_listArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_track",
+   "description": "Note: Track indices in REAPER API are 0-based (first track = 0, second = 1, etc.)\nHowever, REAPER's visual interface displays tracks starting from 1.\nSo track 0 in API = Track 1 in REAPER UI.\n",
+   "parameters": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Name"
+     }
+    },
+    "title": "create_trackArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rename_track",
+   "description": "Rename an existing track.\n\nArgs:\n    track_index: 0-based track index (0 = first track, 1 = second, etc.)\n                Note: REAPER UI shows tracks starting from 1, but API uses 0-based indexing.\n                API track 0 = UI Track 1, API track 1 = UI Track 2, etc.\n    new_name: New name for the track\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "new_name": {
+      "title": "New Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "track_index",
+     "new_name"
+    ],
+    "title": "rename_trackArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_tempo",
+   "description": "Set the project tempo.",
+   "parameters": {
+    "properties": {
+     "bpm": {
+      "title": "Bpm",
+      "type": "number"
+     }
+    },
+    "required": [
+     "bpm"
+    ],
+    "title": "set_tempoArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_tempo",
+   "description": "Get the current project tempo.",
+   "parameters": {
+    "properties": {},
+    "title": "get_tempoArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_track_color",
+   "description": "Set the color of a track.\n\nArgs:\n    track_index: 0-based track index (0 = first track, 1 = second track, etc.)\n    color: Color value\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "color": {
+      "title": "Color",
+      "type": "string"
+     }
+    },
+    "required": [
+     "track_index",
+     "color"
+    ],
+    "title": "set_track_colorArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_track_color",
+   "description": "Get the color of a track.\n\nArgs:\n    track_index: 0-based track index (0 = first track, 1 = second track, etc.)\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "track_index"
+    ],
+    "title": "get_track_colorArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "add_fx",
+   "description": "Add an FX to a track.",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "fx_name": {
+      "title": "Fx Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "track_index",
+     "fx_name"
+    ],
+    "title": "add_fxArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "remove_fx",
+   "description": "Remove an FX from a track.",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "fx_index": {
+      "title": "Fx Index",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "track_index",
+     "fx_index"
+    ],
+    "title": "remove_fxArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_fx_param",
+   "description": "Set an FX parameter value.",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "fx_index": {
+      "title": "Fx Index",
+      "type": "integer"
+     },
+     "param_name": {
+      "title": "Param Name",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "number"
+     }
+    },
+    "required": [
+     "track_index",
+     "fx_index",
+     "param_name",
+     "value"
+    ],
+    "title": "set_fx_paramArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_fx_param",
+   "description": "Get an FX parameter value.",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "fx_index": {
+      "title": "Fx Index",
+      "type": "integer"
+     },
+     "param_name": {
+      "title": "Param Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "track_index",
+     "fx_index",
+     "param_name"
+    ],
+    "title": "get_fx_paramArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_fx_param_list",
+   "description": "Get a list of all parameters for an FX.",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "fx_index": {
+      "title": "Fx Index",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "track_index",
+     "fx_index"
+    ],
+    "title": "get_fx_param_listArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_fx_list",
+   "description": "Get a list of all FX on a track.",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "track_index"
+    ],
+    "title": "get_fx_listArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_available_fx_list",
+   "description": "Get a list of all available FX plugins in Reaper.",
+   "parameters": {
+    "properties": {},
+    "title": "get_available_fx_listArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "toggle_fx",
+   "description": "Toggle or set the enable/disable state of an FX.",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "fx_index": {
+      "title": "Fx Index",
+      "type": "integer"
+     },
+     "enable": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Enable"
+     }
+    },
+    "required": [
+     "track_index",
+     "fx_index"
+    ],
+    "title": "toggle_fxArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_region",
+   "description": "Create a region in the project.\n\nArgs:\n    name: Name of the region\n    start_time: Start position in seconds (optional if start_measure is provided)\n    end_time: End position in seconds (optional if end_measure is provided)\n    start_measure: Start position as \"measure:beat,fraction\" (optional if start_time is provided)\n    end_measure: End position as \"measure:beat,fraction\" (optional if end_time is provided)\n",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "start_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Time"
+     },
+     "end_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "End Time"
+     },
+     "start_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Measure"
+     },
+     "end_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "End Measure"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "create_regionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_region",
+   "description": "Delete a region from the project.",
+   "parameters": {
+    "properties": {
+     "region_index": {
+      "title": "Region Index",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "region_index"
+    ],
+    "title": "delete_regionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_marker",
+   "description": "Create a marker in the project.",
+   "parameters": {
+    "properties": {
+     "time": {
+      "title": "Time",
+      "type": "number"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "time",
+     "name"
+    ],
+    "title": "create_markerArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_marker",
+   "description": "Delete a marker from the project.",
+   "parameters": {
+    "properties": {
+     "marker_index": {
+      "title": "Marker Index",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "marker_index"
+    ],
+    "title": "delete_markerArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_master_track",
+   "description": "Get information about the master track.",
+   "parameters": {
+    "properties": {},
+    "title": "get_master_trackArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_master_volume",
+   "description": "Set the master track volume.",
+   "parameters": {
+    "properties": {
+     "volume": {
+      "title": "Volume",
+      "type": "number"
+     }
+    },
+    "required": [
+     "volume"
+    ],
+    "title": "set_master_volumeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_master_pan",
+   "description": "Set the master track pan.",
+   "parameters": {
+    "properties": {
+     "pan": {
+      "title": "Pan",
+      "type": "number"
+     }
+    },
+    "required": [
+     "pan"
+    ],
+    "title": "set_master_panArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "toggle_master_mute",
+   "description": "Toggle or set the master track mute state.",
+   "parameters": {
+    "properties": {
+     "mute": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Mute"
+     }
+    },
+    "title": "toggle_master_muteArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "toggle_master_solo",
+   "description": "Toggle or set the master track solo state.",
+   "parameters": {
+    "properties": {
+     "solo": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Solo"
+     }
+    },
+    "title": "toggle_master_soloArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_track_count",
+   "description": "Get the number of tracks in the project.",
+   "parameters": {
+    "properties": {},
+    "title": "get_track_countArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_track_list",
+   "description": "Get a list of all tracks in the project.\n\nReturns:\n    Dict containing status and a list of tracks, each with:\n    - index: Track index\n    - name: Track name\n    - color: Track color (if available)\n",
+   "parameters": {
+    "properties": {},
+    "title": "get_track_listArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_midi_item",
+   "description": "Create an empty MIDI item on a track. \n\nImportant: It is recommended to avoid overlapping MIDI items. Ensure to double-check before creating a new one.\n\nReturns both track_pos_idx and direct_item_id for flexible item referencing:\n- track_pos_idx: 0-based position index within the track (0, 1, 2, etc.)\n- direct_item_id: REAPER's internal item ID (string pointer)\n\nBoth can be used interchangeably in subsequent operations like add_midi_note.\n\nArgs:\n    track_index: 0-based track index (0 = first track, 1 = second, etc.)\n                Note: REAPER UI shows \"Track 1, Track 2\" but API uses 0, 1, etc.\n    start_time: Start position in seconds (optional if start_measure is provided)\n    start_measure: Start position as \"measure:beat,fraction\" (optional if start_time is provided)\n                 where fraction is milliseconds (e.g., \"1:1,500\" = measure 1, beat 1, half beat)\n    length_time: Duration in seconds from start position (from start_time or start_measure)(optional if length_measure is provided).\n    length_measure: Duration as \"measure:beat,fraction\" from start position (e.g., \"2:1,000\" = 2 measures from start_time or start_measure)(optional if length_time is provided). Also remember 2:0,0 is not end of 2 measure and 3:1,0 should be.\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "start_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Time"
+     },
+     "start_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Measure"
+     },
+     "length_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Length Time"
+     },
+     "length_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Length Measure"
+     }
+    },
+    "required": [
+     "track_index"
+    ],
+    "title": "create_midi_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "add_midi_note",
+   "description": "Add a MIDI note to a MIDI item. Reaper format 2.1.00 should be converted to 2:1,000.\n\nImportant: Please check MIDI item length in which you want to add the note. \nIf the note extends beyond the item bounds, create another one or resize existing before note adding.\nDouble-check the item's starting position before adding it. Notes positioned before the item's position won't be added.\n\nItem Identification - TWO ways to specify which item:\n\n1. Using track_pos_idx (integer):\n   - Pass the simple index number from create_midi_item response\n   - Example: item=track_pos_idx=0 for first item, item=track_pos_idx=1 for second item\n   - Fast and easy but may change if items are reordered\n   \n2. Using direct_item_id (string):\n   - Pass the exact string ID from create_midi_item or get_items_in_time_range\n   - Example: item=direct_item_id=\"MediaItem*0x000001234567890A\"\n   - Stable and reliable, won't change even if items move\n\nThe system automatically detects which type you're using.\n\nNote about positioning:\n- start_time and start_measure specify ABSOLUTE position in the project timeline\n- The note will be placed at this absolute position, regardless of item location\n- Example: start_measure=\"5:1,000\" means measure 5 in the project, not 5 measures into the item\n\nArgs:\n    track_index: 0-based track index (0 = first track, 1 = second, etc.)\n                Important: REAPER UI displays \"Track 1\" but API uses index 0.\n    item: EITHER an integer track_pos_idx (0, 1, 2...) OR a string direct_item_id\n    pitch: MIDI note pitch (0-127)\n    start_time: ABSOLUTE start position in seconds in the project timeline (optional if start_measure is provided)\n    start_measure: ABSOLUTE start position as \"measure:beat,fraction\" in the project timeline (optional if start_time is provided)\n    length_time: Duration in seconds from note start (from start_time or start_measure)(optional if length_measure is provided)\n    length_measure: Duration as \"measure:beat,fraction\" from note start (e.g., \"0:2,000\" = 2 beats from start_time or start_measure)(optional if length_time is provided). Also remember 2:0,0 is not end of 2 measure and 3:1,0 should be.\n    velocity: Note velocity (0-127, default: 96)\n    relative_start: If True, start_time/start_measure are interpreted as offsets\n                    from the item's start (i.e. relative to item.start). If False\n                    (default), they are treated as absolute project positions.\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Item"
+     },
+     "pitch": {
+      "title": "Pitch",
+      "type": "integer"
+     },
+     "start_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Time"
+     },
+     "start_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Measure"
+     },
+     "length_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Length Time"
+     },
+     "length_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Length Measure"
+     },
+     "velocity": {
+      "default": 96,
+      "title": "Velocity",
+      "type": "integer"
+     },
+     "relative_start": {
+      "default": false,
+      "title": "Relative Start",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "track_index",
+     "item",
+     "pitch"
+    ],
+    "title": "add_midi_noteArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "add_midi_notes",
+   "description": "Add multiple MIDI notes to a MIDI item in one operation.\n\nImportant: Please check MIDI item length in which you want to add notes. \nIf any note extends beyond the item bounds, create another one or resize existing before note adding.\n\nItem Identification - TWO ways to specify which item:\n\n1. Using track_pos_idx (integer):\n   - Simple position number: 0 = first item, 1 = second item, etc.\n   - Get this from create_midi_item response field \"track_pos_idx\"\n   - Quick but may become invalid if items are deleted/reordered\n   \n2. Using direct_item_id (string):\n   - REAPER's internal pointer like \"MediaItem*0x000001234567890A\"\n   - Get this from create_midi_item response field \"direct_item_id\"\n   - Or from get_items_in_time_range response\n   - Guaranteed to always point to the same item\n\nRecommendation: Use track_pos_idx for quick scripts, direct_item_id for reliability.\n\nArgs:\n    track_index: Index of the track\n    track_pos_idx: EITHER integer track_pos_idx OR string direct_item_id\n    notes: List of note definitions, each containing:\n        - pitch: MIDI note pitch (0-127)\n        - start_time: Start position in seconds (optional if start_measure provided)\n        - start_measure: Start position as \"measure:beat,fraction\" (optional if start_time provided)\n        - length_time: Duration in seconds (optional if length_measure provided)\n        - length_measure: Duration as \"measure:beat,fraction\" (e.g., \"0:2,000\" = 2 beats)\n        - velocity: Note velocity (0-127, optional, default: 96)\n        - relative_start: Default mode for all notes. Per-note override supported via note['relative_start'] (bool).\n\nExample:\n    notes = [\n        {\n            \"pitch\": 60,\n            \"start_measure\": \"1:1,000\",\n            \"length_measure\": \"0:2,000\",\n            \"velocity\": 100\n        },\n        {\n            \"pitch\": 64,\n            \"start_time\": 2.5,\n            \"length_time\": 0.5\n        }\n    ]\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Item"
+     },
+     "notes": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "relative_start": {
+      "default": false,
+      "title": "Relative Start",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "track_index",
+     "item",
+     "notes"
+    ],
+    "title": "add_midi_notesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "clear_midi_item",
+   "description": "Clear all MIDI notes from a MIDI item.",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item_id": {
+      "title": "Item Id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "track_index",
+     "item_id"
+    ],
+    "title": "clear_midi_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_midi_notes",
+   "description": "Get all MIDI notes from a MIDI item.\n\nBy default, returns only visible notes (within item bounds). \nInvisible notes exist in the MIDI data but won't sound during playback.\n\nItem Identification - Accepts BOTH types:\n- track_pos_idx (integer): Simple index like 0, 1, 2\n- direct_item_id (string): Internal ID like \"MediaItem*0x...\"\n\nArgs:\n    track_index: Index of the track\n    item_id: EITHER integer track_pos_idx OR string direct_item_id\n    include_invisible: If True, include notes outside item bounds (won't sound). Default: False\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "include_invisible": {
+      "default": false,
+      "title": "Include Invisible",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "track_index",
+     "item_id"
+    ],
+    "title": "get_midi_notesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "find_midi_notes_by_pitch",
+   "description": "Find all MIDI notes within a specific pitch range across the project.",
+   "parameters": {
+    "properties": {
+     "pitch_min": {
+      "default": 0,
+      "title": "Pitch Min",
+      "type": "integer"
+     },
+     "pitch_max": {
+      "default": 127,
+      "title": "Pitch Max",
+      "type": "integer"
+     }
+    },
+    "title": "find_midi_notes_by_pitchArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_selected_midi_item",
+   "description": "Get the first selected MIDI item in the project.",
+   "parameters": {
+    "properties": {},
+    "title": "get_selected_midi_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "insert_audio_item",
+   "description": "Insert an audio file as a media item on a track.\n\nArgs:\n    track_index: Index of the track\n    file_path: Path to the audio file\n    start_time: Start position in seconds (optional if start_measure is provided)\n    start_measure: Start position as \"measure:beat,fraction\" (optional if start_time is provided)\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "file_path": {
+      "title": "File Path",
+      "type": "string"
+     },
+     "start_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Time"
+     },
+     "start_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Measure"
+     }
+    },
+    "required": [
+     "track_index",
+     "file_path"
+    ],
+    "title": "insert_audio_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "duplicate_item",
+   "description": "Duplicate an existing item on a track.\n\nItem Identification - Accepts BOTH types:\n- track_pos_idx (integer): Simple index like 0, 1, 2\n- direct_item_id (string): Internal ID like \"MediaItem*0x...\"\n\nArgs:\n    track_index: Index of the track\n    item_id: EITHER integer track_pos_idx OR string direct_item_id\n    new_time: New position in seconds (optional)\n    new_measure: New position as \"measure:beat,fraction\" (optional)\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "new_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "New Time"
+     },
+     "new_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "New Measure"
+     }
+    },
+    "required": [
+     "track_index",
+     "item_id"
+    ],
+    "title": "duplicate_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_item_properties",
+   "description": "Get properties of a media item.\n\nItem Identification - Accepts BOTH types:\n- track_pos_idx (integer): Simple index like 0, 1, 2\n- direct_item_id (string): Internal ID like \"MediaItem*0x...\"\n\nArgs:\n    track_index: Index of the track\n    item_id: EITHER integer track_pos_idx OR string direct_item_id\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Item"
+     }
+    },
+    "required": [
+     "track_index",
+     "item"
+    ],
+    "title": "get_item_propertiesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_item_position",
+   "description": "Set the position of a media item.\n\nItem Identification - Accepts BOTH types:\n- track_pos_idx (integer): Simple index like 0, 1, 2\n- direct_item_id (string): Internal ID like \"MediaItem*0x...\"\n\nArgs:\n    track_index: Index of the track\n    item_id: EITHER integer track_pos_idx OR string direct_item_id\n    position_time: New position in seconds (optional if position_measure is provided)\n    position_measure: New position as \"measure:beat,fraction\" (optional if position_time is provided)\n                   where fraction is milliseconds (e.g., \"1:1,500\" = measure 1, beat 1, half beat)\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "position_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Position Time"
+     },
+     "position_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Position Measure"
+     }
+    },
+    "required": [
+     "track_index",
+     "item_id"
+    ],
+    "title": "set_item_positionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_item_length",
+   "description": "Set the length of a media item.\n\nItem Identification - Accepts BOTH types:\n- track_pos_idx (integer): Simple index like 0, 1, 2\n- direct_item_id (string): Internal ID like \"MediaItem*0x...\"\n\nArgs:\n    track_index: Index of the track\n    item_id: EITHER integer track_pos_idx OR string direct_item_id\n    length_time: Length in seconds from start of item (optional if length_measure is provided)\n    length_measure: Length as \"measure:beat,fraction\" from start of item(optional if length_time is provided)\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "length_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Length Time"
+     },
+     "length_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Length Measure"
+     }
+    },
+    "required": [
+     "track_index",
+     "item_id"
+    ],
+    "title": "set_item_lengthArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_item",
+   "description": "Delete a media item from a track.\n\nItem Identification - Accepts BOTH types:\n- track_pos_idx (integer): Simple index like 0, 1, 2\n- direct_item_id (string): Internal ID like \"MediaItem*0x...\"\n\nArgs:\n    track_index: Index of the track\n    item: EITHER integer track_pos_idx OR string direct_item_id\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "item": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Item"
+     }
+    },
+    "required": [
+     "track_index",
+     "item"
+    ],
+    "title": "delete_itemArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_items_in_time_range",
+   "description": "Get all items on a track within a time range.\n\nReturns items with BOTH identification methods for each item:\n\n1. track_pos_idx (integer):\n   - Simple sequential index: 0, 1, 2, 3...\n   - Easy to use in loops and quick operations\n   - Changes if items before it are deleted\n   \n2. direct_item_id (string):\n   - REAPER's permanent internal ID like \"MediaItem*0x...\"\n   - Unique stable reference that never changes\n   - Use this for reliable long-term item tracking\n\nYou can use either one in subsequent operations like add_midi_note.\n\nArgs:\n    track_index: 0-based track index (0 = first track, 1 = second, etc.)\n    start_time: Start position in seconds (optional if start_measure is provided)\n    end_time: End position in seconds (optional if end_measure is provided)\n    start_measure: Start position as \"measure:beat,fraction\" (optional if start_time is provided)\n    end_measure: End position as \"measure:beat,fraction\" (optional if end_time is provided)\n    \nReturns:\n    Each item includes:\n    - track_pos_idx: Integer position index (0, 1, 2...)\n    - direct_item_id: String internal ID (\"MediaItem*...\")\n    - position: Item start time in seconds\n    - length: Item duration in seconds\n",
+   "parameters": {
+    "properties": {
+     "track_index": {
+      "title": "Track Index",
+      "type": "integer"
+     },
+     "start_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Time"
+     },
+     "end_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "End Time"
+     },
+     "start_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Measure"
+     },
+     "end_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "End Measure"
+     }
+    },
+    "required": [
+     "track_index"
+    ],
+    "title": "get_items_in_time_rangeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_selected_items",
+   "description": "Get all selected media items in the project with their properties.\n\nReturns:\n    Dict containing status and list of selected items with their properties:\n    - track_index: Index of the track containing the item\n    - item_index: Index of the item in its track\n    - position: Start time in seconds\n    - length: Length in seconds from the start of item\n    - is_midi: Whether the item is a MIDI item\n    - name: Item name if available\n",
+   "parameters": {
+    "properties": {},
+    "title": "get_selected_itemsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_time_signature",
+   "description": "Get the current time signature of the project.",
+   "parameters": {
+    "properties": {},
+    "title": "get_time_signatureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_project_time_signature",
+   "description": "Set the default project time signature.\n\nArgs:\n    numerator: Time signature numerator (e.g., 4 in 4/4)\n    denominator: Time signature denominator (e.g., 4 in 4/4)\n",
+   "parameters": {
+    "properties": {
+     "numerator": {
+      "title": "Numerator",
+      "type": "integer"
+     },
+     "denominator": {
+      "title": "Denominator",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "numerator",
+     "denominator"
+    ],
+    "title": "set_project_time_signatureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_project_time_signature",
+   "description": "Get the default project time signature.",
+   "parameters": {
+    "properties": {},
+    "title": "get_project_time_signatureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_time_signature",
+   "description": "Set time signature at specified position.\n\nArgs:\n    numerator: Time signature numerator (e.g., 4 in 4/4)\n    denominator: Time signature denominator (e.g., 4 in 4/4)\n    position: Position as \"measure:beat,fraction\" (optional if time is provided)\n             where fraction is milliseconds (e.g., \"1:1,500\" = measure 1, beat 1, half beat)\n    time: Position in seconds (optional if position is provided)\n",
+   "parameters": {
+    "properties": {
+     "numerator": {
+      "title": "Numerator",
+      "type": "integer"
+     },
+     "denominator": {
+      "title": "Denominator",
+      "type": "integer"
+     },
+     "position": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Position"
+     },
+     "time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Time"
+     }
+    },
+    "required": [
+     "numerator",
+     "denominator"
+    ],
+    "title": "set_time_signatureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "render_project",
+   "description": "Render project to audio file.\n\nArgs:\n    output_file: Path to output audio file\n    start_time: Start position in seconds (optional if start_measure is provided)\n    end_time: End position in seconds (optional if end_measure is provided)\n    start_measure: Start position as \"measure:beat,fraction\" (optional if start_time is provided)\n    end_measure: End position as \"measure:beat,fraction\" (optional if end_time is provided)\n    samplerate: Sample rate in Hz (default: 44100)\n    channels: Number of channels (default: 2)\n    **kwargs: Additional render settings\n",
+   "parameters": {
+    "properties": {
+     "output_file": {
+      "title": "Output File",
+      "type": "string"
+     },
+     "start_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Time"
+     },
+     "end_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "End Time"
+     },
+     "start_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Start Measure"
+     },
+     "end_measure": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "End Measure"
+     },
+     "samplerate": {
+      "default": 44100,
+      "title": "Samplerate",
+      "type": "integer"
+     },
+     "channels": {
+      "default": 2,
+      "title": "Channels",
+      "type": "integer"
+     },
+     "kwargs": {
+      "title": "kwargs",
+      "type": "string"
+     }
+    },
+    "required": [
+     "output_file",
+     "kwargs"
+    ],
+    "title": "render_projectArguments",
+    "type": "object"
+   }
+  }
+ }
+]

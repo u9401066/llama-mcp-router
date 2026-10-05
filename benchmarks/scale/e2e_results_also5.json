@@ -1,0 +1,1516 @@
+{
+ "laya-rerank (also 5) + search": [
+  {
+   "id": 0,
+   "ok": false,
+   "first": "pubmed_generate_search_queries",
+   "s": 35.39396305195987,
+   "prompt_tokens": 12406,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 1,
+   "ok": true,
+   "first": "pubmed_unified_search",
+   "s": 30.101264156401157,
+   "prompt_tokens": 15968,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 2,
+   "ok": true,
+   "first": "pubmed_unified_search",
+   "s": 18.571475772187114,
+   "prompt_tokens": 19324,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 3,
+   "ok": false,
+   "first": "libre_search_documents",
+   "s": 35.248611107468605,
+   "prompt_tokens": 15415,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 4,
+   "ok": false,
+   "first": "<private server tool>",
+   "s": 27.83804277330637,
+   "prompt_tokens": 7293,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 5,
+   "ok": true,
+   "first": "pubmed_validate_pico_plan",
+   "s": 5.9242507219314575,
+   "prompt_tokens": 5552,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 6,
+   "ok": false,
+   "first": "pubmed_convert_icd_mesh",
+   "s": 24.401037046685815,
+   "prompt_tokens": 5598,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 7,
+   "ok": false,
+   "first": null,
+   "s": 98.3209432233125,
+   "prompt_tokens": 6322,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 8,
+   "ok": true,
+   "first": "pubmed_find_related_articles",
+   "s": 9.714562483131886,
+   "prompt_tokens": 20115,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 9,
+   "ok": true,
+   "first": "pubmed_find_citing_articles",
+   "s": 3.2322098668664694,
+   "prompt_tokens": 4237,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 10,
+   "ok": true,
+   "first": "pubmed_find_citing_articles",
+   "s": 26.458144884556532,
+   "prompt_tokens": 46736,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 11,
+   "ok": true,
+   "first": "pubmed_get_article_references",
+   "s": 3.9332166593521833,
+   "prompt_tokens": 5047,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 12,
+   "ok": true,
+   "first": "pubmed_fetch_article_details",
+   "s": 7.040289890021086,
+   "prompt_tokens": 11161,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 13,
+   "ok": true,
+   "first": "pubmed_fetch_article_details",
+   "s": 18.553359117358923,
+   "prompt_tokens": 20884,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 14,
+   "ok": true,
+   "first": "pubmed_get_citation_metrics",
+   "s": 4.994970511645079,
+   "prompt_tokens": 7898,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 15,
+   "ok": true,
+   "first": "pubmed_verify_reference_list",
+   "s": 7.186578959226608,
+   "prompt_tokens": 4712,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 16,
+   "ok": true,
+   "first": "pubmed_prepare_export",
+   "s": 13.34517722018063,
+   "prompt_tokens": 9230,
+   "escalated": false,
+   "sent": 10
+  },
+  {
+   "id": 17,
+   "ok": true,
+   "first": "pubmed_prepare_export",
+   "s": 8.230790130794048,
+   "prompt_tokens": 4880,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 18,
+   "ok": true,
+   "first": "pubmed_save_literature_notes",
+   "s": 13.989406133070588,
+   "prompt_tokens": 4529,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 19,
+   "ok": true,
+   "first": "pubmed_get_fulltext",
+   "s": 6.364240953698754,
+   "prompt_tokens": 11457,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 20,
+   "ok": true,
+   "first": "pubmed_get_text_mined_terms",
+   "s": 5.612264739349484,
+   "prompt_tokens": 6375,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 21,
+   "ok": true,
+   "first": "pubmed_get_article_figures",
+   "s": 6.915144789963961,
+   "prompt_tokens": 4369,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 22,
+   "ok": true,
+   "first": "pubmed_search_gene",
+   "s": 4.748807163909078,
+   "prompt_tokens": 3975,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 23,
+   "ok": true,
+   "first": "pubmed_search_gene",
+   "s": 4.37438371963799,
+   "prompt_tokens": 3809,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 24,
+   "ok": true,
+   "first": "pubmed_get_gene_details",
+   "s": 2.328791491687298,
+   "prompt_tokens": 2755,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 25,
+   "ok": true,
+   "first": "pubmed_get_gene_literature",
+   "s": 5.6770979054272175,
+   "prompt_tokens": 2417,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 26,
+   "ok": true,
+   "first": "pubmed_search_compound",
+   "s": 5.5562690533697605,
+   "prompt_tokens": 9498,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 27,
+   "ok": false,
+   "first": "pubmed_get_compound_details",
+   "s": 11.122882794588804,
+   "prompt_tokens": 4614,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 28,
+   "ok": true,
+   "first": "pubmed_get_compound_details",
+   "s": 6.578712359070778,
+   "prompt_tokens": 9946,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 29,
+   "ok": true,
+   "first": "pubmed_get_compound_literature",
+   "s": 4.74890324473381,
+   "prompt_tokens": 9392,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 30,
+   "ok": true,
+   "first": "pubmed_search_clinvar",
+   "s": 6.54528071731329,
+   "prompt_tokens": 7976,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 31,
+   "ok": true,
+   "first": "pubmed_search_clinvar",
+   "s": 35.47212095186114,
+   "prompt_tokens": 13713,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 32,
+   "ok": true,
+   "first": "pubmed_build_citation_tree",
+   "s": 5.013857249170542,
+   "prompt_tokens": 8123,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 33,
+   "ok": true,
+   "first": "pubmed_build_research_chronicle",
+   "s": 10.842918928712606,
+   "prompt_tokens": 22224,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 34,
+   "ok": true,
+   "first": "pubmed_read_research_chronicle",
+   "s": 13.474924147129059,
+   "prompt_tokens": 20329,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 35,
+   "ok": false,
+   "first": null,
+   "s": 47.8642875533551,
+   "prompt_tokens": 12866,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 36,
+   "ok": true,
+   "first": "pubmed_search_biomedical_images",
+   "s": 9.914969449862838,
+   "prompt_tokens": 10130,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 37,
+   "ok": false,
+   "first": "pubmed_list_resolver_presets",
+   "s": 6.5129030756652355,
+   "prompt_tokens": 8138,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 38,
+   "ok": true,
+   "first": "pubmed_get_institutional_link",
+   "s": 11.992473950609565,
+   "prompt_tokens": 22592,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 39,
+   "ok": true,
+   "first": "pubmed_list_resolver_presets",
+   "s": 2.721485923975706,
+   "prompt_tokens": 3304,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 40,
+   "ok": true,
+   "first": "pubmed_test_institutional_access",
+   "s": 3.6979740355163813,
+   "prompt_tokens": 5467,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 41,
+   "ok": true,
+   "first": "pubmed_diagnose_institutional_access",
+   "s": 7.49417107924819,
+   "prompt_tokens": 10745,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 42,
+   "ok": true,
+   "first": "pubmed_convert_icd_mesh",
+   "s": 5.236912721768022,
+   "prompt_tokens": 7605,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 43,
+   "ok": true,
+   "first": "pubmed_convert_icd_mesh",
+   "s": 5.32825455442071,
+   "prompt_tokens": 4189,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 44,
+   "ok": true,
+   "first": "pubmed_save_pipeline",
+   "s": 58.66976240091026,
+   "prompt_tokens": 6302,
+   "escalated": false,
+   "sent": 10
+  },
+  {
+   "id": 45,
+   "ok": true,
+   "first": "pubmed_list_pipelines",
+   "s": 2.064325938001275,
+   "prompt_tokens": 2554,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 46,
+   "ok": true,
+   "first": "pubmed_load_pipeline",
+   "s": 2.3021446000784636,
+   "prompt_tokens": 2975,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 47,
+   "ok": true,
+   "first": "pubmed_delete_pipeline",
+   "s": 2.7234512958675623,
+   "prompt_tokens": 3162,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 48,
+   "ok": false,
+   "first": "rde_get_autoresearch_status",
+   "s": 8.3856919426471,
+   "prompt_tokens": 9888,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 49,
+   "ok": true,
+   "first": "pubmed_schedule_pipeline",
+   "s": 8.464286841452122,
+   "prompt_tokens": 10558,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 50,
+   "ok": true,
+   "first": "pubmed_unschedule_pipeline",
+   "s": 2.2754648104310036,
+   "prompt_tokens": 2146,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 51,
+   "ok": true,
+   "first": "pubmed_read_session",
+   "s": 10.604306980967522,
+   "prompt_tokens": 22695,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 52,
+   "ok": true,
+   "first": "pubmed_read_session",
+   "s": 19.377756025642157,
+   "prompt_tokens": 34059,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 53,
+   "ok": false,
+   "first": "pubmed_search_compound",
+   "s": 27.321252631023526,
+   "prompt_tokens": 9560,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 54,
+   "ok": false,
+   "first": "paper_reference_action",
+   "s": 16.837872982025146,
+   "prompt_tokens": 22897,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 55,
+   "ok": false,
+   "first": "<private server tool>",
+   "s": 11.046119913458824,
+   "prompt_tokens": 3397,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 56,
+   "ok": true,
+   "first": null,
+   "s": 3.4799317363649607,
+   "prompt_tokens": 5441,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 57,
+   "ok": true,
+   "first": null,
+   "s": 17.445178480818868,
+   "prompt_tokens": 6346,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 58,
+   "ok": true,
+   "first": null,
+   "s": 7.13275364972651,
+   "prompt_tokens": 3473,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 59,
+   "ok": true,
+   "first": null,
+   "s": 3.233377108350396,
+   "prompt_tokens": 2896,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 60,
+   "ok": true,
+   "first": null,
+   "s": 4.316531835123897,
+   "prompt_tokens": 7735,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 61,
+   "ok": true,
+   "first": null,
+   "s": 15.358195310458541,
+   "prompt_tokens": 3924,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 62,
+   "ok": true,
+   "first": null,
+   "s": 3.5869100634008646,
+   "prompt_tokens": 3379,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 63,
+   "ok": true,
+   "first": null,
+   "s": 7.2148090451955795,
+   "prompt_tokens": 9679,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 64,
+   "ok": true,
+   "first": null,
+   "s": 7.768298586830497,
+   "prompt_tokens": 3575,
+   "escalated": false,
+   "sent": 10
+  },
+  {
+   "id": 65,
+   "ok": true,
+   "first": null,
+   "s": 26.429774006828666,
+   "prompt_tokens": 27441,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 66,
+   "ok": true,
+   "first": null,
+   "s": 27.229152243584394,
+   "prompt_tokens": 3027,
+   "escalated": false,
+   "sent": 10
+  },
+  {
+   "id": 67,
+   "ok": true,
+   "first": null,
+   "s": 4.570913013070822,
+   "prompt_tokens": 5112,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 68,
+   "ok": true,
+   "first": "zotero_check_connection",
+   "s": 3.2154675256460905,
+   "prompt_tokens": 2461,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 69,
+   "ok": true,
+   "first": "zotero_check_connection",
+   "s": 3.0641040094196796,
+   "prompt_tokens": 1839,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 70,
+   "ok": true,
+   "first": "zotero_search_items",
+   "s": 3.8101758006960154,
+   "prompt_tokens": 2742,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 71,
+   "ok": true,
+   "first": "zotero_search_items",
+   "s": 3.678950797766447,
+   "prompt_tokens": 2829,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 72,
+   "ok": true,
+   "first": "zotero_get_item",
+   "s": 3.3087873198091984,
+   "prompt_tokens": 2429,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 73,
+   "ok": true,
+   "first": "zotero_get_item",
+   "s": 3.170801008120179,
+   "prompt_tokens": 2334,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 74,
+   "ok": true,
+   "first": "zotero_list_items",
+   "s": 3.482567720115185,
+   "prompt_tokens": 1754,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 75,
+   "ok": true,
+   "first": "zotero_list_items",
+   "s": 3.673545653000474,
+   "prompt_tokens": 3083,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 76,
+   "ok": true,
+   "first": "zotero_list_tags",
+   "s": 3.177256014198065,
+   "prompt_tokens": 2611,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 77,
+   "ok": true,
+   "first": "zotero_list_tags",
+   "s": 2.9912718683481216,
+   "prompt_tokens": 2112,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 78,
+   "ok": true,
+   "first": "zotero_get_item_types",
+   "s": 3.0565626677125692,
+   "prompt_tokens": 2255,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 79,
+   "ok": true,
+   "first": "zotero_list_collections",
+   "s": 2.953688709065318,
+   "prompt_tokens": 1667,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 80,
+   "ok": true,
+   "first": "zotero_list_collections",
+   "s": 3.2569308187812567,
+   "prompt_tokens": 3106,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 81,
+   "ok": true,
+   "first": "zotero_get_collection",
+   "s": 1.9822825863957405,
+   "prompt_tokens": 2155,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 82,
+   "ok": true,
+   "first": "zotero_get_collection_items",
+   "s": 3.934228640049696,
+   "prompt_tokens": 2110,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 83,
+   "ok": true,
+   "first": "zotero_get_collection_items",
+   "s": 14.864087311550975,
+   "prompt_tokens": 10923,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 84,
+   "ok": true,
+   "first": "zotero_get_collection_tree",
+   "s": 1.962103482335806,
+   "prompt_tokens": 1920,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 85,
+   "ok": true,
+   "first": "zotero_find_collection",
+   "s": 1.9471036102622747,
+   "prompt_tokens": 1924,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 86,
+   "ok": true,
+   "first": "zotero_find_collection",
+   "s": 5.323118770495057,
+   "prompt_tokens": 4375,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 87,
+   "ok": true,
+   "first": "zotero_interactive_save",
+   "s": 21.011259773746133,
+   "prompt_tokens": 2412,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 88,
+   "ok": false,
+   "first": "pubmed_fetch_article_details",
+   "s": 19.030839391052723,
+   "prompt_tokens": 15728,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 89,
+   "ok": true,
+   "first": "zotero_list_saved_searches",
+   "s": 2.8965988401323557,
+   "prompt_tokens": 2199,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 90,
+   "ok": true,
+   "first": "zotero_list_saved_searches",
+   "s": 2.91941799223423,
+   "prompt_tokens": 2246,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 91,
+   "ok": true,
+   "first": "zotero_run_saved_search",
+   "s": 3.270488314330578,
+   "prompt_tokens": 1900,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 92,
+   "ok": true,
+   "first": "zotero_get_saved_search_details",
+   "s": 3.199112668633461,
+   "prompt_tokens": 2826,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 93,
+   "ok": true,
+   "first": "zotero_advanced_search",
+   "s": 10.672391913831234,
+   "prompt_tokens": 4296,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 94,
+   "ok": true,
+   "first": "zotero_advanced_search",
+   "s": 17.15232685767114,
+   "prompt_tokens": 1922,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 95,
+   "ok": true,
+   "first": "zotero_get_library_stats",
+   "s": 2.02110693231225,
+   "prompt_tokens": 2179,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 96,
+   "ok": true,
+   "first": "zotero_find_orphan_items",
+   "s": 2.0389476493000984,
+   "prompt_tokens": 2001,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 97,
+   "ok": true,
+   "first": "zotero_find_orphan_items",
+   "s": 2.3473324570804834,
+   "prompt_tokens": 2861,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 98,
+   "ok": true,
+   "first": "zotero_import_articles",
+   "s": 87.7898011598736,
+   "prompt_tokens": 11759,
+   "escalated": true,
+   "sent": 7
+  },
+  {
+   "id": 99,
+   "ok": false,
+   "first": null,
+   "s": 10.456589512526989,
+   "prompt_tokens": 4593,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 100,
+   "ok": false,
+   "first": null,
+   "s": 5.361323507502675,
+   "prompt_tokens": 3063,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 101,
+   "ok": true,
+   "first": "pubmed_unified_search",
+   "s": 8.554634112864733,
+   "prompt_tokens": 9747,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 102,
+   "ok": true,
+   "first": "pubmed_unified_search",
+   "s": 28.127815993502736,
+   "prompt_tokens": 46831,
+   "escalated": true,
+   "sent": 10
+  },
+  {
+   "id": 103,
+   "ok": true,
+   "first": "pubmed_list_pipelines",
+   "s": 2.6539651304483414,
+   "prompt_tokens": 3178,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 104,
+   "ok": true,
+   "first": "pubmed_list_pipelines",
+   "s": 2.476171350106597,
+   "prompt_tokens": 2324,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 105,
+   "ok": true,
+   "first": "pubmed_prepare_export",
+   "s": 5.2490401435643435,
+   "prompt_tokens": 6539,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 106,
+   "ok": true,
+   "first": "pubmed_prepare_export",
+   "s": 14.81400123797357,
+   "prompt_tokens": 12347,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 107,
+   "ok": true,
+   "first": "pubmed_fetch_article_details",
+   "s": 6.63956225477159,
+   "prompt_tokens": 11075,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 108,
+   "ok": true,
+   "first": "pubmed_save_literature_notes",
+   "s": 7.934663590043783,
+   "prompt_tokens": 6254,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 109,
+   "ok": false,
+   "first": "pubmed_build_research_chronicle",
+   "s": 13.862942466512322,
+   "prompt_tokens": 6371,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 110,
+   "ok": true,
+   "first": "figures_generate_figure",
+   "s": 27.17527143098414,
+   "prompt_tokens": 7280,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 111,
+   "ok": true,
+   "first": "figures_evaluate_figure",
+   "s": 32.6460273116827,
+   "prompt_tokens": 14397,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 112,
+   "ok": false,
+   "first": "automl_list_available_files",
+   "s": 33.276961129158735,
+   "prompt_tokens": 10178,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 113,
+   "ok": true,
+   "first": "figures_prepare_publication_image",
+   "s": 20.021371118724346,
+   "prompt_tokens": 5321,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 114,
+   "ok": true,
+   "first": "workflow_list_domains",
+   "s": 3.850769281387329,
+   "prompt_tokens": 2072,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 115,
+   "ok": true,
+   "first": "workflow_validate_workflow",
+   "s": 4.323556020855904,
+   "prompt_tokens": 3028,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 116,
+   "ok": false,
+   "first": null,
+   "s": 6.892277522012591,
+   "prompt_tokens": 3341,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 117,
+   "ok": true,
+   "first": "automl_compare_roc_curves",
+   "s": 22.63690402172506,
+   "prompt_tokens": 8537,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 118,
+   "ok": false,
+   "first": "rde_get_decision_log",
+   "s": 5.441149763762951,
+   "prompt_tokens": 6424,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 119,
+   "ok": true,
+   "first": "automl_power_ttest",
+   "s": 3.3542086388915777,
+   "prompt_tokens": 4685,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 120,
+   "ok": true,
+   "first": "automl_check_multicollinearity",
+   "s": 12.461844213306904,
+   "prompt_tokens": 2629,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 121,
+   "ok": false,
+   "first": "rde_start_autoresearch_run",
+   "s": 56.1151652559638,
+   "prompt_tokens": 3599,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 122,
+   "ok": false,
+   "first": "cgu_cgu_ideas",
+   "s": 43.41443204320967,
+   "prompt_tokens": 5566,
+   "escalated": false,
+   "sent": 10
+  },
+  {
+   "id": 123,
+   "ok": true,
+   "first": "libre_convert_document",
+   "s": 3.2416025269776583,
+   "prompt_tokens": 3519,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 124,
+   "ok": true,
+   "first": "libre_read_spreadsheet_data",
+   "s": 10.715125475078821,
+   "prompt_tokens": 18357,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 125,
+   "ok": true,
+   "first": "libre_batch_convert_documents",
+   "s": 9.433499865233898,
+   "prompt_tokens": 3188,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 126,
+   "ok": false,
+   "first": "paper_project_action",
+   "s": 15.191477095708251,
+   "prompt_tokens": 7047,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 127,
+   "ok": true,
+   "first": "paper_save_reference_mcp",
+   "s": 4.358737278729677,
+   "prompt_tokens": 6428,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 128,
+   "ok": true,
+   "first": "paper_export_document",
+   "s": 3.7702882569283247,
+   "prompt_tokens": 3852,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 129,
+   "ok": true,
+   "first": "medagent_get_patient_by_mrn",
+   "s": 3.9519874043762684,
+   "prompt_tokens": 2993,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 130,
+   "ok": false,
+   "first": "medagent_get_current_patient_context",
+   "s": 3.880732836201787,
+   "prompt_tokens": 2100,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 131,
+   "ok": false,
+   "first": "medagent_get_current_patient_context",
+   "s": 3.8890280686318874,
+   "prompt_tokens": 3214,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 132,
+   "ok": false,
+   "first": "medagent_get_current_patient_context",
+   "s": 18.409155674278736,
+   "prompt_tokens": 7422,
+   "escalated": true,
+   "sent": 9
+  },
+  {
+   "id": 133,
+   "ok": true,
+   "first": "medcalc_calculate",
+   "s": 7.655703786760569,
+   "prompt_tokens": 3582,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 134,
+   "ok": true,
+   "first": "medcalc_discover",
+   "s": 6.123208301141858,
+   "prompt_tokens": 4685,
+   "escalated": false,
+   "sent": 10
+  },
+  {
+   "id": 135,
+   "ok": true,
+   "first": "nsforge_derivation_start",
+   "s": 4.756900329142809,
+   "prompt_tokens": 3893,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 136,
+   "ok": true,
+   "first": "nsforge_derivation_rollback",
+   "s": 4.4438803400844336,
+   "prompt_tokens": 3706,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 137,
+   "ok": true,
+   "first": "nsforge_formula_search",
+   "s": 2.810263715684414,
+   "prompt_tokens": 3592,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 138,
+   "ok": true,
+   "first": "nsforge_formula_constants",
+   "s": 3.649778539314866,
+   "prompt_tokens": 3554,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 139,
+   "ok": true,
+   "first": "openevidence_oe_ask",
+   "s": 4.65324186347425,
+   "prompt_tokens": 2418,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 140,
+   "ok": true,
+   "first": "openevidence_oe_history_list",
+   "s": 3.0472354255616665,
+   "prompt_tokens": 2244,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 141,
+   "ok": true,
+   "first": "pharmacy_check_drug_interaction",
+   "s": 3.94798238016665,
+   "prompt_tokens": 2001,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 142,
+   "ok": true,
+   "first": "pharmacy_calculate_creatinine_clearance",
+   "s": 7.55214729718864,
+   "prompt_tokens": 3511,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 143,
+   "ok": true,
+   "first": "pharmacy_get_nhi_coverage",
+   "s": 2.890877755358815,
+   "prompt_tokens": 3938,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 144,
+   "ok": true,
+   "first": "pharmacy_calculate_dose_by_weight",
+   "s": 34.932463428005576,
+   "prompt_tokens": 2411,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 145,
+   "ok": true,
+   "first": "reaper_set_tempo",
+   "s": 1.9273492600768805,
+   "prompt_tokens": 1789,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 146,
+   "ok": true,
+   "first": "reaper_add_fx",
+   "s": 2.573593068867922,
+   "prompt_tokens": 2809,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 147,
+   "ok": true,
+   "first": "reaper_render_project",
+   "s": 3.7134312465786934,
+   "prompt_tokens": 4184,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 148,
+   "ok": true,
+   "first": "reaper_create_track",
+   "s": 6.045961659401655,
+   "prompt_tokens": 6457,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 149,
+   "ok": true,
+   "first": "rde_scan_data_folder",
+   "s": 2.3424503952264786,
+   "prompt_tokens": 2720,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 150,
+   "ok": false,
+   "first": "rde_load_dataset",
+   "s": 42.75764232315123,
+   "prompt_tokens": 2562,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 151,
+   "ok": true,
+   "first": "rde_generate_table_one",
+   "s": 7.303500570356846,
+   "prompt_tokens": 3862,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 152,
+   "ok": false,
+   "first": null,
+   "s": 94.63888831064105,
+   "prompt_tokens": 9123,
+   "escalated": true,
+   "sent": 7
+  },
+  {
+   "id": 153,
+   "ok": true,
+   "first": "rde_export_report",
+   "s": 2.805884135887027,
+   "prompt_tokens": 3620,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 154,
+   "ok": true,
+   "first": "rca_rc_start_session",
+   "s": 4.938877414911985,
+   "prompt_tokens": 4360,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 155,
+   "ok": true,
+   "first": "rca_rc_ask_why",
+   "s": 14.07624490186572,
+   "prompt_tokens": 2942,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 156,
+   "ok": true,
+   "first": "rca_rc_add_cause",
+   "s": 20.016083585098386,
+   "prompt_tokens": 3935,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 157,
+   "ok": false,
+   "first": "rca_rc_get_hfacs_framework",
+   "s": 10.804786000400782,
+   "prompt_tokens": 2881,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 158,
+   "ok": true,
+   "first": "nsforge_derivation_solve_for",
+   "s": 9.506780408322811,
+   "prompt_tokens": 3921,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 159,
+   "ok": false,
+   "first": "sympy_create_matrix",
+   "s": 6.508197566494346,
+   "prompt_tokens": 5622,
+   "escalated": true,
+   "sent": 7
+  },
+  {
+   "id": 160,
+   "ok": false,
+   "first": "sympy_intro",
+   "s": 16.29782509431243,
+   "prompt_tokens": 11720,
+   "escalated": true,
+   "sent": 8
+  },
+  {
+   "id": 161,
+   "ok": false,
+   "first": "sympy_create_coordinate_system",
+   "s": 5.652398847043514,
+   "prompt_tokens": 2728,
+   "escalated": false,
+   "sent": 7
+  },
+  {
+   "id": 162,
+   "ok": false,
+   "first": "pharmacy_convert_dose_units",
+   "s": 17.05734656378627,
+   "prompt_tokens": 4440,
+   "escalated": false,
+   "sent": 9
+  },
+  {
+   "id": 163,
+   "ok": true,
+   "first": "<private server tool>",
+   "s": 2.2348175551742315,
+   "prompt_tokens": 2152,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 164,
+   "ok": true,
+   "first": "<private server tool>",
+   "s": 22.18008773215115,
+   "prompt_tokens": 2028,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 165,
+   "ok": true,
+   "first": "<private server tool>",
+   "s": 3.9355312418192625,
+   "prompt_tokens": 1861,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 166,
+   "ok": true,
+   "first": "<private server tool>",
+   "s": 3.4446811489760876,
+   "prompt_tokens": 2749,
+   "escalated": false,
+   "sent": 8
+  },
+  {
+   "id": 167,
+   "ok": true,
+   "first": "<private server tool>",
+   "s": 3.741587720811367,
+   "prompt_tokens": 4571,
+   "escalated": false,
+   "sent": 8
+  }
+ ]
+}

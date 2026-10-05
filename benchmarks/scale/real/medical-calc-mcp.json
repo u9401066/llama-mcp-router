@@ -1,0 +1,165 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "discover",
+   "description": "\n🔍 統一的工具發現入口 (High-Level)\n\n幫助 Agent 找到合適的醫學計算器。支援多種發現模式。\n\nArgs:\n    by: 發現模式\n        - \"all\": 列出所有分類 (專科和臨床情境) - 預設\n        - \"specialty\": 依專科篩選工具\n        - \"context\": 依臨床情境篩選工具\n        - \"keyword\": 關鍵字搜尋\n        - \"tools\": 列出所有工具\n    value: 篩選值 (當 by 不是 \"all\" 或 \"tools\" 時必填)\n    limit: 最多回傳幾個結果\n\nReturns:\n    根據模式返回不同內容:\n    - all: 可用的專科和情境清單\n    - specialty/context: 該分類下的工具清單\n    - keyword: 匹配的工具清單\n    - tools: 所有工具清單\n\n**Examples:**\n\n```python\n# 弱模型安全流程: 先 discover，再 get_tool_schema\ndiscover(by=\"keyword\", value=\"sepsis\")\n# → 取得候選 tool_id 之後再呼叫 get_tool_schema(\"qsofa_score\")\n\n# 查看所有分類 (起點)\ndiscover()\n# → {\"specialties\": [...], \"contexts\": [...]}\n\n# 依專科篩選\ndiscover(by=\"specialty\", value=\"critical_care\")\n# → {\"tools\": [{\"tool_id\": \"sofa_score\", ...}, ...]}\n\n# 依臨床情境篩選\ndiscover(by=\"context\", value=\"preoperative_assessment\")\n# → {\"tools\": [{\"tool_id\": \"rcri\", ...}, ...]}\n\n# 關鍵字搜尋\ndiscover(by=\"keyword\", value=\"sepsis\")\n# → {\"tools\": [{\"tool_id\": \"qsofa_score\", ...}, ...]}\n\n# 列出所有工具\ndiscover(by=\"tools\", limit=50)\n# → {\"tools\": [...], \"count\": 75}\n```\n\n規則:\n- 不要根據記憶猜 tool_id，先用 discover() 拿 canonical id\n- 不要直接 calculate，先用 get_tool_schema(tool_id)\n\n⏭️ 下一步: 找到工具後，使用 get_tool_schema(tool_id) 查看參數\n",
+   "parameters": {
+    "properties": {
+     "by": {
+      "default": "all",
+      "title": "By",
+      "type": "string"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Value"
+     },
+     "limit": {
+      "default": 20,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "title": "discoverArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_related_tools",
+   "description": "\n🔗 取得相關工具 (High-Level 語義發現)\n\n基於共享參數和專科自動發現相關工具。\n純 Python 算法，無 ML 依賴。\n\nArgs:\n    tool_id: 工具 ID\n    limit: 最多回傳幾個相關工具\n\nReturns:\n    相關工具清單及相似度分數\n\n**Example:**\n```python\nget_related_tools(\"sofa_score\")\n# → {\"related_tools\": [\n#      {\"tool_id\": \"qsofa_score\", \"similarity\": 0.85},\n#      {\"tool_id\": \"apache_ii\", \"similarity\": 0.72},\n#      ...\n#    ]}\n```\n\n💡 相關性基於: 共享參數、相同專科、相同臨床情境\n",
+   "parameters": {
+    "properties": {
+     "tool_id": {
+      "title": "Tool Id",
+      "type": "string"
+     },
+     "limit": {
+      "default": 5,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "tool_id"
+    ],
+    "title": "get_related_toolsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "find_tools_by_params",
+   "description": "\n🔍 根據已有參數找工具 (High-Level 反向查找)\n\n「我有這些數值，可以計算什麼？」\n\nArgs:\n    params: 參數名稱列表\n        Examples: [\"creatinine\", \"age\", \"weight\"]\n                 [\"gcs\", \"pupil\", \"motor\"]\n                 [\"bilirubin\", \"inr\", \"ascites\"]\n\nReturns:\n    可使用這些參數的工具清單\n\n**Example:**\n```python\nfind_tools_by_params([\"age\", \"creatinine\", \"bilirubin\"])\n# → {\"tools\": [\n#      {\"tool_id\": \"meld_score\", \"input_params\": [...]},\n#      {\"tool_id\": \"ckd_epi_2021\", \"input_params\": [...]},\n#      ...\n#    ]}\n```\n\n💡 適合場景: 已有病患數據，想知道能計算哪些評分\n",
+   "parameters": {
+    "properties": {
+     "params": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Params",
+      "type": "array"
+     }
+    },
+    "required": [
+     "params"
+    ],
+    "title": "find_tools_by_paramsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate",
+   "description": "\n🧮 通用醫學計算工具\n\n使用指定的計算器執行計算。支援所有 75+ 種醫學計算器。\n\n**使用流程:**\n1. 先用 discover(by=\"keyword\" | \"specialty\" | \"context\") 找工具\n2. 用 get_tool_schema(tool_id) 查看需要的參數\n3. 呼叫 calculate(tool_id, params) 執行計算\n\n**嚴格規則:**\n- 不要猜參數名稱，必須以 get_tool_schema() 回傳為準\n- 不要把 calculate 當搜尋工具；tool_id 不確定時先用 discover()\n- 如果回傳 guidance 或 param_template，先依該內容修正後再重試\n\nArgs:\n    tool_id: 計算器 ID (例如: \"sofa\", \"apache_ii\", \"ckd_epi_2021\")\n    params: 計算參數字典 (從 get_tool_schema 取得參數名稱)\n\nReturns:\n    計算結果，包含:\n    - success: 是否成功\n    - score_name: 評分名稱\n    - result: 計算結果 (分數或數值)\n    - unit: 單位\n    - interpretation: 臨床解讀\n    - references: 參考文獻\n\n**Examples:**\n\nExample 1 - SOFA Score:\n```\ncalculate(\"sofa_score\", {\n    \"pao2_fio2_ratio\": 300,\n    \"is_mechanically_ventilated\": False,\n    \"platelets\": 150,\n    \"bilirubin\": 1.2,\n    \"map_value\": 70,\n    \"gcs_score\": 15,\n    \"creatinine\": 1.0,\n    \"urine_output_24h\": 1500\n})\n```\n\nExample 2 - CKD-EPI 2021:\n```\ncalculate(\"ckd_epi_2021\", {\n    \"serum_creatinine\": 1.2,\n    \"age\": 65,\n    \"sex\": \"male\"\n})\n```\n\nExample 3 - RCRI (Revised Cardiac Risk Index):\n```\ncalculate(\"rcri\", {\n    \"high_risk_surgery\": True,\n    \"ischemic_heart_disease\": False,\n    \"heart_failure\": False,\n    \"cerebrovascular_disease\": False,\n    \"insulin_therapy\": True,\n    \"creatinine_above_2\": False\n})\n```\n\n**常用計算器:**\n- Critical Care: sofa_score, apache_ii, news2_score, qsofa_score, glasgow_coma_scale\n- Cardiology: chads2_vasc, heart_score, rcri\n- Nephrology: ckd_epi_2021, kdigo_aki\n- Anesthesiology: asa_physical_status, mallampati_score, stop_bang\n- Hepatology: meld_score, child_pugh\n\n⏮️ 上一步: get_tool_schema(tool_id) 查看完整參數說明\n",
+   "parameters": {
+    "properties": {
+     "tool_id": {
+      "title": "Tool Id",
+      "type": "string"
+     },
+     "params": {
+      "additionalProperties": true,
+      "title": "Params",
+      "type": "object"
+     }
+    },
+    "required": [
+     "tool_id",
+     "params"
+    ],
+    "title": "calculateArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "calculate_batch",
+   "description": "\n🧮 批次計算多個工具 - 減少 round-trip，提高效率\n\n一次執行多個計算，並提供結果間的事實關係分析。\n適合需要同時評估多個指標的臨床情境。\n\nArgs:\n    calculations: 計算請求列表，每個元素包含:\n        - tool_id: 計算器 ID\n        - params: 參數字典\n\nReturns:\n    - results: 各計算的結果\n    - summary: 結果摘要\n    - cross_analysis: 結果間的事實關係 (非臨床推理)\n    - all_success: 是否全部成功\n\n**Example - Sepsis 評估:**\n```\ncalculate_batch([\n    {\"tool_id\": \"qsofa_score\", \"params\": {\n        \"respiratory_rate\": 24,\n        \"systolic_bp\": 95,\n        \"altered_mentation\": True\n    }},\n    {\"tool_id\": \"sofa_score\", \"params\": {\n        \"pao2_fio2_ratio\": 200,\n        \"platelets\": 80,\n        \"bilirubin\": 2.5,\n        \"gcs_score\": 13,\n        \"creatinine\": 2.0\n    }}\n])\n```\n\n**Cross-analysis 提供的事實判斷 (非推理):**\n- \"qSOFA ≥ 2 且 SOFA ≥ 2: 符合 Sepsis-3 定義標準\"\n- \"RCRI ≥ 2: 符合高心臟風險標準\"\n\n💡 這不是臨床建議，只是根據指引標準的事實陳述\n",
+   "parameters": {
+    "properties": {
+     "calculations": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Calculations",
+      "type": "array"
+     }
+    },
+    "required": [
+     "calculations"
+    ],
+    "title": "calculate_batchArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_tool_schema",
+   "description": "\n📋 取得工具完整資訊 + 參數 Schema + 來源提示 (Low-Level)\n\n整併了原本的 get_calculator_info 和 get_calculation_schema，\n提供 Agent 執行計算所需的所有資訊:\n\n1. **工具基本資訊**: 名稱、用途、專科、情境\n2. **參數 Schema**: 每個參數的類型、單位、正常範圍\n3. **來源提示**: 參數通常從哪裡取得 (Parameter Provenance)\n4. **參考文獻**: PMID/DOI (100% 覆蓋率，Vancouver style)\n\nArgs:\n    tool_id: 計算器 ID (從 discover() 取得)\n    include_references: 是否包含參考文獻 (預設 True)\n        - True: 包含完整參考文獻 (citation, PMID, DOI)\n        - False: 省略以節省 tokens\n    include_param_sources: 是否包含參數來源提示 (預設 True)\n        - True: 包含 clinical_hint, common_sources, normal_range\n        - False: 只返回基本 type/unit\n\nReturns:\n    完整的工具資訊，包含:\n    - tool_id, name, purpose\n    - specialties, contexts (High-Level 分類)\n    - required_params (必要參數列表)\n    - param_schemas (每個參數的詳細 Schema)\n    - references (參考文獻，若 include_references=True)\n\n**Example:**\n```python\n# 完整資訊 (預設)\nget_tool_schema(\"ckd_epi_2021\")\n\n# 只要基本資訊 (節省 tokens)\nget_tool_schema(\"ckd_epi_2021\", include_references=False, include_param_sources=False)\n```\n\n⏭️ 下一步: calculate(tool_id, params) 執行計算\n",
+   "parameters": {
+    "properties": {
+     "tool_id": {
+      "title": "Tool Id",
+      "type": "string"
+     },
+     "include_references": {
+      "default": true,
+      "title": "Include References",
+      "type": "boolean"
+     },
+     "include_param_sources": {
+      "default": true,
+      "title": "Include Param Sources",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "tool_id"
+    ],
+    "title": "get_tool_schemaArguments",
+    "type": "object"
+   }
+  }
+ }
+]

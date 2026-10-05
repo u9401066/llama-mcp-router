@@ -1,0 +1,2695 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "register_dataset",
+   "description": "\nRegister a CSV dataset from MinIO for use in training.\n\nThe file must already exist in MinIO. This validates the file\nand registers it with the AutoML service.\n\nReturns:\n    dataset_id: Unique identifier for this dataset\n    name: Dataset name\n    columns: List of column names\n    row_count: Number of rows\n\nNext step: Use dataset_id in submit_automl_job or submit_specific_job\n",
+   "parameters": {
+    "properties": {
+     "name": {
+      "description": "Dataset name for identification",
+      "title": "Name",
+      "type": "string"
+     },
+     "minio_path": {
+      "description": "Path to CSV file in MinIO (e.g., 'bucket/path/file.csv')",
+      "title": "Minio Path",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID for resource isolation",
+      "title": "User Id",
+      "type": "string"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional session ID",
+      "title": "Session Id"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional dataset description",
+      "title": "Description"
+     }
+    },
+    "required": [
+     "name",
+     "minio_path",
+     "user_id"
+    ],
+    "title": "register_datasetArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_datasets",
+   "description": "\nList all datasets registered by the user.\n\nReturns:\n    List of datasets with their IDs, names, columns, and metadata\n",
+   "parameters": {
+    "properties": {
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional session ID",
+      "title": "Session Id"
+     }
+    },
+    "required": [
+     "user_id"
+    ],
+    "title": "list_datasetsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_dataset",
+   "description": "\nDelete a registered dataset.\n\nNote: This only removes the registration, not the file in MinIO.\n",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "description": "Dataset ID to delete",
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "user_id"
+    ],
+    "title": "delete_datasetArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_available_files",
+   "description": "\n📂 List available files in mounted data directories.\n\nUse this BEFORE upload_dataset to see what LOCAL files are available.\n\nMounted directories:\n- /data/sample_data - Sample datasets for testing (read-only)\n- /data/projects - User research projects (read-write)\n\nNote: This only shows LOCAL files. For registered datasets (in MinIO),\nuse list_datasets() instead.\n\nReturns:\n    directories: List of available directories\n    files: List of files matching pattern\n    total_count: Total number of files found\n\nExample:\n    # List all CSV files\n    list_available_files()\n\n    # List files in specific directory\n    list_available_files(directory=\"/data/sample_data\")\n",
+   "parameters": {
+    "properties": {
+     "directory": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Directory to list. If not provided, lists all mounted data directories.",
+      "title": "Directory"
+     },
+     "pattern": {
+      "default": "*.csv",
+      "description": "File pattern to match (e.g., '*.csv')",
+      "title": "Pattern",
+      "type": "string"
+     }
+    },
+    "title": "list_available_filesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "upload_dataset",
+   "description": "\n📤 Upload a dataset for analysis or ML training.\n\n⚠️ IMPORTANT: Ask user TWO questions BEFORE calling:\n1. Which FILE to use? (local or MinIO)\n2. Save permanently or temporary use only?\n\nSTORAGE MODES:\n\n🔄 TEMPORARY (storage_mode='temporary'):\n   - Stored in Redis with the job\n   - For one-time analysis only\n   - Faster, no MinIO overhead\n   - Data expires after job completion\n   - Returns: job_id (use for analysis)\n\n💾 PERMANENT (storage_mode='permanent'):\n   - Stored in MinIO\n   - Can be reused for multiple analyses\n   - Required for ML training\n   - Returns: dataset_id (use for training/analysis)\n\nWorkflow:\n```\nAgent: \"我來幫你上傳資料集。請回答兩個問題：\"\n\nQ1: \"資料來源？\"\n    1. 📁 本地檔案 (sample_data, uploads 資料夾)\n    2. ☁️ MinIO 路徑 (已在 MinIO 的檔案)\n\nQ2: \"儲存方式？\"\n    1. 🔄 暫存 (一次性分析，不保留)\n    2. 💾 永久存檔 (可重複使用，用於 ML 訓練)\n\nUser: \"本地檔案 breast_cancer.csv，暫存\"\n\nAgent: upload_dataset(\n         name=\"breast_cancer\",\n         source_type=\"local\",\n         source_path=\"/data/sample_data/breast_cancer.csv\",\n         storage_mode=\"temporary\"\n       )\n```\n\nReturns:\n    For TEMPORARY:\n        job_id: Use this for direct analysis\n        data_preview: Sample of the data\n        next_steps: How to analyze the data\n\n    For PERMANENT:\n        dataset_id: Use this for training/analysis\n        columns: List of column names\n        row_count: Number of rows\n        next_steps: How to use the dataset\n",
+   "parameters": {
+    "properties": {
+     "name": {
+      "description": "Dataset name for identification",
+      "title": "Name",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID for resource isolation",
+      "title": "User Id",
+      "type": "string"
+     },
+     "source_type": {
+      "description": "Upload source: 'local' (file in mounted directory) or 'minio' (existing MinIO path)",
+      "title": "Source Type",
+      "type": "string"
+     },
+     "source_path": {
+      "description": "For 'local': file path (e.g., '/data/sample_data/iris.csv'). For 'minio': MinIO path (e.g., 'bucket/path/file.csv')",
+      "title": "Source Path",
+      "type": "string"
+     },
+     "storage_mode": {
+      "default": "permanent",
+      "description": "Storage mode: 'temporary' (Redis, one-time use) or 'permanent' (MinIO, reusable)",
+      "title": "Storage Mode",
+      "type": "string"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional session ID",
+      "title": "Session Id"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional dataset description",
+      "title": "Description"
+     }
+    },
+    "required": [
+     "name",
+     "user_id",
+     "source_type",
+     "source_path"
+    ],
+    "title": "upload_datasetArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "submit_automl_job",
+   "description": "\nSubmit an AutoML training job.\n\nThis starts automatic model selection and hyperparameter tuning.\nThe job runs in the background - this call returns IMMEDIATELY.\n\n⚠️ IMPORTANT: Training may take minutes to hours!\nUse get_job_status(job_id) to check progress.\n\nReturns:\n    job_id: Unique job identifier (use this to check status)\n    job_type: \"automl\"\n    status: \"pending\" (will change to \"running\", then \"completed\" or \"failed\")\n\nNext steps:\n    1. Tell the user training has started\n    2. Use get_job_status(job_id) to check progress\n    3. When status is \"completed\", use the model_id for predictions\n",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "description": "Dataset ID to train on",
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "target_column": {
+      "description": "Name of the target/label column",
+      "title": "Target Column",
+      "type": "string"
+     },
+     "problem_type": {
+      "description": "Type of ML problem",
+      "enum": [
+       "binary",
+       "multiclass",
+       "regression"
+      ],
+      "title": "Problem Type",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional session ID",
+      "title": "Session Id"
+     },
+     "time_limit": {
+      "default": 300,
+      "description": "Training time limit in seconds",
+      "title": "Time Limit",
+      "type": "integer"
+     },
+     "presets": {
+      "default": "medium_quality",
+      "description": "AutoGluon quality preset",
+      "enum": [
+       "best_quality",
+       "high_quality",
+       "good_quality",
+       "medium_quality",
+       "optimize_for_deployment"
+      ],
+      "title": "Presets",
+      "type": "string"
+     },
+     "metric": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Evaluation metric (auto-selected if not specified)",
+      "title": "Metric"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "target_column",
+     "problem_type",
+     "user_id"
+    ],
+    "title": "submit_automl_jobArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_job_status",
+   "description": "\nGet the status of a training job.\n\nUse this to check if training is complete.\n\nReturns:\n    job_id: Job identifier\n    status: \"pending\" | \"running\" | \"completed\" | \"failed\" | \"cancelled\"\n    progress: 0.0 to 1.0\n    status_message: Human-readable status\n    model_id: (only when completed) ID of the trained model\n    error_message: (only when failed) Error description\n\nWhen status is \"completed\":\n    - Use model_id with get_model_leaderboard() to see results\n    - Use model_id with predict() to make predictions\n",
+   "parameters": {
+    "properties": {
+     "job_id": {
+      "description": "Job ID to check",
+      "title": "Job Id",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id",
+     "user_id"
+    ],
+    "title": "get_job_statusArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_jobs",
+   "description": "\nList all training jobs for the user.\n\nReturns jobs in all states (pending, running, completed, failed).\n",
+   "parameters": {
+    "properties": {
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional session ID",
+      "title": "Session Id"
+     }
+    },
+    "required": [
+     "user_id"
+    ],
+    "title": "list_jobsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cancel_job",
+   "description": "\nCancel a pending or running training job.\n\nCannot cancel jobs that are already completed or failed.\n",
+   "parameters": {
+    "properties": {
+     "job_id": {
+      "description": "Job ID to cancel",
+      "title": "Job Id",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id",
+     "user_id"
+    ],
+    "title": "cancel_jobArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_models",
+   "description": "\nList all trained models for the user.\n\nReturns models with their performance metrics and metadata.\n",
+   "parameters": {
+    "properties": {
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional session ID",
+      "title": "Session Id"
+     }
+    },
+    "required": [
+     "user_id"
+    ],
+    "title": "list_modelsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_model_leaderboard",
+   "description": "\nGet the leaderboard for a trained model.\n\nShows all models trained during the experiment, ranked by performance.\n\nReturns:\n    List of entries with:\n    - model_name: Name of the model (e.g., \"WeightedEnsemble_L2\", \"XGBoost\")\n    - score: Validation score\n    - fit_time: Training time in seconds\n    - pred_time: Prediction time\n    - stack_level: Ensemble stacking level\n",
+   "parameters": {
+    "properties": {
+     "model_id": {
+      "description": "Model ID",
+      "title": "Model Id",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "model_id",
+     "user_id"
+    ],
+    "title": "get_model_leaderboardArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "predict",
+   "description": "\nMake predictions using a trained model.\n\nThe prediction dataset should have the same features as the training\ndataset (excluding the target column).\n\nReturns:\n    model_id: Model used\n    predictions: List of predicted values\n    probabilities: (for classification) List of probability arrays\n",
+   "parameters": {
+    "properties": {
+     "model_id": {
+      "description": "Model ID to use for prediction",
+      "title": "Model Id",
+      "type": "string"
+     },
+     "dataset_id": {
+      "description": "Dataset ID containing data to predict on",
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "model_id",
+     "dataset_id",
+     "user_id"
+    ],
+    "title": "predictArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "delete_model",
+   "description": "\nDelete a trained model.\n\nThis permanently removes the model and its files.\n",
+   "parameters": {
+    "properties": {
+     "model_id": {
+      "description": "Model ID to delete",
+      "title": "Model Id",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "model_id",
+     "user_id"
+    ],
+    "title": "delete_modelArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "train_and_wait",
+   "description": "\n🚀 One-shot AutoML: Submit training and wait for results.\n\nThis is a convenience tool that:\n1. Submits an AutoML training job\n2. Waits for it to complete\n3. Returns the full results including model_id and leaderboard\n\n⚠️ This call blocks until training completes or times out!\nFor time_limit=300 (5 min), actual training may take 5-10 minutes.\n\nReturns:\n    job_id: Job identifier\n    status: \"completed\" | \"failed\" | \"timeout\"\n    model_id: (if completed) Ready-to-use model ID\n    result: (if completed) Full training results\n        - best_model: Name of best model\n        - best_score: Best validation score\n        - leaderboard: All models ranked by score\n    error_message: (if failed) What went wrong\n\nNext step (if completed):\n    Use predict(model_id, test_dataset_id) to make predictions\n",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "description": "Dataset ID to train on",
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "target_column": {
+      "description": "Name of the target/label column",
+      "title": "Target Column",
+      "type": "string"
+     },
+     "problem_type": {
+      "description": "Type of ML problem",
+      "enum": [
+       "binary",
+       "multiclass",
+       "regression"
+      ],
+      "title": "Problem Type",
+      "type": "string"
+     },
+     "user_id": {
+      "description": "User ID",
+      "title": "User Id",
+      "type": "string"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional session ID",
+      "title": "Session Id"
+     },
+     "time_limit": {
+      "default": 300,
+      "description": "Training time limit in seconds",
+      "title": "Time Limit",
+      "type": "integer"
+     },
+     "presets": {
+      "default": "medium_quality",
+      "description": "AutoGluon quality preset",
+      "enum": [
+       "best_quality",
+       "high_quality",
+       "good_quality",
+       "medium_quality",
+       "optimize_for_deployment"
+      ],
+      "title": "Presets",
+      "type": "string"
+     },
+     "wait_timeout": {
+      "default": 3600,
+      "description": "Max seconds to wait for completion",
+      "title": "Wait Timeout",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "target_column",
+     "problem_type",
+     "user_id"
+    ],
+    "title": "train_and_waitArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_analysis_results",
+   "description": "\n📋 List saved analysis results for a user.\n\nRetrieves results stored in Redis from previous analysis runs.\nResults are automatically saved when using tools like:\n- compare_groups\n- analyze_correlations\n- generate_tableone_directly\n\nArgs:\n    user_id: User ID to list results for\n    analysis_type: Filter by type (tableone, correlation, compare_groups, roc)\n    limit: Maximum number of results to return (default 20)\n\nReturns:\n    results: List of result summaries with result_id and metadata\n    count: Number of results found\n",
+   "parameters": {
+    "properties": {
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     },
+     "analysis_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Analysis Type"
+     },
+     "limit": {
+      "default": 20,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "user_id"
+    ],
+    "title": "list_analysis_resultsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_analysis_result",
+   "description": "\n📄 Retrieve a saved analysis result by ID.\n\nFetches the full result from Redis storage.\nUse list_analysis_results to find available result IDs.\n\nArgs:\n    result_id: The result ID (e.g., \"stat_tableone_abc123\")\n\nReturns:\n    metadata: Result metadata (type, user, created_at)\n    result: The full analysis result\n",
+   "parameters": {
+    "properties": {
+     "result_id": {
+      "title": "Result Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result_id"
+    ],
+    "title": "get_analysis_resultArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_user_visualizations",
+   "description": "\n🖼️ List visualizations (figures/plots) stored in MinIO for a user.\n\nRetrieves URLs to visualization files (PNG, SVG) generated by analysis tools.\nVisualizations are organized by job and analysis type.\n\nArgs:\n    user_id: User ID to list visualizations for\n    result_type: Filter by type (roc, km_curve, correlation, etc.)\n    limit: Maximum number of results (default 50)\n\nReturns:\n    visualizations: List of visualization metadata with URLs\n    count: Number of visualizations found\n\nExample:\n    list_user_visualizations(user_id=\"eric\", result_type=\"roc\")\n",
+   "parameters": {
+    "properties": {
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     },
+     "result_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Result Type"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "user_id"
+    ],
+    "title": "list_user_visualizationsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_project_workspace",
+   "description": "\n📁 Create a project workspace directory structure.\n\nCreates organized directories for research projects:\n- data/raw/      - Original data files\n- data/processed/ - Cleaned data files\n- analysis/      - Analysis outputs\n- reports/       - Generated reports\n- figures/       - Visualizations\n\nArgs:\n    project_name: Name of the project (alphanumeric + underscore)\n    user_id: User ID for ownership\n    template: Template type (default, medical_study, ml_project)\n\nReturns:\n    project_path: Root path of the created project\n    directories: List of created directories\n    next_steps: Suggested next actions\n\nExample:\n    create_project_workspace(\n        project_name=\"breast_cancer_study\",\n        user_id=\"eric\",\n        template=\"medical_study\"\n    )\n",
+   "parameters": {
+    "properties": {
+     "project_name": {
+      "title": "Project Name",
+      "type": "string"
+     },
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     },
+     "template": {
+      "default": "default",
+      "title": "Template",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_name",
+     "user_id"
+    ],
+    "title": "create_project_workspaceArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_project_workspaces",
+   "description": "\n📂 List available project workspaces.\n\nShows all project directories in /data/projects/ with their metadata.\n\nArgs:\n    user_id: Optional filter by user (currently not enforced)\n\nReturns:\n    projects: List of project directories with info\n    count: Number of projects found\n",
+   "parameters": {
+    "properties": {
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "User Id"
+     }
+    },
+    "title": "list_project_workspacesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_stats_job_status",
+   "description": "\nGet the status of a statistics job.\n\nArgs:\n    job_id: Job ID from submit_eda_job or submit_tableone_job\n\nReturns:\n    job_id: Job identifier\n    job_type: \"eda\" or \"tableone\"\n    status: \"pending\" | \"running\" | \"completed\" | \"failed\"\n    progress: 0.0 to 1.0\n    message: Human-readable status message\n    result_path: (when completed) Path to result in MinIO\n    error: (when failed) Error description\n",
+   "parameters": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id"
+    ],
+    "title": "get_stats_job_statusArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_stats_job_result",
+   "description": "\nGet the result of a completed statistics job.\n\nFor EDA jobs, returns the ydata-profiling analysis.\nFor TableOne jobs, returns the summary statistics table.\n\nArgs:\n    job_id: Job ID of a completed job\n\nReturns:\n    job_id: Job identifier\n    job_type: Type of job\n    result: The analysis result (structure depends on job_type)\n",
+   "parameters": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id"
+    ],
+    "title": "get_stats_job_resultArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_stats_jobs",
+   "description": "\nList statistics jobs for a user.\n\nArgs:\n    user_id: User ID to filter by\n    job_type: Optional filter by type (\"eda\" or \"tableone\")\n    limit: Maximum number of jobs to return\n\nReturns:\n    jobs: List of job records\n    count: Number of jobs returned\n",
+   "parameters": {
+    "properties": {
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     },
+     "job_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Job Type"
+     },
+     "limit": {
+      "default": 50,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "user_id"
+    ],
+    "title": "list_stats_jobsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_quick_stats",
+   "description": "\n⚡ Get quick statistics synchronously (instant results).\n\n⚠️ Pass FILE PATH, not raw CSV content!\n\nReturns immediately with basic statistics without job queue.\nFor full analysis, use analyze_csv_directly instead.\n\nArgs:\n    csv_path: Path to CSV file (e.g., '/data/sample_data/iris.csv')\n\nReturns:\n    rows: Number of rows\n    columns: Number of columns\n    column_info: Type, nulls, unique count per column\n    missing_summary: Missing value statistics\n    numeric_summary: Basic stats for numeric columns\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "get_quick_statsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "analyze_correlations",
+   "description": "\n📈 Enhanced correlation analysis with multiple methods.\n\n⚠️ Pass FILE PATH, not raw CSV content!\n\nComputes Pearson, Spearman, and Kendall correlations with:\n- Full correlation matrices\n- P-value matrices for significance testing\n- Heatmap data for visualization\n- Significant pairs highlighted\n\nArgs:\n    csv_path: Path to CSV file (e.g., '/data/sample_data/iris.csv')\n    columns: Columns to analyze (default: all numeric)\n    method: \"pearson\", \"spearman\", \"kendall\", or \"all\"\n    min_correlation: Minimum |r| to flag (default: 0.3)\n    save_result: Whether to save result to Redis/MinIO (default True)\n    user_id: User ID for result storage (default \"default\")\n\nReturns:\n    result_id: Unique ID for retrieving result later\n    result_path: MinIO path where result is stored\n    matrices: Pearson/Spearman correlation and p-value matrices\n    significant_pairs: Pairs with significant correlation\n    heatmap_data: Ready-to-plot heatmap data\n    summary: Overall statistics\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "columns": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Columns"
+     },
+     "method": {
+      "default": "all",
+      "title": "Method",
+      "type": "string"
+     },
+     "min_correlation": {
+      "default": 0.3,
+      "title": "Min Correlation",
+      "type": "number"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "analyze_correlationsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "compare_groups",
+   "description": "\n🔬 Compare distributions of a numeric variable across groups.\n\n⚠️ Pass FILE PATH, not raw CSV content!\n\nAutomatically selects appropriate tests:\n- 2 groups: t-test or Mann-Whitney U\n- 3+ groups: ANOVA or Kruskal-Wallis + post-hoc\n\nIncludes:\n- Normality tests per group\n- Homogeneity of variance (Levene's test)\n- Effect size calculation\n- Post-hoc pairwise comparisons with Bonferroni correction\n\nArgs:\n    csv_path: Path to CSV file (e.g., '/data/sample_data/iris.csv')\n    numeric_column: Column with numeric values to compare\n    group_column: Column with group labels\n    save_result: Whether to save result to Redis/MinIO (default True)\n    user_id: User ID for result storage (default \"default\")\n\nReturns:\n    result_id: Unique ID for retrieving result later\n    result_path: MinIO path where result is stored\n    groups: Group labels\n    normality: Normality test results per group\n    variance_test: Levene's test result\n    main_test: Main comparison (t-test/ANOVA/etc)\n    post_hoc: Pairwise comparisons (if >2 groups)\n    group_statistics: Descriptive stats per group\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "numeric_column": {
+      "title": "Numeric Column",
+      "type": "string"
+     },
+     "group_column": {
+      "title": "Group Column",
+      "type": "string"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "csv_path",
+     "numeric_column",
+     "group_column"
+    ],
+    "title": "compare_groupsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "analyze_missing_values",
+   "description": "\n🔍 Comprehensive missing value analysis.\n\nDetects missing value patterns:\n- MCAR (Missing Completely At Random): Safe for listwise deletion\n- MAR (Missing At Random): Use model-based imputation\n- MNAR (Missing Not At Random): Complex handling needed\n\nIncludes:\n- Per-column missing statistics\n- Little's MCAR test (approximation)\n- Missing value correlations\n- Imputation recommendations\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n\nReturns:\n    summary: Overall missing statistics\n    columns: Per-column missing details\n    pattern: MCAR/MAR/MNAR with confidence\n    mcar_test: Little's MCAR test result\n    recommendations: Handling suggestions\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "analyze_missing_valuesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "check_multicollinearity",
+   "description": "\n📊 Check multicollinearity using VIF (Variance Inflation Factor).\n\nVIF interpretation:\n- VIF = 1: No correlation with other variables\n- VIF < 5: Acceptable (moderate correlation)\n- VIF ≥ 5: High correlation (problematic)\n- VIF ≥ 10: Severe multicollinearity (very problematic)\n\nHigh VIF indicates that a variable is highly correlated with\nother variables, which can cause problems in regression models.\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    columns: Columns to analyze (default: all numeric)\n    vif_threshold: VIF threshold for flagging (default: 5.0)\n\nReturns:\n    vif_results: VIF for each column\n    condition_number: Overall condition number\n    problematic_columns: Columns with high VIF\n    recommendations: Action suggestions\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "columns": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Columns"
+     },
+     "vif_threshold": {
+      "default": 5.0,
+      "title": "Vif Threshold",
+      "type": "number"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "check_multicollinearityArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "generate_tableone_directly",
+   "description": "\n📊 Generate Table 1 (baseline characteristics) directly from CSV.\n\nCreates publication-ready summary statistics tables for medical research.\nAutomatically detects column types and selects appropriate statistical tests.\n\nStatistical test selection:\n- Categorical: Chi-square (n≥5) or Fisher's exact (n<5)\n- Continuous normal: t-test (2 groups) or ANOVA (3+ groups)\n- Continuous non-normal: Mann-Whitney U (2) or Kruskal-Wallis (3+)\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    groupby: Column to stratify by (e.g., \"treatment_group\")\n    categorical: Columns to treat as categorical (auto-detect if not specified)\n    continuous: Columns to treat as continuous (auto-detect if not specified)\n    nonnormal: Columns to report as median[IQR] instead of mean±SD\n    pval: Include p-values for group comparisons (default: True)\n    output_format: \"dict\", \"markdown\", \"html\", or \"latex\"\n    save_result: Whether to save result to Redis/MinIO (default True)\n    user_id: User ID for result storage (default \"default\")\n\nReturns:\n    result_id: Unique ID for retrieving result later\n    result_path: MinIO path where result is stored\n    status: \"success\" or \"error\"\n    table_data: Summary statistics table as nested dict\n    n_total: Total sample size\n    n_groups: Sample size per group (if grouped)\n    format: Requested output format\n    markdown/html/latex: Formatted table (if format specified)\n    tests_used: Statistical tests applied\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "groupby": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Groupby"
+     },
+     "categorical": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Categorical"
+     },
+     "continuous": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Continuous"
+     },
+     "nonnormal": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Nonnormal"
+     },
+     "pval": {
+      "default": true,
+      "title": "Pval",
+      "type": "boolean"
+     },
+     "output_format": {
+      "default": "dict",
+      "title": "Output Format",
+      "type": "string"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "generate_tableone_directlyArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "kaplan_meier_survival",
+   "description": "\n📈 Kaplan-Meier survival analysis with log-rank test.\n\nPerforms non-parametric survival analysis:\n- Kaplan-Meier survival curves for each group\n- Median survival time with 95% CI\n- Log-rank test for group comparisons\n- Survival probability at specified time points\n- **Kaplan-Meier curve plot (saved to MinIO)**\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    time_col: Column name for time-to-event (e.g., \"survival_months\")\n    event_col: Column name for event indicator (1=event occurred, 0=censored)\n    group_col: Optional column for stratification (e.g., \"treatment\")\n    time_points: Specific times to report survival (e.g., [12, 24, 36])\n    alpha: Significance level for CI (default: 0.05 for 95% CI)\n    generate_plot: Generate KM curve image (default: True)\n\nReturns:\n    survival_curves: KM curves for each group\n    median_survival: Median survival with CI per group\n    log_rank_test: Test for difference between groups (if grouped)\n    survival_at_times: Survival probability at specified times\n    visualizations: List of generated plots with MinIO URLs\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "time_col": {
+      "title": "Time Col",
+      "type": "string"
+     },
+     "event_col": {
+      "title": "Event Col",
+      "type": "string"
+     },
+     "group_col": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Group Col"
+     },
+     "time_points": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Time Points"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     },
+     "generate_plot": {
+      "default": true,
+      "title": "Generate Plot",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "time_col",
+     "event_col"
+    ],
+    "title": "kaplan_meier_survivalArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "cox_proportional_hazards",
+   "description": "\n🔬 Cox Proportional Hazards regression for survival analysis.\n\nSemi-parametric survival model that estimates hazard ratios:\n- Hazard ratios with 95% CI for each covariate\n- Model fit statistics (log-likelihood, concordance)\n- Wald and likelihood ratio tests\n\nInterpretation:\n- HR > 1: Increased risk of event\n- HR < 1: Decreased risk (protective)\n- HR = 1: No effect\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    time_col: Column name for time-to-event\n    event_col: Column name for event indicator\n    covariates: List of covariate columns (default: all numeric)\n    alpha: Significance level for CI\n\nReturns:\n    coefficients: Beta coefficients with SE, HR, CI, p-value\n    model_fit: Log-likelihood, concordance index\n    global_tests: Wald test, likelihood ratio test\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "time_col": {
+      "title": "Time Col",
+      "type": "string"
+     },
+     "event_col": {
+      "title": "Event Col",
+      "type": "string"
+     },
+     "covariates": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Covariates"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     }
+    },
+    "required": [
+     "csv_path",
+     "time_col",
+     "event_col"
+    ],
+    "title": "cox_proportional_hazardsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "estimate_treatment_effect",
+   "description": "\n💊 Estimate causal treatment effect using IPW.\n\nEstimates:\n- ATE: Average Treatment Effect (population)\n- ATT: Average Treatment Effect on Treated\n- ATU: Average Treatment Effect on Untreated\n\nUses inverse probability weighting to adjust for confounding.\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    outcome_col: Outcome variable column\n    treatment_col: Binary treatment column\n    covariates: Covariates for PS estimation\n    score_col: Pre-computed propensity score column\n    method: 'ipw' or 'iptw'\n    target: 'ate', 'att', or 'atu'\n    stabilized: Use stabilized weights (recommended)\n\nReturns:\n    effect_type: ATE, ATT, or ATU\n    estimate: Point estimate of treatment effect\n    std_error: Standard error (bootstrap)\n    confidence_interval: 95% CI\n    p_value: Two-sided p-value\n    significant: Whether effect is significant at α=0.05\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "outcome_col": {
+      "title": "Outcome Col",
+      "type": "string"
+     },
+     "treatment_col": {
+      "title": "Treatment Col",
+      "type": "string"
+     },
+     "covariates": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Covariates"
+     },
+     "score_col": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Score Col"
+     },
+     "method": {
+      "default": "ipw",
+      "title": "Method",
+      "type": "string"
+     },
+     "target": {
+      "default": "ate",
+      "title": "Target",
+      "type": "string"
+     },
+     "stabilized": {
+      "default": true,
+      "title": "Stabilized",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "outcome_col",
+     "treatment_col"
+    ],
+    "title": "estimate_treatment_effectArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_propensity_analysis",
+   "description": "\n🎯 Complete propensity score analysis workflow.\n\nAll-in-one analysis that performs:\n1. Propensity score estimation\n2. Balance assessment (before)\n3. Matching or IPW weighting\n4. Balance assessment (after)\n5. Treatment effect estimation\n\nChoose method:\n- matching: Create matched pairs (reduces sample size)\n- ipw: Use weights (keeps all data)\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    outcome_col: Outcome variable column\n    treatment_col: Binary treatment column (0/1)\n    covariates: List of confounding variables\n    method: 'matching' or 'ipw'\n    target: 'ate' (population), 'att' (treated), 'atu' (untreated)\n    caliper: For matching, max distance in std devs\n\nReturns:\n    propensity_model: PS estimation results\n    balance_before: Covariate balance pre-adjustment\n    balance_after: Covariate balance post-adjustment\n    method_details: Matching/weighting specifics\n    treatment_effect: Effect estimate with CI and p-value\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "outcome_col": {
+      "title": "Outcome Col",
+      "type": "string"
+     },
+     "treatment_col": {
+      "title": "Treatment Col",
+      "type": "string"
+     },
+     "covariates": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Covariates",
+      "type": "array"
+     },
+     "method": {
+      "default": "matching",
+      "title": "Method",
+      "type": "string"
+     },
+     "target": {
+      "default": "ate",
+      "title": "Target",
+      "type": "string"
+     },
+     "caliper": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": 0.2,
+      "title": "Caliper"
+     }
+    },
+    "required": [
+     "csv_path",
+     "outcome_col",
+     "treatment_col",
+     "covariates"
+    ],
+    "title": "run_propensity_analysisArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "compute_roc_curve",
+   "description": "\n📈 Compute ROC curve with AUC and confidence intervals.\n\nProvides comprehensive ROC analysis including:\n- ROC curve points (FPR, TPR at each threshold)\n- AUC with DeLong or bootstrap confidence intervals\n- Optimal threshold selection\n- Sensitivity, specificity, PPV, NPV at optimal point\n- **ROC curve plot (saved to MinIO)**\n\nThreshold selection methods:\n- youden: Maximizes Youden's J (sensitivity + specificity - 1)\n- cost: Minimizes misclassification cost (specify FP/FN costs)\n- sensitivity: Target minimum sensitivity (e.g., 0.90)\n- specificity: Target minimum specificity\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    y_true_col: Column with true binary labels (0/1)\n    y_score_col: Column with predicted probabilities\n    pos_label: Value representing positive class (default 1)\n    confidence_level: CI level (default 0.95 for 95% CI)\n    n_bootstrap: Bootstrap samples for CI (default 1000)\n    threshold_method: How to select optimal threshold\n    generate_plot: Generate ROC curve image (default: True)\n\nReturns:\n    auc: Area Under the ROC Curve\n    auc_ci: Confidence interval {lower, upper}\n    auc_se: Standard error of AUC\n    optimal_threshold: Best threshold for classification\n    optimal_metrics: Sens, spec, PPV, NPV at optimal threshold\n    curve: List of ROC points (threshold, fpr, tpr, sens, spec)\n    interpretation: Text description of model performance\n    visualizations: List of generated plots with MinIO URLs\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "y_true_col": {
+      "title": "Y True Col",
+      "type": "string"
+     },
+     "y_score_col": {
+      "title": "Y Score Col",
+      "type": "string"
+     },
+     "pos_label": {
+      "default": 1,
+      "title": "Pos Label",
+      "type": "integer"
+     },
+     "confidence_level": {
+      "default": 0.95,
+      "title": "Confidence Level",
+      "type": "number"
+     },
+     "n_bootstrap": {
+      "default": 1000,
+      "title": "N Bootstrap",
+      "type": "integer"
+     },
+     "threshold_method": {
+      "default": "youden",
+      "title": "Threshold Method",
+      "type": "string"
+     },
+     "generate_plot": {
+      "default": true,
+      "title": "Generate Plot",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "y_true_col",
+     "y_score_col"
+    ],
+    "title": "compute_roc_curveArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "compare_roc_curves",
+   "description": "\n🔬 Compare ROC curves from multiple models using DeLong test.\n\nStatistical comparison of classifier performance using the\nDeLong et al. (1988) method for comparing correlated AUCs.\n\nThis test accounts for the fact that both models are evaluated\non the same test set, making the comparison valid and powerful.\n\nUse cases:\n- Compare new model vs baseline\n- Compare different algorithms\n- Compare different feature sets\n- Model selection with statistical evidence\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    y_true_col: Column with true binary labels\n    model_score_cols: List of columns with predicted probabilities\n    model_names: Optional names for models (for output clarity)\n    method: 'delong' (recommended) or 'bootstrap'\n    generate_plot: Generate comparison plot (default: True)\n\nReturns:\n    models: Per-model results (AUC, CI, SE)\n    pairwise_comparisons: DeLong test for each pair\n        - auc_difference: AUC1 - AUC2\n        - z_statistic: DeLong Z score\n        - p_value: Two-sided p-value\n        - significant: Whether difference is significant\n        - ci: Confidence interval for difference\n    best_model: Model with highest AUC\n    recommendation: Statistical interpretation\n    visualizations: List of generated plots with MinIO URLs\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "y_true_col": {
+      "title": "Y True Col",
+      "type": "string"
+     },
+     "model_score_cols": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Model Score Cols",
+      "type": "array"
+     },
+     "model_names": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Model Names"
+     },
+     "method": {
+      "default": "delong",
+      "title": "Method",
+      "type": "string"
+     },
+     "generate_plot": {
+      "default": true,
+      "title": "Generate Plot",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "y_true_col",
+     "model_score_cols"
+    ],
+    "title": "compare_roc_curvesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "find_optimal_threshold",
+   "description": "\n🎯 Find optimal classification threshold using various methods.\n\nDifferent threshold selection strategies for different needs:\n\n**Methods:**\n- youden: Maximizes Youden's J index (balanced accuracy)\n- cost: Minimizes expected cost given FP/FN costs\n- f1: Maximizes F1 score\n- sensitivity: Achieves target sensitivity (minimum)\n- specificity: Achieves target specificity (minimum)\n- prevalence_adjusted: Accounts for class imbalance\n\n**Clinical Examples:**\n- Screening test: High sensitivity, accept lower specificity\n- Confirmatory test: High specificity to minimize false positives\n- Cost-sensitive: Different costs for FP vs FN errors\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    y_true_col: Column with true binary labels\n    y_score_col: Column with predicted probabilities\n    method: Threshold selection method\n    fp_cost: Cost of false positive (for cost method)\n    fn_cost: Cost of false negative (for cost method)\n    target_sensitivity: Minimum sensitivity (for sensitivity method)\n    target_specificity: Minimum specificity (for specificity method)\n    prevalence: Disease prevalence (for prevalence_adjusted method)\n\nReturns:\n    optimal_threshold: Selected threshold value\n    method_used: Which method was applied\n    metrics_at_threshold: Sens, spec, PPV, NPV, F1, accuracy\n    explanation: Why this threshold was selected\n    threshold_range: Nearby thresholds and their metrics\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "y_true_col": {
+      "title": "Y True Col",
+      "type": "string"
+     },
+     "y_score_col": {
+      "title": "Y Score Col",
+      "type": "string"
+     },
+     "method": {
+      "default": "youden",
+      "title": "Method",
+      "type": "string"
+     },
+     "fp_cost": {
+      "default": 1.0,
+      "title": "Fp Cost",
+      "type": "number"
+     },
+     "fn_cost": {
+      "default": 1.0,
+      "title": "Fn Cost",
+      "type": "number"
+     },
+     "target_sensitivity": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target Sensitivity"
+     },
+     "target_specificity": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target Specificity"
+     },
+     "prevalence": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Prevalence"
+     }
+    },
+    "required": [
+     "csv_path",
+     "y_true_col",
+     "y_score_col"
+    ],
+    "title": "find_optimal_thresholdArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "full_classifier_evaluation",
+   "description": "\n🏆 Complete classifier evaluation report with visualizations.\n\nComprehensive evaluation combining all ROC analysis tools:\n\n1. **Discrimination** (ROC Analysis)\n   - ROC curve and AUC with CI\n   - Optimal threshold selection\n\n2. **Classification Metrics**\n   - Confusion matrix\n   - Sensitivity, Specificity\n   - PPV, NPV, F1, Accuracy\n\n3. **Calibration**\n   - Brier score\n   - Hosmer-Lemeshow test\n   - Calibration curve\n\n4. **Visualizations** (saved to MinIO)\n   - ROC curve plot\n   - Calibration plot\n   - Confusion matrix heatmap\n\nPerfect for publication-ready classifier assessment.\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv)\n    y_true_col: Column with true binary labels\n    y_score_col: Column with predicted probabilities\n    threshold: Classification threshold (default: optimal)\n    generate_plot: Generate all evaluation plots (default: True)\n\nReturns:\n    roc_analysis: Full ROC curve results\n    calibration: Calibration analysis\n    classification_report: Metrics at threshold\n    summary: Executive summary text\n    publication_text: Ready-to-use results paragraph\n    visualizations: List of generated plots with MinIO URLs\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "y_true_col": {
+      "title": "Y True Col",
+      "type": "string"
+     },
+     "y_score_col": {
+      "title": "Y Score Col",
+      "type": "string"
+     },
+     "threshold": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Threshold"
+     },
+     "generate_plot": {
+      "default": true,
+      "title": "Generate Plot",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "y_true_col",
+     "y_score_col"
+    ],
+    "title": "full_classifier_evaluationArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "start_data_analysis",
+   "description": "\n🎯 Smart entry point for data analysis workflow.\n\nThis tool analyzes your data and returns a TICKET that guides the next steps.\nThe AI agent should use this ticket to ask the user about their preferences.\n\n**WORKFLOW**:\n1. Call this tool with CSV data\n2. Receive a ticket with data preview and options\n3. Ask user: \"Do you want to save this data for future use?\"\n4. Based on response, call either:\n   - `execute_analysis_ticket(ticket_id, save_to_storage=False)` → Quick analysis\n   - `execute_analysis_ticket(ticket_id, save_to_storage=True)` → Persistent storage\n\n**NEW: Data Validation Layer**\nThis tool now automatically detects:\n- Missing values (with severity based on percentage)\n- PII (emails, phones, SSNs, credit cards)\n- Invalid columns (constant, all-null, high-cardinality IDs)\n- Outliers (using IQR method)\n- Duplicate rows\n\nArgs:\n    csv_content: CSV data as string (or base64 if is_base64=True)\n    user_id: User ID for tracking\n    analysis_purpose: Optional description (e.g., \"ML preparation\", \"research report\")\n    target_column: Optional target column for association analysis\n    is_base64: Set True if csv_content is base64 encoded\n\nReturns:\n    ticket: Analysis ticket with:\n        - ticket_id: Unique identifier for this analysis request\n        - status: \"pending_user_decision\"\n        - data_preview: Quick overview of the data\n        - data_issues: Detected issues with severity and suggested actions\n        - options: Available paths forward\n        - suggested_questions: Questions to ask the user (including issue-specific)\n\nExample:\n    ticket = start_data_analysis(\n        csv_content=\"name,age,score\\nAlice,30,85\\nBob,25,90\",\n        user_id=\"user1\",\n        target_column=\"score\"\n    )\n    # → Returns ticket with any detected issues\n    # → Agent asks user about issues and storage preference\n    # → User decides, agent calls execute_analysis_ticket with cleaning_decisions\n",
+   "parameters": {
+    "properties": {
+     "csv_content": {
+      "title": "Csv Content",
+      "type": "string"
+     },
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     },
+     "analysis_purpose": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Analysis Purpose"
+     },
+     "target_column": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target Column"
+     },
+     "is_base64": {
+      "default": false,
+      "title": "Is Base64",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_content",
+     "user_id"
+    ],
+    "title": "start_data_analysisArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "execute_analysis_ticket",
+   "description": "\n🚀 Execute an analysis ticket based on user's decision.\n\nCall this after `start_data_analysis` and user confirmation.\n\n**Path A: Quick Analysis (save_to_storage=False)**\n- Analyzes data immediately\n- No permanent storage\n- Returns job ticket for tracking\n\n**Path B: Persistent Analysis (save_to_storage=True)**\n- Uploads data to MinIO storage\n- Registers as a dataset\n- Analyzes with full tracking\n- Returns job ticket with dataset_id for future reference\n\n**NEW: Data Cleaning (cleaning_decisions provided)**\n- Applies cleaning based on user decisions before analysis\n- Returns cleaning report showing what was changed\n\nArgs:\n    ticket_id: Ticket ID from start_data_analysis\n    csv_content: CSV data (same as start_data_analysis)\n    user_id: User ID\n    save_to_storage: If True, save to MinIO; if False, temporary analysis\n    dataset_name: Name for saved dataset (required if save_to_storage=True)\n    minio_bucket: Optional bucket name (defaults to 'automl-data')\n    target_column: Optional target column for association analysis\n    is_base64: Set True if csv_content is base64 encoded\n    cleaning_decisions: Optional dict of cleaning actions to apply.\n        Format: {\n            \"missing_values\": {\n                \"column_name\": \"impute_mean\" | \"impute_median\" | \"impute_mode\" | \"drop_rows\" | \"drop_column\"\n            },\n            \"pii\": {\n                \"column_name\": \"mask\" | \"hash\" | \"drop\"\n            },\n            \"outliers\": {\n                \"column_name\": \"cap_iqr\" | \"remove\" | \"keep\"\n            },\n            \"invalid_columns\": [\"col1\", \"col2\"],  # columns to drop\n            \"duplicates\": \"drop\" | \"keep\"\n        }\n        If None, uses default actions for detected issues.\n    wait_for_result: If True, wait for analysis completion\n    wait_timeout: Max seconds to wait (if wait_for_result=True)\n\nReturns:\n    job_ticket: Execution ticket with:\n        - ticket_id: Original ticket ID\n        - job_id: Backend job ID for tracking\n        - status: \"submitted\" | \"running\" | \"completed\" | \"failed\"\n        - storage_mode: \"temporary\" | \"persistent\"\n        - dataset_id: (if persistent) Dataset ID for future use\n        - cleaning_report: (if cleaning applied) Summary of cleaning actions\n        - result: (if wait_for_result and completed) Analysis results\n",
+   "parameters": {
+    "properties": {
+     "ticket_id": {
+      "title": "Ticket Id",
+      "type": "string"
+     },
+     "csv_content": {
+      "title": "Csv Content",
+      "type": "string"
+     },
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     },
+     "save_to_storage": {
+      "default": false,
+      "title": "Save To Storage",
+      "type": "boolean"
+     },
+     "dataset_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Dataset Name"
+     },
+     "minio_bucket": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Minio Bucket"
+     },
+     "target_column": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target Column"
+     },
+     "is_base64": {
+      "default": false,
+      "title": "Is Base64",
+      "type": "boolean"
+     },
+     "cleaning_decisions": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Cleaning Decisions"
+     },
+     "wait_for_result": {
+      "default": true,
+      "title": "Wait For Result",
+      "type": "boolean"
+     },
+     "wait_timeout": {
+      "default": 300,
+      "title": "Wait Timeout",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "ticket_id",
+     "csv_content",
+     "user_id"
+    ],
+    "title": "execute_analysis_ticketArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "convert_to_binary",
+   "description": "\n🔄 Convert a column to binary (0/1) format.\n\nEssential for propensity score analysis and many ML algorithms\nthat require binary treatment indicators.\n\nArgs:\n    csv_path: Path to CSV file (e.g., /data/sample_data/file.csv or /data/projects/my_project/data/file.csv)\n    column: Column name to convert\n    mapping: Dict mapping original values to 0 or 1\n            e.g., {\"200\": 0, \"400\": 1} or {\"control\": 0, \"treatment\": 1}\n    user_id: User ID for tracking\n    save_result: Whether to return csv_content for upload\n\nReturns:\n    status: \"success\" or \"error\"\n    original_values: Unique values before conversion\n    new_values: Values after conversion (should be 0 and 1)\n    csv_content: Processed CSV (if save_result=True) - upload to MinIO or use directly\n    preview: Sample of converted data\n\nExample:\n    # Convert Ropica dosage to binary treatment indicator\n    convert_to_binary(\n        csv_path=\"/data/sample_data/painless.csv\",\n        column=\"Ropica_ML\",\n        mapping={\"200\": 0, \"400\": 1},\n        user_id=\"eric\"\n    )\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "column": {
+      "title": "Column",
+      "type": "string"
+     },
+     "mapping": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "Mapping",
+      "type": "object"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "column",
+     "mapping"
+    ],
+    "title": "convert_to_binaryArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "encode_categorical",
+   "description": "\n🏷️ Encode categorical column to numeric.\n\nMethods:\n- label: Assign integers 0, 1, 2, ... to each category\n- onehot: Create binary columns for each category\n- ordinal: Like label but preserves order (if provided)\n\nArgs:\n    csv_path: Path to CSV file\n    column: Column name to encode\n    method: \"label\", \"onehot\", or \"ordinal\"\n    user_id: User ID\n    save_result: Whether to return csv_content\n\nReturns:\n    status: \"success\" or \"error\"\n    encoding_map: Mapping of original values to encoded values\n    new_columns: List of new column names created\n    csv_content: Processed CSV (if save_result=True)\n\nExample:\n    encode_categorical(\n        csv_path=\"/data/sample_data/data.csv\",\n        column=\"gender\",\n        method=\"label\"\n    )\n    # Result: gender -> gender_encoded (0=Female, 1=Male)\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "column": {
+      "title": "Column",
+      "type": "string"
+     },
+     "method": {
+      "default": "label",
+      "title": "Method",
+      "type": "string"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "column"
+    ],
+    "title": "encode_categoricalArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "handle_missing_values",
+   "description": "\n🔧 Handle missing values in dataset.\n\nStrategies:\n- auto: Numeric → median, Categorical → mode\n- mean: Fill with column mean (numeric only)\n- median: Fill with column median (numeric only)\n- mode: Fill with most frequent value\n- constant: Fill with specified value\n- drop_rows: Remove rows with missing values\n- drop_columns: Remove columns with any missing values\n\nArgs:\n    csv_path: Path to CSV file\n    strategy: How to handle missing values\n    columns: Specific columns to process (None = all)\n    fill_value: Value to use for \"constant\" strategy\n    user_id: User ID\n    save_result: Whether to return csv_content\n\nReturns:\n    status: \"success\" or \"error\"\n    columns_processed: List of processed columns\n    missing_before: Missing count before\n    missing_after: Missing count after\n    csv_content: Processed CSV (if save_result=True)\n\nExample:\n    handle_missing_values(\n        csv_path=\"/data/sample_data/data.csv\",\n        strategy=\"auto\"\n    )\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "strategy": {
+      "default": "auto",
+      "title": "Strategy",
+      "type": "string"
+     },
+     "columns": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Columns"
+     },
+     "fill_value": {
+      "anyOf": [
+       {},
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Fill Value"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "handle_missing_valuesArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "remove_columns",
+   "description": "\n🗑️ Remove specified columns from dataset.\n\nUse this to:\n- Remove ID columns before analysis\n- Drop constant columns\n- Exclude irrelevant features\n- Remove PII columns\n\nArgs:\n    csv_path: Path to CSV file\n    columns: List of column names to remove\n    user_id: User ID\n    save_result: Whether to save result\n\nReturns:\n    status: \"success\" or \"error\"\n    columns_removed: Successfully removed columns\n    columns_not_found: Columns that didn't exist\n    columns_remaining: Number of columns after removal\n    output_path: Path to saved file\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "columns": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Columns",
+      "type": "array"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "columns"
+    ],
+    "title": "remove_columnsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rename_columns",
+   "description": "\n✏️ Rename columns in dataset.\n\nArgs:\n    csv_path: Path to CSV file\n    mapping: Dict of old_name -> new_name\n    user_id: User ID\n    save_result: Whether to save result\n\nReturns:\n    status: \"success\" or \"error\"\n    columns_renamed: Successfully renamed columns\n    output_path: Path to saved file\n\nExample:\n    rename_columns(\n        csv_path=\"/data/file.csv\",\n        mapping={\"old_name\": \"new_name\", \"年齡\": \"age\"}\n    )\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "mapping": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Mapping",
+      "type": "object"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "mapping"
+    ],
+    "title": "rename_columnsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "filter_rows",
+   "description": "\n🔍 Filter rows based on condition.\n\nConditions:\n- eq: Equal to value\n- ne: Not equal to value\n- gt: Greater than value\n- lt: Less than value\n- gte: Greater than or equal\n- lte: Less than or equal\n- in: Value is in list\n- notin: Value is not in list\n- notna: Value is not missing\n- isna: Value is missing\n\nArgs:\n    csv_path: Path to CSV file\n    column: Column to filter on\n    condition: Filter condition (eq, ne, gt, lt, gte, lte, in, notin, notna, isna)\n    value: Value to compare against (use list for in/notin)\n    user_id: User ID\n    save_result: Whether to save result\n\nReturns:\n    status: \"success\" or \"error\"\n    rows_before: Row count before filter\n    rows_after: Row count after filter\n    rows_removed: Number of rows filtered out\n    output_path: Path to saved file\n\nExample:\n    # Keep only rows where age > 18\n    filter_rows(csv_path=\"...\", column=\"age\", condition=\"gt\", value=18)\n\n    # Keep rows where category is in ['A', 'B']\n    filter_rows(csv_path=\"...\", column=\"category\", condition=\"in\", value=[\"A\", \"B\"])\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "column": {
+      "title": "Column",
+      "type": "string"
+     },
+     "condition": {
+      "title": "Condition",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value"
+     },
+     "user_id": {
+      "default": "default",
+      "title": "User Id",
+      "type": "string"
+     },
+     "save_result": {
+      "default": true,
+      "title": "Save Result",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "column",
+     "condition",
+     "value"
+    ],
+    "title": "filter_rowsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_column_info",
+   "description": "\n📋 Get detailed information about columns.\n\nUseful for understanding data before cleaning.\n\nArgs:\n    csv_path: Path to CSV file\n    columns: Specific columns to analyze (None = all)\n\nReturns:\n    columns: Dict with info for each column including:\n        - dtype: Data type\n        - unique_count: Number of unique values\n        - missing_count: Number of missing values\n        - missing_pct: Percentage missing\n        - sample_values: Sample of values\n        - is_numeric: Whether column is numeric\n        - is_binary: Whether column has only 2 unique values\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "columns": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Columns"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "get_column_infoArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "smart_analyze",
+   "description": "\n🎯 Smart Analyze - Complete data analysis in one call.\n\nThis is the RECOMMENDED tool for data analysis. It automatically:\n1. Resolves file paths (host → container)\n2. Gets quick statistics\n3. Generates Table One (if group_column provided)\n4. Analyzes correlations (if requested)\n5. Compiles results into a summary\n\nPath Resolution (automatic):\n- \"iris.csv\" → \"/data/sample_data/iris.csv\"\n- \"sample_data/xxx.csv\" → \"/data/sample_data/xxx.csv\"\n- \"/home/eric/.../xxx.csv\" → auto-resolved\n\nArgs:\n    csv_path: Path to CSV file (flexible format, auto-resolved)\n    group_column: Column for grouping (e.g., \"treatment_group\")\n    analysis_types: List of analyses [\"stats\", \"tableone\", \"correlation\"]\n                   Default: all applicable\n    user_id: User ID (default: \"eric\")\n    include_correlations: Include correlation analysis (default: True)\n    generate_report: Generate markdown summary (default: True)\n\nReturns:\n    resolved_path: The actual path used\n    quick_stats: Basic statistics (rows, columns, missing)\n    tableone: Table One results (if group_column provided)\n    correlations: Correlation matrix (if include_correlations=True)\n    result_ids: All result IDs for reference\n    summary: Text summary of key findings\n\nExample:\n    # Simple analysis\n    smart_analyze(csv_path=\"iris.csv\")\n\n    # Medical study with grouping\n    smart_analyze(\n        csv_path=\"medical_study.csv\",\n        group_column=\"treatment_group\",\n        include_correlations=True\n    )\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "group_column": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Group Column"
+     },
+     "analysis_types": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Analysis Types"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "User Id"
+     },
+     "include_correlations": {
+      "default": true,
+      "title": "Include Correlations",
+      "type": "boolean"
+     },
+     "generate_report": {
+      "default": true,
+      "title": "Generate Report",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "smart_analyzeArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "analyze_medical_study",
+   "description": "\n🏥 Complete Medical Study Analysis Pipeline.\n\nSpecialized tool for RCT or observational studies. Executes:\n1. Baseline characteristics (Table One)\n2. Treatment effect analysis (for each outcome)\n3. Correlation analysis\n4. Generates publication-ready report\n\nPath Resolution: Same as smart_analyze (automatic)\n\nArgs:\n    csv_path: Path to CSV file (auto-resolved)\n    treatment_column: Treatment/exposure column (e.g., \"treatment_group\")\n    outcome_columns: List of outcome columns to analyze\n    covariates: Covariates for adjustment (auto-detected if None)\n    user_id: User ID (default: \"eric\")\n    run_propensity: Run propensity score analysis (default: False)\n\nReturns:\n    baseline: Table One results\n    treatment_effects: Effect analysis for each outcome\n    correlations: Correlation matrix\n    report: Markdown report\n    result_ids: All result IDs\n\nExample:\n    analyze_medical_study(\n        csv_path=\"medical_study_200.csv\",\n        treatment_column=\"treatment_group\",\n        outcome_columns=[\"bp_change\", \"weight_change\"]\n    )\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "treatment_column": {
+      "title": "Treatment Column",
+      "type": "string"
+     },
+     "outcome_columns": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Outcome Columns",
+      "type": "array"
+     },
+     "covariates": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Covariates"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "User Id"
+     },
+     "run_propensity": {
+      "default": false,
+      "title": "Run Propensity",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "csv_path",
+     "treatment_column",
+     "outcome_columns"
+    ],
+    "title": "analyze_medical_studyArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "quick_preview",
+   "description": "\n⚡ Quick Preview - Fast data overview with auto path resolution.\n\nCombines:\n- Path resolution (automatic)\n- Data preview (first n rows)\n- Column info (types, missing)\n- Basic statistics\n\nThis is the fastest way to understand a new dataset.\n\nArgs:\n    csv_path: Path to CSV (auto-resolved)\n    n_rows: Number of rows to preview (default: 10)\n\nReturns:\n    resolved_path: Actual path used\n    shape: (rows, columns)\n    columns: Column names and types\n    preview: First n rows\n    missing: Missing value summary\n\nExample:\n    quick_preview(\"iris.csv\")\n    quick_preview(\"sample_data/heart_disease.csv\", n_rows=5)\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "n_rows": {
+      "default": 10,
+      "title": "N Rows",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "csv_path"
+    ],
+    "title": "quick_previewArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "compare_treatment_groups",
+   "description": "\n🔬 Compare Treatment Groups - Simplified group comparison.\n\nWraps compare_groups with automatic:\n- Path resolution\n- Default user_id\n- Method selection (t-test vs Mann-Whitney)\n- Plain English interpretation\n\nArgs:\n    csv_path: Path to CSV (auto-resolved)\n    treatment_column: Group column (e.g., \"treatment_group\")\n    outcome_column: Numeric outcome to compare\n    user_id: User ID (default: \"eric\")\n\nReturns:\n    groups: Group statistics (mean, std, n)\n    comparison: Test results (statistic, p-value, method)\n    interpretation: Plain English interpretation\n\nExample:\n    compare_treatment_groups(\n        csv_path=\"medical_study.csv\",\n        treatment_column=\"treatment_group\",\n        outcome_column=\"bp_change\"\n    )\n",
+   "parameters": {
+    "properties": {
+     "csv_path": {
+      "title": "Csv Path",
+      "type": "string"
+     },
+     "treatment_column": {
+      "title": "Treatment Column",
+      "type": "string"
+     },
+     "outcome_column": {
+      "title": "Outcome Column",
+      "type": "string"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "User Id"
+     }
+    },
+    "required": [
+     "csv_path",
+     "treatment_column",
+     "outcome_column"
+    ],
+    "title": "compare_treatment_groupsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "power_ttest",
+   "description": "\n📊 T-test Power Analysis (unified tool).\n\nCombines sample size calculation, power calculation, and sensitivity analysis.\n\n**Modes:**\n- `sample_size`: Calculate required N given effect size and power\n- `power`: Calculate achieved power given N\n- `sensitivity`: Show power across range of N values\n- `effect_size`: Calculate effect size from means and SD\n\n**Effect Size (Cohen's d):**\n- 0.2 = small, 0.5 = medium, 0.8 = large\n- Or provide mean1, mean2, pooled_sd to calculate\n\nArgs:\n    effect_size: Cohen's d (or provide means + SD)\n    mode: \"sample_size\" | \"power\" | \"sensitivity\" | \"effect_size\"\n    n1: Sample size group 1 (for power/sensitivity mode)\n    n2: Sample size group 2 (optional, defaults to n1)\n    alpha: Significance level (default: 0.05)\n    power: Desired power (default: 0.80, for sample_size mode)\n    ratio: n2/n1 ratio (default: 1.0)\n    test_type: \"two-sample\" | \"paired\" | \"one-sample\"\n    alternative: \"two-sided\" | \"larger\" | \"smaller\"\n    mean1, mean2, pooled_sd: For effect_size calculation\n\nReturns:\n    Mode-specific results plus:\n    - parameters: All input parameters\n    - interpretation: Plain-language explanation\n    - recommendations: Practical suggestions\n\nExamples:\n    # Calculate sample size for medium effect\n    power_ttest(effect_size=0.5, mode=\"sample_size\")\n\n    # Check power with 50 per group\n    power_ttest(effect_size=0.5, mode=\"power\", n1=50)\n\n    # Calculate effect size from means\n    power_ttest(effect_size=0, mode=\"effect_size\", mean1=100, mean2=115, pooled_sd=30)\n",
+   "parameters": {
+    "properties": {
+     "effect_size": {
+      "title": "Effect Size",
+      "type": "number"
+     },
+     "mode": {
+      "default": "sample_size",
+      "title": "Mode",
+      "type": "string"
+     },
+     "n1": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "N1"
+     },
+     "n2": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "N2"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     },
+     "power": {
+      "default": 0.8,
+      "title": "Power",
+      "type": "number"
+     },
+     "ratio": {
+      "default": 1.0,
+      "title": "Ratio",
+      "type": "number"
+     },
+     "test_type": {
+      "default": "two-sample",
+      "title": "Test Type",
+      "type": "string"
+     },
+     "alternative": {
+      "default": "two-sided",
+      "title": "Alternative",
+      "type": "string"
+     },
+     "mean1": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Mean1"
+     },
+     "mean2": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Mean2"
+     },
+     "pooled_sd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pooled Sd"
+     }
+    },
+    "required": [
+     "effect_size"
+    ],
+    "title": "power_ttestArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "power_proportion",
+   "description": "\n📊 Proportion Comparison Power Analysis (unified tool).\n\nFor comparing rates/percentages between groups (response rates, event rates).\n\n**Modes:**\n- `sample_size`: Calculate required N given proportions and power\n- `power`: Calculate achieved power given N\n- `sensitivity`: Show power across range of N values\n\nArgs:\n    p1: Proportion in group 1 (e.g., 0.30 for 30%)\n    p2: Proportion in group 2 (e.g., 0.45 for 45%)\n    mode: \"sample_size\" | \"power\" | \"sensitivity\"\n    n1, n2: Sample sizes (for power/sensitivity mode)\n    alpha: Significance level (default: 0.05)\n    power: Desired power (default: 0.80)\n    ratio: n2/n1 ratio (default: 1.0)\n    alternative: \"two-sided\" | \"larger\" | \"smaller\"\n\nReturns:\n    Mode-specific results with effect size (Cohen's h)\n\nExamples:\n    # Control 30%, Treatment 45%\n    power_proportion(p1=0.30, p2=0.45, mode=\"sample_size\")\n\n    # Check power with 100 per group\n    power_proportion(p1=0.30, p2=0.45, mode=\"power\", n1=100)\n",
+   "parameters": {
+    "properties": {
+     "p1": {
+      "title": "P1",
+      "type": "number"
+     },
+     "p2": {
+      "title": "P2",
+      "type": "number"
+     },
+     "mode": {
+      "default": "sample_size",
+      "title": "Mode",
+      "type": "string"
+     },
+     "n1": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "N1"
+     },
+     "n2": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "N2"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     },
+     "power": {
+      "default": 0.8,
+      "title": "Power",
+      "type": "number"
+     },
+     "ratio": {
+      "default": 1.0,
+      "title": "Ratio",
+      "type": "number"
+     },
+     "alternative": {
+      "default": "two-sided",
+      "title": "Alternative",
+      "type": "string"
+     }
+    },
+    "required": [
+     "p1",
+     "p2"
+    ],
+    "title": "power_proportionArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "power_anova",
+   "description": "\n📊 ANOVA Power Analysis (unified tool).\n\nFor comparing means across 3+ groups.\n\n**Modes:**\n- `sample_size`: Calculate required N per group\n- `power`: Calculate achieved power given N\n- `effect_size`: Calculate f from group means and SD\n\n**Effect Size (Cohen's f):**\n- 0.10 = small, 0.25 = medium, 0.40 = large\n\nArgs:\n    effect_size: Cohen's f (or provide group_means + pooled_sd)\n    k: Number of groups\n    mode: \"sample_size\" | \"power\" | \"effect_size\"\n    n: Sample size per group (for power mode)\n    alpha: Significance level (default: 0.05)\n    power: Desired power (default: 0.80)\n    group_means: List of group means (for effect_size mode)\n    pooled_sd: Pooled standard deviation (for effect_size mode)\n\nReturns:\n    Mode-specific results\n\nExamples:\n    # 3 groups, medium effect\n    power_anova(effect_size=0.25, k=3, mode=\"sample_size\")\n\n    # Calculate f from means\n    power_anova(effect_size=0, k=3, mode=\"effect_size\",\n               group_means=[10, 12, 15], pooled_sd=5)\n",
+   "parameters": {
+    "properties": {
+     "effect_size": {
+      "title": "Effect Size",
+      "type": "number"
+     },
+     "k": {
+      "title": "K",
+      "type": "integer"
+     },
+     "mode": {
+      "default": "sample_size",
+      "title": "Mode",
+      "type": "string"
+     },
+     "n": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "N"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     },
+     "power": {
+      "default": 0.8,
+      "title": "Power",
+      "type": "number"
+     },
+     "group_means": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Group Means"
+     },
+     "pooled_sd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pooled Sd"
+     }
+    },
+    "required": [
+     "effect_size",
+     "k"
+    ],
+    "title": "power_anovaArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "power_chisquare",
+   "description": "\n📊 Chi-square Power Analysis (unified tool).\n\nFor categorical data independence tests.\n\n**Modes:**\n- `sample_size`: Calculate required N\n- `power`: Calculate achieved power given N\n- `effect_size`: Calculate w from contingency table\n\n**Effect Size (Cramér's w or Cohen's w):**\n- 0.10 = small, 0.30 = medium, 0.50 = large\n\nArgs:\n    effect_size: Cohen's w (or calculate from observed table)\n    df: Degrees of freedom = (rows-1) * (cols-1)\n    mode: \"sample_size\" | \"power\" | \"effect_size\"\n    n: Total sample size (for power mode)\n    alpha: Significance level (default: 0.05)\n    power: Desired power (default: 0.80)\n    observed: Contingency table as 2D list (for effect_size mode)\n\nReturns:\n    Mode-specific results\n\nExamples:\n    # 2x2 table, medium effect\n    power_chisquare(effect_size=0.30, df=1, mode=\"sample_size\")\n\n    # Calculate effect from table\n    power_chisquare(effect_size=0, df=1, mode=\"effect_size\",\n                  observed=[[50, 30], [20, 40]])\n",
+   "parameters": {
+    "properties": {
+     "effect_size": {
+      "title": "Effect Size",
+      "type": "number"
+     },
+     "df": {
+      "title": "Df",
+      "type": "integer"
+     },
+     "mode": {
+      "default": "sample_size",
+      "title": "Mode",
+      "type": "string"
+     },
+     "n": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "N"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     },
+     "power": {
+      "default": 0.8,
+      "title": "Power",
+      "type": "number"
+     },
+     "observed": {
+      "anyOf": [
+       {
+        "items": {
+         "items": {
+          "type": "integer"
+         },
+         "type": "array"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Observed"
+     }
+    },
+    "required": [
+     "effect_size",
+     "df"
+    ],
+    "title": "power_chisquareArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "power_survival",
+   "description": "\n📊 Survival Analysis Power Analysis (unified tool).\n\nFor time-to-event studies comparing survival curves.\n\n**Modes:**\n- `sample_size`: Calculate required N and events\n- `power`: Calculate achieved power given events\n- `events`: Calculate required events for given power\n- `from_medians`: Calculate HR and sample size from median survival times\n\n**Hazard Ratio:**\n- HR < 1: Treatment reduces hazard (beneficial)\n- HR > 1: Treatment increases hazard (harmful)\n- HR = 1: No effect\n\nArgs:\n    hazard_ratio: Expected hazard ratio\n    mode: \"sample_size\" | \"power\" | \"events\" | \"from_medians\"\n    total_events: Number of events (for power mode)\n    total_n: Total sample size (for power mode)\n    alpha: Significance level (default: 0.05)\n    power: Desired power (default: 0.80)\n    ratio: Allocation ratio n2/n1 (default: 1.0)\n    dropout_rate: Expected dropout rate (default: 0)\n    median1: Median survival time group 1 (for from_medians mode)\n    median2: Median survival time group 2 (for from_medians mode)\n    accrual_time: Recruitment period (for sample size)\n    followup_time: Follow-up period (for sample size)\n\nReturns:\n    Mode-specific results including events, sample size, power\n\nExamples:\n    # HR=0.7, calculate sample size\n    power_survival(hazard_ratio=0.7, mode=\"sample_size\")\n\n    # Calculate from median survival (12 vs 18 months)\n    power_survival(hazard_ratio=0, mode=\"from_medians\",\n                  median1=12, median2=18)\n\n    # Check power with 200 events\n    power_survival(hazard_ratio=0.7, mode=\"power\", total_events=200)\n",
+   "parameters": {
+    "properties": {
+     "hazard_ratio": {
+      "title": "Hazard Ratio",
+      "type": "number"
+     },
+     "mode": {
+      "default": "sample_size",
+      "title": "Mode",
+      "type": "string"
+     },
+     "total_events": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Total Events"
+     },
+     "total_n": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Total N"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     },
+     "power": {
+      "default": 0.8,
+      "title": "Power",
+      "type": "number"
+     },
+     "ratio": {
+      "default": 1.0,
+      "title": "Ratio",
+      "type": "number"
+     },
+     "dropout_rate": {
+      "default": 0.0,
+      "title": "Dropout Rate",
+      "type": "number"
+     },
+     "median1": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Median1"
+     },
+     "median2": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Median2"
+     },
+     "accrual_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Accrual Time"
+     },
+     "followup_time": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Followup Time"
+     }
+    },
+    "required": [
+     "hazard_ratio"
+    ],
+    "title": "power_survivalArguments",
+    "type": "object"
+   }
+  }
+ }
+]

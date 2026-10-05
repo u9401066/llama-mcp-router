@@ -1,0 +1,11 @@
+  retrieve top-8 + search      138/168 correct (952s)
+  laya-rerank + search         132/168 correct (955s)
+  search only (no tools)       120/168 correct (971s)
+
+639 tools offered by the client, 168 queries
+
+| router | correct | tool requests | chit-chat | PubMed+Zotero | other servers | 中文 | escalated | tools sent (1st round) | prompt tokens | s/query |
+|---|---|---|---|---|---|---|---|---|---|---|
+| retrieve top-8 + search | 82.1% | 80.8% | 100.0% | 81.6% | 79.3% | 72.7% | 23/168 | 8.0 | 6812 | 11.3 |
+| laya-rerank + search | 78.6% | 77.6% | 91.7% | 78.6% | 75.9% | 72.7% | 26/168 | 6.4 | 5895 | 11.3 |
+| search only (no tools) | 71.4% | 69.2% | 100.0% | 74.5% | 60.3% | 68.2% | 140/168 | 0.0 | 4658 | 11.6 |

@@ -1,0 +1,2925 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_think_aloud",
+   "description": "Record Agent's thinking process (what and why)",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "thinking_type": {
+      "type": "string",
+      "enum": [
+       "HYPOTHESIS_CONSIDERED",
+       "HYPOTHESIS_REJECTED",
+       "HYPOTHESIS_DEFERRED",
+       "EVIDENCE_WEIGHTED",
+       "EVIDENCE_CONFLICTED",
+       "EVIDENCE_GAP_IDENTIFIED",
+       "ANALOGY_USED",
+       "PATTERN_RECOGNIZED",
+       "RULE_APPLIED",
+       "HEURISTIC_USED",
+       "UNCERTAINTY_ACKNOWLEDGED",
+       "ASSUMPTION_QUESTIONED",
+       "BIAS_IDENTIFIED",
+       "ALTERNATIVE_CONSIDERED",
+       "DECISION_POINT",
+       "BRANCH_EXPLORED",
+       "BRANCH_PRUNED"
+      ],
+      "description": "Type of thinking step"
+     },
+     "content": {
+      "type": "string",
+      "description": "What the Agent is thinking (e.g., 'Considering PE due to sudden dyspnea')"
+     },
+     "internal_reasoning": {
+      "type": "string",
+      "description": "Why Agent thinks this way (detailed reasoning process)"
+     },
+     "alternatives": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "alternative": {
+         "type": "string"
+        },
+        "reason_rejected": {
+         "type": "string"
+        },
+        "confidence_if_chosen": {
+         "type": "number",
+         "minimum": 0,
+         "maximum": 1
+        }
+       },
+       "required": [
+        "alternative",
+        "reason_rejected"
+       ]
+      },
+      "description": "Alternatives considered but not chosen"
+     },
+     "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Optional caller-supplied compatibility metadata; not clinical probability or calibrated confidence"
+     },
+     "uncertainty_factors": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Factors contributing to uncertainty"
+     },
+     "related_evidence_ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Evidence IDs being considered"
+     },
+     "related_hypothesis_ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Hypothesis IDs being evaluated"
+     },
+     "assumptions_made": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Assumptions underlying this thinking"
+     },
+     "potential_biases": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Cognitive biases that might affect this thinking"
+     }
+    },
+    "required": [
+     "session_id",
+     "thinking_type",
+     "content",
+     "internal_reasoning"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_reflect",
+   "description": "Agent reflects on its own reasoning process (meta-cognition)",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "reflection_content": {
+      "type": "string",
+      "description": "What the Agent realized during reflection"
+     },
+     "identified_gaps": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Knowledge/evidence gaps identified"
+     },
+     "identified_biases": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Cognitive biases identified in own reasoning"
+     },
+     "alternative_approaches": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Alternative reasoning approaches to consider"
+     }
+    },
+    "required": [
+     "session_id",
+     "reflection_content"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_identify_gaps",
+   "description": "Agent proactively identifies knowledge/evidence gaps",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "gap_type": {
+      "type": "string",
+      "enum": [
+       "MISSING_EVIDENCE",
+       "MISSING_KNOWLEDGE",
+       "AMBIGUOUS_DATA",
+       "CONFLICTING_EVIDENCE",
+       "INSUFFICIENT_DATA"
+      ],
+      "description": "Type of gap identified"
+     },
+     "gap_description": {
+      "type": "string",
+      "description": "Description of the gap"
+     },
+     "impact_on_diagnosis": {
+      "type": "string",
+      "description": "How this gap affects diagnostic confidence"
+     },
+     "suggested_actions": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Suggested actions to fill the gap"
+     }
+    },
+    "required": [
+     "session_id",
+     "gap_type",
+     "gap_description"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_challenge_assumption",
+   "description": "Agent challenges its own assumptions (devil's advocate)",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "assumption": {
+      "type": "string",
+      "description": "The assumption being challenged"
+     },
+     "challenge_reasoning": {
+      "type": "string",
+      "description": "Why this assumption might be wrong"
+     },
+     "alternative_scenario": {
+      "type": "string",
+      "description": "Alternative scenario if assumption is false"
+     },
+     "impact_if_wrong": {
+      "type": "string",
+      "description": "Impact on diagnosis if assumption is wrong"
+     }
+    },
+    "required": [
+     "session_id",
+     "assumption",
+     "challenge_reasoning"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_thinking_chain",
+   "description": "Get complete thinking chain (cognitive audit trail)",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "include_alternatives": {
+      "type": "boolean",
+      "description": "Include alternatives that were considered but rejected",
+      "default": true
+     },
+     "include_uncertainties": {
+      "type": "boolean",
+      "description": "Include uncertainty analysis",
+      "default": true
+     },
+     "include_biases": {
+      "type": "boolean",
+      "description": "Include cognitive bias analysis",
+      "default": true
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_add_evidence",
+   "description": "Add structured evidence with automatic quality grading and provenance tracking",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "content": {
+      "type": "string",
+      "description": "Natural language evidence description"
+     },
+     "evidence_type": {
+      "type": "string",
+      "enum": [
+       "DOCUMENT",
+       "OBSERVATION",
+       "LAB_RESULT",
+       "IMAGING",
+       "INTERVIEW",
+       "DEVICE_LOG",
+       "MEDICATION_RECORD",
+       "LITERATURE",
+       "EXPERT_OPINION",
+       "OTHER"
+      ],
+      "description": "Type of evidence",
+      "default": "DOCUMENT"
+     },
+     "source_document": {
+      "type": "string",
+      "description": "Stable document_id from the session source manifest; legacy sessions without a manifest may use a local path"
+     },
+     "source_location": {
+      "type": "string",
+      "description": "Location within document (e.g., 'Line 42', 'Page 3')"
+     },
+     "raw_snippet": {
+      "type": "string",
+      "description": "Exact literal excerpt or data line from the raw source document for deterministic lineage"
+     },
+     "content_hash": {
+      "type": "string",
+      "description": "Optional SHA-256 cryptographic digest of the raw snippet"
+     },
+     "extraction_method": {
+      "type": "string",
+      "enum": [
+       "verbatim_quote",
+       "table_cell",
+       "structured_field",
+       "inference",
+       "other"
+      ],
+      "description": "Method used to extract this finding",
+      "default": "verbatim_quote"
+     },
+     "collected_by": {
+      "type": "string",
+      "description": "Who collected this evidence",
+      "default": "agent"
+     },
+     "clinical_strength": {
+      "type": "string",
+      "enum": [
+       "STRONG",
+       "MODERATE",
+       "WEAK",
+       "ANECDOTAL"
+      ],
+      "description": "Evidence strength (Oxford CEBM)",
+      "default": "MODERATE"
+     },
+     "source_reliability": {
+      "type": "string",
+      "enum": [
+       "GRADE_A",
+       "GRADE_B",
+       "GRADE_C",
+       "GRADE_D"
+      ],
+      "description": "Source reliability grade",
+      "default": "GRADE_B"
+     },
+     "clinical_context": {
+      "type": "string",
+      "description": "Clinical context (e.g., 'Post-op Day 1 hypotension')"
+     },
+     "temporal": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Typed source time. Only kind='instant' with an explicit source timezone offset is chronologically sortable or can support a causation-temporality check. Date, range, relative, and unknown remain valid evidence without negative or ordering inference.",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "enum": [
+         "instant",
+         "date",
+         "range",
+         "relative",
+         "unknown"
+        ]
+       },
+       "raw_value": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "Exact source time expression; null only when the source contains no time expression and kind='unknown'."
+       },
+       "precision": {
+        "type": "string",
+        "enum": [
+         "day",
+         "minute",
+         "second",
+         "subsecond",
+         "relative",
+         "unknown"
+        ],
+        "description": "Optional caller hint; the server derives and emits canonical precision from the supplied representation."
+       },
+       "normalized_start": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "Required for a range when raw_value is not an ISO start/end pair; use YYYY-MM-DD or an aware ISO datetime."
+       },
+       "normalized_end": {
+        "anyOf": [
+         {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "Required for a range when raw_value is not an ISO start/end pair; use the same date/aware-datetime domain as start."
+       },
+       "timezone_provenance": {
+        "type": "string",
+        "enum": [
+         "source_explicit_offset",
+         "not_applicable",
+         "source_local_unknown",
+         "unknown"
+        ],
+        "description": "Optional caller declaration; the server derives the safe canonical value and never assumes a timezone."
+       }
+      },
+      "required": [
+       "kind",
+       "raw_value"
+      ],
+      "allOf": [
+       {
+        "if": {
+         "properties": {
+          "kind": {
+           "const": "instant"
+          }
+         }
+        },
+        "then": {
+         "properties": {
+          "raw_value": {
+           "type": "string",
+           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,9})?)?(?:Z|[+-]\\d{2}:\\d{2})$"
+          }
+         }
+        }
+       },
+       {
+        "if": {
+         "properties": {
+          "kind": {
+           "const": "date"
+          }
+         }
+        },
+        "then": {
+         "properties": {
+          "raw_value": {
+           "type": "string",
+           "format": "date"
+          }
+         }
+        }
+       },
+       {
+        "if": {
+         "properties": {
+          "kind": {
+           "const": "range"
+          }
+         }
+        },
+        "then": {
+         "properties": {
+          "raw_value": {
+           "type": "string"
+          }
+         }
+        }
+       },
+       {
+        "if": {
+         "properties": {
+          "kind": {
+           "const": "relative"
+          }
+         }
+        },
+        "then": {
+         "properties": {
+          "raw_value": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      ]
+     },
+     "event_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Legacy compatibility alias for temporal.kind='instant' only. It must contain 'T' and an explicit Z or numeric timezone offset. Use temporal for date-only, range, relative, or unknown time."
+     },
+     "auto_verify": {
+      "type": "boolean",
+      "description": "Automatically verify snippet against physical file on disk if available",
+      "default": true
+     }
+    },
+    "required": [
+     "session_id",
+     "content"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_evidence",
+   "description": "Retrieve evidence by ID",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "evidence_id": {
+      "type": "string",
+      "description": "Evidence ID (e.g., 'EVD-abc123')"
+     }
+    },
+    "required": [
+     "session_id",
+     "evidence_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_verify_evidence",
+   "description": "Verify evidence against raw physical files or record independent reviewer audit",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "evidence_id": {
+      "type": "string",
+      "description": "Evidence ID to verify"
+     },
+     "verified_by": {
+      "type": "string",
+      "description": "Named reviewer or deterministic verifier actor",
+      "default": "agent"
+     },
+     "manual_confirmation": {
+      "type": "boolean",
+      "default": false,
+      "description": "Explicitly assert independent human review. The reviewer must be present in the operator-controlled ROOTCAUSE_AUTHORIZED_REVIEWERS allowlist."
+     },
+     "raw_snippet": {
+      "type": "string",
+      "description": "Verbatim quote to search and verify in the source file on disk"
+     },
+     "document_id": {
+      "type": "string",
+      "description": "Optional stable document_id. Manifest-bound evidence cannot be rebound to a different source; legacy sessions may use a local file path override"
+     }
+    },
+    "required": [
+     "session_id",
+     "evidence_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_propose_hypothesis",
+   "description": "Propose one differential diagnosis with explicit reasoning and uncertainty. Omission of prior_probability uses a neutral 0.5 UNCALIBRATED implementation baseline; it is not a patient-specific clinical probability or certainty label.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "diagnosis": {
+      "type": "string",
+      "description": "Diagnosis name (e.g., 'Acute myocardial infarction')"
+     },
+     "icd10_code": {
+      "type": "string",
+      "description": "ICD-10 code (optional, e.g., 'I21.9')"
+     },
+     "snomed_code": {
+      "type": "string",
+      "description": "SNOMED CT code (optional)"
+     },
+     "prior_probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Numeric Bayesian starting value. Omission uses a neutral 0.5 UNCALIBRATED implementation baseline, not a clinical probability or certainty label.",
+      "default": 0.5
+     },
+     "must_not_miss": {
+      "type": "boolean",
+      "description": "Mark an explicitly reviewed high-harm diagnosis that must be ruled out",
+      "default": false
+     },
+     "mechanism_category": {
+      "type": "string",
+      "enum": [
+       "VASCULAR",
+       "INFECTIOUS",
+       "INFLAMMATORY_IMMUNE",
+       "NEOPLASTIC",
+       "DRUG_TOXIN_IATROGENIC",
+       "METABOLIC_ENDOCRINE",
+       "TRAUMATIC_MECHANICAL",
+       "CONGENITAL_GENETIC",
+       "DEGENERATIVE",
+       "FUNCTIONAL_PHYSIOLOGIC",
+       "OTHER",
+       "UNKNOWN"
+      ],
+      "default": "UNKNOWN",
+      "description": "Broad etiologic mechanism. UNKNOWN is valid during preliminary investigation but does not count toward final DDx breadth."
+     },
+     "diagnostic_role": {
+      "type": "string",
+      "enum": [
+       "ETIOLOGIC",
+       "SYNDROMIC",
+       "COMPLICATION",
+       "MIMIC",
+       "UNKNOWN"
+      ],
+      "default": "UNKNOWN",
+      "description": "Role of the candidate: etiologic disease/process, observed syndrome, downstream complication, mimic, or unknown."
+     },
+     "certainty": {
+      "type": "string",
+      "enum": [
+       "UNKNOWN",
+       "POSSIBLE",
+       "PROBABLE",
+       "HIGH_CONFIDENCE",
+       "CONFIRMED",
+       "EXCLUDED"
+      ],
+      "default": "UNKNOWN",
+      "description": "Explicit qualitative certainty. It is never inferred from a default or uncalibrated numeric probability."
+     },
+     "reasoning_basis": {
+      "type": "string",
+      "enum": [
+       "OBSERVED_DIAGNOSIS",
+       "MECHANISM_INFERENCE",
+       "UNKNOWN"
+      ],
+      "default": "UNKNOWN",
+      "description": "Whether the diagnosis itself is source-documented, is a mechanism inference from observations, or has unknown basis."
+     },
+     "clinical_reasoning": {
+      "type": "string",
+      "description": "REQUIRED: Detailed clinical reasoning for why this diagnosis is being considered (e.g., 'Patient has chest pain + elevated troponin + ECG changes')"
+     },
+     "differential_diagnoses_considered": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "diagnosis": {
+         "type": "string"
+        },
+        "disposition": {
+         "type": "string",
+         "enum": [
+          "CONTEXT_ONLY",
+          "REJECTED",
+          "UNKNOWN"
+         ]
+        },
+        "rationale": {
+         "type": "string"
+        },
+        "reason_rejected": {
+         "type": "string",
+         "description": "Deprecated legacy field"
+        },
+        "likelihood_if_not_rejected": {
+         "type": "string",
+         "enum": [
+          "high",
+          "moderate",
+          "low"
+         ],
+         "description": "Deprecated uncalibrated legacy field"
+        }
+       }
+      },
+      "description": "DEPRECATED context-only notes. Propose every plausible candidate as its own hypothesis. This array cannot replace rc_audit_differential_breadth or justify exclusion."
+     },
+     "evidence_supporting": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "DEPRECATED context-only input; it is not persisted and does not create evidence links. Use rc_link_evidence_to_hypothesis once per supporting evidence association."
+     },
+     "evidence_contradicting": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "DEPRECATED context-only input; it is not persisted and does not create evidence links. Use rc_link_evidence_to_hypothesis once per contradicting evidence association."
+     },
+     "uncertainty_factors": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "REQUIRED: Factors contributing to diagnostic uncertainty (e.g., 'Troponin trend pending')"
+     },
+     "confidence_rationale": {
+      "type": "string",
+      "description": "REQUIRED: Why the candidate is considered and the calibration/source limitations of any numeric prior"
+     },
+     "inclusion_criteria": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Criteria that support this diagnosis"
+     },
+     "exclusion_criteria": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Criteria that would rule out this diagnosis"
+     },
+     "planned_tests": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "name": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200,
+         "description": "Diagnostic test or observation to obtain"
+        },
+        "purpose": {
+         "type": "string",
+         "enum": [
+          "DISCONFIRM",
+          "RULE_OUT",
+          "CONFIRM",
+          "DISCRIMINATE"
+         ],
+         "description": "Typed relationship of the test to the hypothesis"
+        },
+        "expected_supporting_result": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 500,
+         "description": "Result pattern that would support the hypothesis"
+        },
+        "expected_refuting_result": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 500,
+         "description": "Result pattern that would refute the hypothesis"
+        },
+        "status": {
+         "type": "string",
+         "enum": [
+          "PLANNED",
+          "ORDERED"
+         ],
+         "default": "PLANNED",
+         "description": "Pending test lifecycle state"
+        }
+       },
+       "required": [
+        "name",
+        "purpose",
+        "expected_supporting_result",
+        "expected_refuting_result",
+        "status"
+       ]
+      },
+      "description": "Typed pending tests bound by the server to the newly created hypothesis; free-text gaps are not equivalent"
+     }
+    },
+    "required": [
+     "session_id",
+     "diagnosis",
+     "clinical_reasoning",
+     "uncertainty_factors",
+     "confidence_rationale"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_audit_differential_breadth",
+   "description": "Persist a systematic differential-breadth audit. Select a syndrome-appropriate framework, review every canonical cell, retain insufficient data with planned discriminators, and record why expansion stopped. This proves coverage, not diagnostic truth.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "audit": {
+      "$defs": {
+       "BreadthCellStatus": {
+        "description": "Four-state review outcome; uncertainty is retained, not treated as exclusion.",
+        "enum": [
+         "CANDIDATES_PRESENT",
+         "REVIEWED_NO_PLAUSIBLE_CANDIDATE",
+         "REVIEWED_INSUFFICIENT_DATA",
+         "NOT_ASSESSED"
+        ],
+        "title": "BreadthCellStatus",
+        "type": "string"
+       },
+       "BreadthDiscriminatorKind": {
+        "description": "Kind of prospective information used to resolve an uncertain cell.",
+        "enum": [
+         "DATA_RETRIEVAL",
+         "DIAGNOSTIC_TEST",
+         "SPECIALIST_REVIEW",
+         "MONITORING"
+        ],
+        "title": "BreadthDiscriminatorKind",
+        "type": "string"
+       },
+       "BreadthDiscriminatorStatus": {
+        "description": "Pending lifecycle state for a breadth-level discriminator.",
+        "enum": [
+         "PLANNED",
+         "ORDERED"
+        ],
+        "title": "BreadthDiscriminatorStatus",
+        "type": "string"
+       },
+       "DifferentialBreadthAuditRole": {
+        "description": "Whether an audit is the main or a supplementary coverage framework.",
+        "enum": [
+         "PRIMARY",
+         "SUPPLEMENTAL"
+        ],
+        "title": "DifferentialBreadthAuditRole",
+        "type": "string"
+       },
+       "DifferentialBreadthCell": {
+        "additionalProperties": false,
+        "description": "Review outcome for one canonical or custom framework cell.",
+        "properties": {
+         "cell_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "title": "Cell Id",
+          "type": "string"
+         },
+         "status": {
+          "$ref": "#/$defs/BreadthCellStatus"
+         },
+         "hypothesis_ids": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Hypothesis Ids",
+          "type": "array"
+         },
+         "mechanism_categories": {
+          "items": {
+           "$ref": "#/$defs/MechanismCategory"
+          },
+          "title": "Mechanism Categories",
+          "type": "array"
+         },
+         "rationale": {
+          "maxLength": 1000,
+          "minLength": 10,
+          "title": "Rationale",
+          "type": "string"
+         },
+         "unknowns": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Unknowns",
+          "type": "array"
+         },
+         "planned_discriminators": {
+          "items": {
+           "$ref": "#/$defs/PlannedBreadthDiscriminator"
+          },
+          "title": "Planned Discriminators",
+          "type": "array"
+         }
+        },
+        "required": [
+         "cell_id",
+         "status",
+         "rationale"
+        ],
+        "title": "DifferentialBreadthCell",
+        "type": "object"
+       },
+       "DifferentialBreadthFramework": {
+        "description": "Supported clinical frameworks for systematic DDx expansion.",
+        "enum": [
+         "VINDICATE",
+         "FIVE_H_FIVE_T",
+         "ANATOMIC_SYSTEM",
+         "MEDICATION_DEVICE_EXPOSURE",
+         "CUSTOM"
+        ],
+        "title": "DifferentialBreadthFramework",
+        "type": "string"
+       },
+       "MechanismCategory": {
+        "description": "Broad etiologic mechanism used to audit DDx breadth.\n\nThe categories deliberately follow a VINDICATE-style axis instead of an\norgan-system axis.  ``UNKNOWN`` is an honest preliminary value and never\ncounts toward the final mechanism-breadth gate.",
+        "enum": [
+         "VASCULAR",
+         "INFECTIOUS",
+         "INFLAMMATORY_IMMUNE",
+         "NEOPLASTIC",
+         "DRUG_TOXIN_IATROGENIC",
+         "METABOLIC_ENDOCRINE",
+         "TRAUMATIC_MECHANICAL",
+         "CONGENITAL_GENETIC",
+         "DEGENERATIVE",
+         "FUNCTIONAL_PHYSIOLOGIC",
+         "OTHER",
+         "UNKNOWN"
+        ],
+        "title": "MechanismCategory",
+        "type": "string"
+       },
+       "PlannedBreadthDiscriminator": {
+        "additionalProperties": false,
+        "description": "Typed prospective data/test needed to resolve insufficient information.",
+        "properties": {
+         "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+         },
+         "kind": {
+          "$ref": "#/$defs/BreadthDiscriminatorKind"
+         },
+         "expected_supporting_result": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Expected Supporting Result",
+          "type": "string"
+         },
+         "expected_refuting_result": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Expected Refuting Result",
+          "type": "string"
+         },
+         "status": {
+          "$ref": "#/$defs/BreadthDiscriminatorStatus",
+          "default": "PLANNED"
+         }
+        },
+        "required": [
+         "name",
+         "kind",
+         "expected_supporting_result",
+         "expected_refuting_result"
+        ],
+        "title": "PlannedBreadthDiscriminator",
+        "type": "object"
+       }
+      },
+      "additionalProperties": false,
+      "description": "One persisted review proving that a broad framework was actually applied.",
+      "properties": {
+       "audit_id": {
+        "maxLength": 64,
+        "minLength": 5,
+        "pattern": "^DBA-[A-Za-z0-9_-]+$",
+        "title": "Audit Id",
+        "type": "string"
+       },
+       "framework": {
+        "$ref": "#/$defs/DifferentialBreadthFramework"
+       },
+       "framework_name": {
+        "anyOf": [
+         {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "title": "Framework Name"
+       },
+       "framework_rationale": {
+        "maxLength": 1000,
+        "minLength": 10,
+        "title": "Framework Rationale",
+        "type": "string"
+       },
+       "role": {
+        "$ref": "#/$defs/DifferentialBreadthAuditRole",
+        "default": "PRIMARY"
+       },
+       "cells": {
+        "items": {
+         "$ref": "#/$defs/DifferentialBreadthCell"
+        },
+        "minItems": 3,
+        "title": "Cells",
+        "type": "array"
+       },
+       "stop_rationale": {
+        "maxLength": 1000,
+        "minLength": 10,
+        "title": "Stop Rationale",
+        "type": "string"
+       },
+       "recorded_by": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Recorded By",
+        "type": "string"
+       },
+       "recorded_at": {
+        "format": "date-time",
+        "title": "Recorded At",
+        "type": "string"
+       }
+      },
+      "required": [
+       "framework",
+       "framework_rationale",
+       "cells",
+       "stop_rationale",
+       "recorded_by"
+      ],
+      "title": "DifferentialBreadthAudit",
+      "type": "object"
+     }
+    },
+    "required": [
+     "session_id",
+     "audit"
+    ],
+    "type": "object",
+    "additionalProperties": false
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_link_evidence_to_hypothesis",
+   "description": "Link one evidence item to one hypothesis with Bayesian updating. The supplied LR is applied directly: >1 supports, <1 refutes, and 1.0 is neutral. A non-neutral LR additionally needs a verified local literature calibration evidence record.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "evidence_id": {
+      "type": "string",
+      "description": "Evidence ID (e.g., 'EVD-abc123')"
+     },
+     "hypothesis_id": {
+      "type": "string",
+      "description": "Hypothesis ID (e.g., 'HYP-def456')"
+     },
+     "likelihood_ratio": {
+      "type": "number",
+      "minimum": 0.01,
+      "maximum": 100,
+      "description": "Applied likelihood ratio: LR+ (>1) if supports, LR- (<1) if contradicts; it is never inverted by the server",
+      "default": 1.0
+     },
+     "supports": {
+      "type": [
+       "boolean",
+       "null"
+      ],
+      "description": "True only with LR>1, false only with LR<1, and null with neutral LR=1. Omit to derive this direction from LR.",
+      "default": null
+     },
+     "rationale": {
+      "type": "string",
+      "description": "Clinical justification plus source/calibration limitation; required by the handler whenever LR is not neutral 1.0"
+     },
+     "calibration_status": {
+      "type": "string",
+      "enum": [
+       "SOURCE_CALIBRATED",
+       "QUANTITATIVELY_UNKNOWN"
+      ],
+      "description": "SOURCE_CALIBRATED requires a verified local evidence-ledger calibration record; QUANTITATIVELY_UNKNOWN requires direct likelihood_ratio=1.0 and does not count as support/refutation."
+     },
+     "calibration_source_ref": {
+      "type": "string",
+      "pattern": "^EVD-[A-Za-z0-9_-]+$",
+      "maxLength": 64,
+      "description": "EVD-* ID of a verified LITERATURE record in this case evidence ledger. The record must preserve the exact quantitative snippet, document location, extraction method, and content hash. Citation-looking caller strings are not admitted."
+     }
+    },
+    "required": [
+     "session_id",
+     "evidence_id",
+     "hypothesis_id",
+     "calibration_status"
+    ],
+    "type": "object",
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "calibration_status": {
+         "const": "SOURCE_CALIBRATED"
+        }
+       },
+       "required": [
+        "calibration_status"
+       ]
+      },
+      "then": {
+       "required": [
+        "calibration_source_ref"
+       ]
+      }
+     }
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_differential_diagnosis",
+   "description": "Get the differential diagnosis in stable working-ledger order; uncalibrated compatibility values are never used for rank or filtering",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "status_filter": {
+      "type": "string",
+      "enum": [
+       "ACTIVE",
+       "CONFIRMED",
+       "EXCLUDED",
+       "ON_HOLD"
+      ],
+      "description": "Filter by hypothesis status",
+      "default": "ACTIVE"
+     },
+     "min_probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Deprecated compatibility argument; accepted but ignored because no calibrated clinical probability is established",
+      "default": 0.01
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_select_leading_hypothesis",
+   "description": "Explicitly select one ACTIVE or CONFIRMED hypothesis as the current leading diagnosis. This appends a typed audit record; numeric compatibility values and array order never select a lead.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string"
+     },
+     "hypothesis_id": {
+      "type": "string",
+      "pattern": "^HYP-[A-Za-z0-9_-]+$"
+     },
+     "reason": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 1000,
+      "description": "Why this candidate is selected as leading now"
+     },
+     "changed_by": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Auditable agent/reviewer identity"
+     }
+    },
+    "required": [
+     "session_id",
+     "hypothesis_id",
+     "reason",
+     "changed_by"
+    ],
+    "type": "object",
+    "additionalProperties": false
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_exclude_hypothesis",
+   "description": "Rule out a hypothesis based on evidence",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "hypothesis_id": {
+      "type": "string",
+      "description": "Hypothesis ID to exclude"
+     },
+     "exclusion_reason": {
+      "type": "string",
+      "description": "Why this hypothesis is being excluded"
+     },
+     "excluded_by": {
+      "type": "string",
+      "description": "Who excluded this hypothesis"
+     }
+    },
+    "required": [
+     "session_id",
+     "hypothesis_id",
+     "exclusion_reason",
+     "excluded_by"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_reasoning_chain",
+   "description": "Get complete reasoning chain with audit trail",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "include_metrics": {
+      "type": "boolean",
+      "description": "Include quality metrics",
+      "default": true
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_export_reasoning_chain",
+   "description": "Export reasoning chain to JSON or Mermaid format",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "mermaid",
+       "markdown"
+      ],
+      "description": "Export format",
+      "default": "json"
+     },
+     "output_path": {
+      "type": "string",
+      "description": "Output file path (optional, auto-generated if not provided)"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_audit_reasoning_state",
+   "description": "Audit clinical reasoning completeness, stage progression, missing prerequisites, and next recommended actions for AI agents",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_detect_conflicts",
+   "description": "Automatically detect clinical contradictions, paradoxical treatment reactions, guideline monitoring gaps (e.g. MTP without K+/ABG, high Propofol without lipids), and cognitive anchoring pitfalls across all evidence and hypotheses.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_create_checkpoint",
+   "description": "Create an integrity-checked, timestamped snapshot of active clinical reasoning state (evidence, hypotheses, Bayesian history, thinking steps, reasoning chain) to prevent context loss or enable branching investigation.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "tag": {
+      "type": "string",
+      "description": "Optional human-readable tag (e.g., 'post_tee_evaluation', 'pre_cpr_baseline')"
+     },
+     "notes": {
+      "type": "string",
+      "description": "Optional notes describing the reason for this snapshot"
+     },
+     "created_by": {
+      "type": "string",
+      "description": "Agent or reviewer creating the checkpoint",
+      "default": "agent"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_restore_checkpoint",
+   "description": "Restore clinical reasoning aggregate and database state from a saved checkpoint.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "checkpoint_id": {
+      "type": "string",
+      "description": "Checkpoint ID (e.g. 'CP-abc12345-20260814_120000-baseline')"
+     },
+     "checkpoint_file": {
+      "type": "string",
+      "description": "Checkpoint JSON filename or path inside this session's checkpoint directory (optional)"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_list_checkpoints",
+   "description": "List all available case checkpoints and snapshot metadata for a session.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_generate_contract_report",
+   "description": "Generate CONTRACT-level auditable report with evidence chain and reasoning",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID"
+     },
+     "include_reasoning_chain": {
+      "type": "boolean",
+      "description": "Include orchestrator-generated reasoning chain",
+      "default": true
+     },
+     "include_thinking_chain": {
+      "type": "boolean",
+      "description": "Include agent-authored rationale/thinking chain",
+      "default": true
+     },
+     "include_evidence_graph": {
+      "type": "boolean",
+      "description": "Include evidence relationship graph",
+      "default": true
+     },
+     "include_quality_metrics": {
+      "type": "boolean",
+      "description": "Include evidence coverage and quality metrics",
+      "default": true
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "json",
+       "fhir",
+       "markdown"
+      ],
+      "description": "Output format",
+      "default": "json"
+     },
+     "detail_level": {
+      "type": "string",
+      "enum": [
+       "brief",
+       "standard",
+       "full"
+      ],
+      "description": "Markdown artifact detail; ignored by JSON/FHIR",
+      "default": "standard"
+     },
+     "locale": {
+      "type": "string",
+      "enum": [
+       "en",
+       "zh-TW"
+      ],
+      "description": "Built-in Markdown renderer locale; JSON/FHIR clinical data are not translated",
+      "default": "en"
+     },
+     "audience": {
+      "type": "string",
+      "enum": [
+       "general",
+       "clinician"
+      ],
+      "description": "Markdown explanation audience. clinician preserves recorded English medical terminology and expands DDx evidence, unknowns, and discriminating tests",
+      "default": "general"
+     },
+     "template_file": {
+      "type": "string",
+      "description": "Optional path to custom Markdown report template file (e.g. 'config/templates/clinical_reasoning_report_template.md')"
+     },
+     "finalize": {
+      "type": "boolean",
+      "description": "Finalize only after readiness, conflict, manifest, and reviewer gates pass",
+      "default": false
+     },
+     "approved_by": {
+      "type": "string",
+      "description": "Explicit reviewer identity from ROOTCAUSE_AUTHORIZED_REVIEWERS; required when finalize=true"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_verify_causation",
+   "description": "Compatibility name for a conservative causation audit; this tool does not establish clinical causality. It checks submitted obligations using the Counterfactual Testing Framework. Tests: 1) Temporality - Did cause precede effect? 2) Necessity - Would effect occur without cause? 3) Mechanism - Is there a plausible causal pathway? 4) Sufficiency - Is cause alone sufficient for effect?",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     },
+     "cause": {
+      "type": "object",
+      "description": "Proposed root event. For a durable/final-eligible audit, id, description, and evidence must exactly match the persisted Why root and clinical evidence ledger.",
+      "properties": {
+       "id": {
+        "type": "string",
+        "description": "Stable Why/root-cause node ID when applicable"
+       },
+       "description": {
+        "type": "string",
+        "description": "Description of the cause"
+       },
+       "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Canonical cause datetime containing 'T' and required Z or numeric timezone offset; omit for date-only or unknown/local time",
+        "default": null
+       },
+       "evidence": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "minItems": 1,
+        "uniqueItems": true,
+        "description": "Evidence IDs supporting the proposed cause event"
+       }
+      },
+      "required": [
+       "id",
+       "description",
+       "evidence"
+      ]
+     },
+     "effect": {
+      "type": "object",
+      "description": "Effect event; every evidence reference must resolve in the clinical evidence ledger",
+      "properties": {
+       "id": {
+        "type": "string",
+        "description": "Stable effect/event ID when available"
+       },
+       "description": {
+        "type": "string",
+        "description": "Description of the effect"
+       },
+       "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Canonical effect datetime containing 'T' and required Z or numeric timezone offset; omit for date-only or unknown/local time",
+        "default": null
+       },
+       "evidence": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "minItems": 1,
+        "uniqueItems": true,
+        "description": "Evidence IDs supporting the effect event"
+       }
+      },
+      "required": [
+       "description",
+       "evidence"
+      ]
+     },
+     "verification_level": {
+      "type": "string",
+      "description": "'standard' tests Temporality+Necessity. 'comprehensive' tests all 4 criteria.",
+      "enum": [
+       "standard",
+       "comprehensive"
+      ],
+      "default": "standard"
+     }
+    },
+    "required": [
+     "session_id",
+     "cause",
+     "effect"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_validate_diagram",
+   "description": "Audit, validate, and auto-sanitize Mermaid diagram syntax (flowchart, timeline, sequence, state, fishbone, why_tree). Checks delimiter balance, label quotes, colon formatting, and returns clean executable Mermaid source with diagnostics.",
+   "parameters": {
+    "properties": {
+     "mermaid_source": {
+      "type": "string",
+      "description": "Raw Mermaid source code or diagram definition to audit"
+     },
+     "diagram_type": {
+      "type": "string",
+      "enum": [
+       "flowchart",
+       "graph",
+       "timeline",
+       "sequenceDiagram",
+       "stateDiagram",
+       "erDiagram",
+       "gantt",
+       "pie",
+       "mindmap"
+      ],
+      "description": "Expected diagram type (optional, auto-detected if omitted)"
+     },
+     "auto_fix": {
+      "type": "boolean",
+      "description": "Automatically escape reserved characters, balance brackets, and fix syntax",
+      "default": true
+     }
+    },
+    "required": [
+     "mermaid_source"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_render_timeline",
+   "description": "Render structured chronological event timeline and Mermaid diagram using clinical patterns (perioperative_sequence, acute_crisis, delayed_diagnosis, barrier_failure, device_incident, auto, custom).",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "RCA session ID (optional, to load persisted clinical evidence)"
+     },
+     "events": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "content": {
+         "type": "string",
+         "description": "Clinical event or finding description"
+        },
+        "temporal": {
+         "type": "object",
+         "additionalProperties": false,
+         "description": "Typed source time. Only kind='instant' with an explicit source timezone offset is chronologically sortable or can support a causation-temporality check. Date, range, relative, and unknown remain valid evidence without negative or ordering inference.",
+         "properties": {
+          "kind": {
+           "type": "string",
+           "enum": [
+            "instant",
+            "date",
+            "range",
+            "relative",
+            "unknown"
+           ]
+          },
+          "raw_value": {
+           "anyOf": [
+            {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 1000
+            },
+            {
+             "type": "null"
+            }
+           ],
+           "description": "Exact source time expression; null only when the source contains no time expression and kind='unknown'."
+          },
+          "precision": {
+           "type": "string",
+           "enum": [
+            "day",
+            "minute",
+            "second",
+            "subsecond",
+            "relative",
+            "unknown"
+           ],
+           "description": "Optional caller hint; the server derives and emits canonical precision from the supplied representation."
+          },
+          "normalized_start": {
+           "anyOf": [
+            {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 1000
+            },
+            {
+             "type": "null"
+            }
+           ],
+           "description": "Required for a range when raw_value is not an ISO start/end pair; use YYYY-MM-DD or an aware ISO datetime."
+          },
+          "normalized_end": {
+           "anyOf": [
+            {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 1000
+            },
+            {
+             "type": "null"
+            }
+           ],
+           "description": "Required for a range when raw_value is not an ISO start/end pair; use the same date/aware-datetime domain as start."
+          },
+          "timezone_provenance": {
+           "type": "string",
+           "enum": [
+            "source_explicit_offset",
+            "not_applicable",
+            "source_local_unknown",
+            "unknown"
+           ],
+           "description": "Optional caller declaration; the server derives the safe canonical value and never assumes a timezone."
+          }
+         },
+         "required": [
+          "kind",
+          "raw_value"
+         ],
+         "allOf": [
+          {
+           "if": {
+            "properties": {
+             "kind": {
+              "const": "instant"
+             }
+            }
+           },
+           "then": {
+            "properties": {
+             "raw_value": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,9})?)?(?:Z|[+-]\\d{2}:\\d{2})$"
+             }
+            }
+           }
+          },
+          {
+           "if": {
+            "properties": {
+             "kind": {
+              "const": "date"
+             }
+            }
+           },
+           "then": {
+            "properties": {
+             "raw_value": {
+              "type": "string",
+              "format": "date"
+             }
+            }
+           }
+          },
+          {
+           "if": {
+            "properties": {
+             "kind": {
+              "const": "range"
+             }
+            }
+           },
+           "then": {
+            "properties": {
+             "raw_value": {
+              "type": "string"
+             }
+            }
+           }
+          },
+          {
+           "if": {
+            "properties": {
+             "kind": {
+              "const": "relative"
+             }
+            }
+           },
+           "then": {
+            "properties": {
+             "raw_value": {
+              "type": "string"
+             }
+            }
+           }
+          }
+         ]
+        },
+        "event_timestamp": {
+         "type": "string",
+         "format": "date-time",
+         "description": "Legacy alias for an aware temporal.kind='instant' only."
+        },
+        "time": {
+         "type": "string",
+         "description": "Legacy display label. Without temporal/event_timestamp it is retained as unknown local time and is never chronologically sorted."
+        },
+        "phase": {
+         "type": "string",
+         "description": "Clinical phase/stage for grouping (optional)"
+        },
+        "source_document": {
+         "type": "string",
+         "description": "Source document ID (optional)"
+        },
+        "verified": {
+         "type": "boolean",
+         "description": "Whether source provenance was checked (optional)"
+        },
+        "evidence_type": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "content"
+       ]
+      },
+      "description": "Custom list of timeline events (optional)"
+     },
+     "pattern": {
+      "type": "string",
+      "enum": [
+       "auto",
+       "perioperative_sequence",
+       "acute_crisis",
+       "delayed_diagnosis",
+       "barrier_failure",
+       "device_incident",
+       "custom"
+      ],
+      "description": "Clinical timeline pattern used for phase clustering",
+      "default": "auto"
+     },
+     "title": {
+      "type": "string",
+      "description": "Custom timeline title (optional)"
+     },
+     "include_table": {
+      "type": "boolean",
+      "description": "Include Markdown event matrix table in response",
+      "default": true
+     }
+    },
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_suggest_hfacs",
+   "description": "Suggest HFACS-MES classification codes for a cause description. Returns heuristic keyword-rule matches; their internal compatibility values are not calibrated confidence or clinical probability. HFACS-MES has 5 levels: External Factors, Organizational Influences, Unsafe Supervision, Preconditions, Unsafe Acts.",
+   "parameters": {
+    "properties": {
+     "description": {
+      "type": "string",
+      "description": "The cause description text to classify"
+     },
+     "domain": {
+      "type": "string",
+      "description": "Optional domain context for better suggestions (e.g., 'anesthesia', 'surgery', 'nursing')",
+      "default": null
+     },
+     "max_suggestions": {
+      "type": "integer",
+      "description": "Maximum number of suggestions to return",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10
+     }
+    },
+    "required": [
+     "description"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_confirm_classification",
+   "description": "Persist an operator-authorized HFACS review for exactly one Fishbone cause in one session. CONFIRMED requires a recognized HFACS code; NOT_APPLICABLE forbids a code. A code supplied to rc_add_cause remains UNREVIEWED and cannot satisfy final conformance.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "Session owning the persisted Fishbone"
+     },
+     "cause_id": {
+      "type": "string",
+      "description": "Exact persisted Fishbone cause ID"
+     },
+     "description": {
+      "type": "string",
+      "description": "Optional exact cause description for an additional stale-data check"
+     },
+     "hfacs_code": {
+      "type": "string",
+      "description": "Recognized HFACS-MES code; required only for CONFIRMED"
+     },
+     "review_status": {
+      "type": "string",
+      "enum": [
+       "CONFIRMED",
+       "NOT_APPLICABLE"
+      ]
+     },
+     "reviewed_by": {
+      "type": "string",
+      "description": "Named reviewer in ROOTCAUSE_AUTHORIZED_REVIEWERS"
+     },
+     "reason": {
+      "type": "string",
+      "description": "Auditable reason for the review disposition"
+     },
+     "confidence": {
+      "type": "number",
+      "description": "Optional caller-supplied heuristic compatibility metadata; not clinical probability or calibrated confidence",
+      "minimum": 0.0,
+      "maximum": 1.0
+     }
+    },
+    "required": [
+     "session_id",
+     "cause_id",
+     "review_status",
+     "reviewed_by",
+     "reason"
+    ],
+    "type": "object",
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "review_status": {
+         "const": "CONFIRMED"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "hfacs_code"
+       ]
+      },
+      "else": {
+       "properties": {
+        "hfacs_code": {
+         "type": "null"
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_hfacs_framework",
+   "description": "Get HFACS-MES framework structure and category definitions. Use this to understand the classification hierarchy and criteria.",
+   "parameters": {
+    "properties": {
+     "level": {
+      "type": "string",
+      "description": "Optional: specific level to retrieve (EF, OI, US, PC, UA). If not specified, returns all levels.",
+      "enum": [
+       "EF",
+       "OI",
+       "US",
+       "PC",
+       "UA"
+      ],
+      "default": null
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_list_learned_rules",
+   "description": "List all learned classification rules. Shows rules that have been confirmed by experts.",
+   "parameters": {
+    "properties": {
+     "hfacs_code": {
+      "type": "string",
+      "description": "Optional: filter by specific HFACS code",
+      "default": null
+     },
+     "min_confidence": {
+      "type": "number",
+      "description": "Legacy heuristic-rule compatibility threshold; not calibrated confidence or clinical probability",
+      "default": 0.0,
+      "minimum": 0.0,
+      "maximum": 1.0
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_reload_rules",
+   "description": "Reload classification rules from YAML files. Use this after manually editing config files.",
+   "parameters": {
+    "properties": {},
+    "required": [],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_6m_hfacs_mapping",
+   "description": "Get mapping between 6M Fishbone categories and HFACS codes. Shows how Fishbone categories (Personnel, Equipment, Material, Process, Environment, Monitoring) correspond to HFACS levels. Useful for cross-framework analysis and ensuring comprehensive coverage. Also provides Why Tree depth guidance for each category.",
+   "parameters": {
+    "properties": {
+     "category": {
+      "type": "string",
+      "description": "Optional: specific 6M category to retrieve mapping for. If not specified, returns all mappings.",
+      "enum": [
+       "Personnel",
+       "Equipment",
+       "Material",
+       "Process",
+       "Environment",
+       "Monitoring"
+      ],
+      "default": null
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_start_session",
+   "description": "Start a new RCA analysis session. Creates a new session with the specified case type and title. Returns session_id for subsequent operations.",
+   "parameters": {
+    "properties": {
+     "case_type": {
+      "type": "string",
+      "description": "Type of case being analyzed",
+      "enum": [
+       "death",
+       "complication",
+       "near_miss",
+       "safety",
+       "staffing"
+      ]
+     },
+     "case_title": {
+      "type": "string",
+      "description": "Brief title for the case"
+     },
+     "initial_description": {
+      "type": "string",
+      "description": "Initial description of the incident",
+      "default": ""
+     },
+     "source_manifest": {
+      "$defs": {
+       "SourceDocument": {
+        "additionalProperties": false,
+        "description": "Immutable identity and processing metadata for one source document.",
+        "properties": {
+         "document_id": {
+          "description": "Stable case-local source identifier; never use direct patient identifiers",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Document Id",
+          "type": "string"
+         },
+         "source_uri": {
+          "description": "URI or approved local path retained by the host; raw bytes are not embedded",
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Source Uri",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "Whole-source SHA-256 digest",
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "title": "Sha256",
+          "type": "string"
+         },
+         "media_type": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+         },
+         "source_kind": {
+          "description": "For example progress_note, medication_record, imaging, or device_log",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Source Kind",
+          "type": "string"
+         },
+         "revision": {
+          "anyOf": [
+           {
+            "maxLength": 128,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Revision"
+         },
+         "captured_at": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Captured At"
+         },
+         "parser_name": {
+          "anyOf": [
+           {
+            "maxLength": 128,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Parser Name"
+         },
+         "parser_version": {
+          "anyOf": [
+           {
+            "maxLength": 64,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Parser Version"
+         },
+         "status": {
+          "$ref": "#/$defs/SourceReviewStatus",
+          "default": "registered"
+         },
+         "de_identified": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Host attestation; null means de-identification has not been established",
+          "title": "De Identified"
+         },
+         "independence_status": {
+          "$ref": "#/$defs/SourceIndependenceStatus",
+          "default": "unknown",
+          "description": "Whether this is an independently acquired source, a derivative of another manifest document, or not yet adjudicated"
+         },
+         "source_group_id": {
+          "anyOf": [
+           {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Host-declared independence group; documents in one group count as one source root for final conformance",
+          "title": "Source Group Id"
+         },
+         "parent_document_id": {
+          "anyOf": [
+           {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Immediate manifest parent when independence_status is derived",
+          "title": "Parent Document Id"
+         },
+         "derivation_method": {
+          "anyOf": [
+           {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "description": "Auditable extraction/transcription/transformation method",
+          "title": "Derivation Method"
+         }
+        },
+        "required": [
+         "document_id",
+         "source_uri",
+         "sha256",
+         "media_type",
+         "source_kind"
+        ],
+        "title": "SourceDocument",
+        "type": "object"
+       },
+       "SourceIndependenceStatus": {
+        "description": "Relationship of a document to independently acquired clinical sources.",
+        "enum": [
+         "unknown",
+         "independent",
+         "derived"
+        ],
+        "title": "SourceIndependenceStatus",
+        "type": "string"
+       },
+       "SourceReviewStatus": {
+        "description": "Processing state for one registered source document.",
+        "enum": [
+         "registered",
+         "extracted",
+         "reviewed",
+         "failed"
+        ],
+        "title": "SourceReviewStatus",
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "description": "Versioned manifest for every raw record in scope. Register all sources, including documents from which no finding was extracted.",
+      "properties": {
+       "schema_version": {
+        "const": "1.0",
+        "default": "1.0",
+        "title": "Schema Version",
+        "type": "string"
+       },
+       "patient_key": {
+        "anyOf": [
+         {
+          "maxLength": 128,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Pseudonymous case-local patient key, never a direct identifier",
+        "title": "Patient Key"
+       },
+       "encounter_key": {
+        "anyOf": [
+         {
+          "maxLength": 128,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Pseudonymous encounter key",
+        "title": "Encounter Key"
+       },
+       "default_timezone": {
+        "anyOf": [
+         {
+          "maxLength": 64,
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "IANA timezone used when a source omits its timezone",
+        "title": "Default Timezone"
+       },
+       "documents": {
+        "items": {
+         "$ref": "#/$defs/SourceDocument"
+        },
+        "minItems": 1,
+        "title": "Documents",
+        "type": "array"
+       }
+      },
+      "required": [
+       "documents"
+      ],
+      "title": "CaseInputManifest",
+      "type": "object"
+     }
+    },
+    "required": [
+     "case_type",
+     "case_title"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_adjudicate_source",
+   "description": "Append an authorized source-processing and independence review event without mutating the pinned source manifest or its digest. Use after extraction/review; reviewer must be allowlisted.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string"
+     },
+     "document_id": {
+      "type": "string",
+      "description": "Stable document_id in the pinned manifest"
+     },
+     "source_status": {
+      "type": "string",
+      "enum": [
+       "extracted",
+       "reviewed",
+       "failed"
+      ]
+     },
+     "de_identified": {
+      "type": "boolean",
+      "description": "Human attestation; must be true for reviewed sources"
+     },
+     "independence_status": {
+      "type": "string",
+      "enum": [
+       "unknown",
+       "independent",
+       "derived"
+      ]
+     },
+     "source_group_id": {
+      "type": "string",
+      "description": "Host-adjudicated source root/group"
+     },
+     "parent_document_id": {
+      "type": "string",
+      "description": "Manifest parent for a derived source"
+     },
+     "derivation_method": {
+      "type": "string",
+      "description": "Transformation/extraction method for a derivative"
+     },
+     "reviewed_by": {
+      "type": "string",
+      "description": "Named member of ROOTCAUSE_AUTHORIZED_REVIEWERS"
+     },
+     "reason": {
+      "type": "string",
+      "description": "Source-linked rationale for this transition"
+     }
+    },
+    "required": [
+     "session_id",
+     "document_id",
+     "source_status",
+     "reviewed_by",
+     "reason"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_session",
+   "description": "Get details of an RCA session by ID. Returns session status, current stage, and progress.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID to retrieve"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_list_sessions",
+   "description": "List all RCA sessions with optional filters. Returns summary of all sessions.",
+   "parameters": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "description": "Filter by session status",
+      "enum": [
+       "active",
+       "completed",
+       "abandoned",
+       "archived"
+      ],
+      "default": null
+     },
+     "case_type": {
+      "type": "string",
+      "description": "Filter by case type",
+      "enum": [
+       "death",
+       "complication",
+       "near_miss",
+       "safety",
+       "staffing"
+      ],
+      "default": null
+     },
+     "limit": {
+      "type": "integer",
+      "description": "Maximum number of sessions to return",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 100
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_archive_session",
+   "description": "Archive a completed RCA session. Archived sessions are preserved but marked as inactive.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID to archive"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_init_fishbone",
+   "description": "Initialize a Fishbone (Ishikawa) diagram for a session. Creates a 6M structure (Personnel, Equipment, Material, Process, Environment, Monitoring) with the problem statement as the fish head.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID to create fishbone for"
+     },
+     "problem_statement": {
+      "type": "string",
+      "description": "The problem statement (fish head)"
+     }
+    },
+    "required": [
+     "session_id",
+     "problem_statement"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_add_cause",
+   "description": "Add a cause to a Fishbone category. Each cause can have sub-causes and evidence. An optional HFACS code is only an UNREVIEWED candidate until rc_confirm_classification persists an authorized review.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     },
+     "category": {
+      "type": "string",
+      "description": "The 6M category for this cause",
+      "enum": [
+       "Personnel",
+       "Equipment",
+       "Material",
+       "Process",
+       "Environment",
+       "Monitoring"
+      ]
+     },
+     "description": {
+      "type": "string",
+      "description": "Description of the cause"
+     },
+     "sub_causes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "List of sub-causes (optional)",
+      "default": []
+     },
+     "hfacs_code": {
+      "type": "string",
+      "description": "Optional unreviewed HFACS candidate code; never a confirmation",
+      "default": null
+     },
+     "evidence": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Supporting evidence (optional)",
+      "default": []
+     }
+    },
+    "required": [
+     "session_id",
+     "category",
+     "description"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_fishbone",
+   "description": "Get the complete Fishbone diagram for a session. Returns all categories and causes in structured format.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_export_fishbone",
+   "description": "Export Fishbone diagram in various formats. Supports Mermaid, JSON, and Markdown formats.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     },
+     "format": {
+      "type": "string",
+      "description": "Export format",
+      "enum": [
+       "mermaid",
+       "json",
+       "markdown"
+      ],
+      "default": "mermaid"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_ask_why",
+   "description": "Ask 'Why?' to drill down into root causes using 5-Why analysis. Creates or extends a WhyChain for the session. Each call goes one level deeper (up to 5 levels). This is the CORE tool for systematic root cause reasoning.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     },
+     "answer": {
+      "type": "string",
+      "description": "The answer to 'Why?'. This becomes the basis for the next question. Example: 'Because the nurse miscalculated the dose'"
+     },
+     "parent_node_id": {
+      "type": "string",
+      "description": "Optional: ID of parent node to branch from. If not provided, continues from the last node or creates first Why.",
+      "default": null
+     },
+     "evidence": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Supporting evidence for this answer (optional)",
+      "default": []
+     },
+     "initial_problem": {
+      "type": "string",
+      "description": "The initial problem statement. Required only for the FIRST Why in a chain.",
+      "default": null
+     }
+    },
+    "required": [
+     "session_id",
+     "answer"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_get_why_tree",
+   "description": "Get the complete Why Tree (5-Why analysis chain) for a session. Shows all Why questions and answers in hierarchical format.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_mark_root_cause",
+   "description": "Mark a WhyNode as the identified root cause. This indicates the analysis has reached a fundamental cause that requires action.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     },
+     "node_id": {
+      "type": "string",
+      "description": "The WhyNode ID to mark as root cause"
+     },
+     "confidence": {
+      "type": "number",
+      "description": "Optional caller-supplied compatibility metadata; not clinical probability or calibrated confidence",
+      "minimum": 0.0,
+      "maximum": 1.0
+     }
+    },
+    "required": [
+     "session_id",
+     "node_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_export_why_tree",
+   "description": "Export Why Tree in various formats. Supports Mermaid (flowchart), JSON, and Markdown.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     },
+     "format": {
+      "type": "string",
+      "description": "Export format",
+      "enum": [
+       "mermaid",
+       "json",
+       "markdown"
+      ],
+      "default": "mermaid"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_add_causal_link",
+   "description": "Add a directed or bidirectional causal relationship between Why nodes. Use this to capture escalation loops, feedback cycles, or mitigation links that are not visible in a simple linear 5-Why chain.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     },
+     "source_node_id": {
+      "type": "string",
+      "description": "The source WhyNode ID"
+     },
+     "target_node_id": {
+      "type": "string",
+      "description": "The target WhyNode ID"
+     },
+     "relationship": {
+      "type": "string",
+      "description": "Type of causal relationship",
+      "enum": [
+       "contributes_to",
+       "feedback",
+       "escalates",
+       "mitigates"
+      ],
+      "default": "feedback"
+     },
+     "strength": {
+      "type": "number",
+      "description": "Relationship strength (0.0-1.0)",
+      "default": 0.5,
+      "minimum": 0.0,
+      "maximum": 1.0
+     },
+     "bidirectional": {
+      "type": "boolean",
+      "description": "Whether the influence also goes from target back to source",
+      "default": false
+     },
+     "note": {
+      "type": "string",
+      "description": "Optional explanatory note for this link",
+      "default": ""
+     },
+     "evidence": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Optional evidence supporting the link",
+      "default": []
+     }
+    },
+    "required": [
+     "session_id",
+     "source_node_id",
+     "target_node_id"
+    ],
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "rc_build_teaching_case",
+   "description": "Transform a completed Why Tree into a teaching-ready lesson plan. Generates learning objectives, common pitfalls, discussion prompts, and reverse-causality questions for medical learners.",
+   "parameters": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "description": "The session ID"
+     },
+     "learner_level": {
+      "type": "string",
+      "description": "Target learner level",
+      "enum": [
+       "medical_student",
+       "intern",
+       "resident",
+       "fellow"
+      ],
+      "default": "medical_student"
+     },
+     "format": {
+      "type": "string",
+      "description": "Output format",
+      "enum": [
+       "markdown",
+       "json"
+      ],
+      "default": "markdown"
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   }
+  }
+ }
+]

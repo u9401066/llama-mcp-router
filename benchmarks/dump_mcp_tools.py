@@ -31,7 +31,7 @@ def recv(id_, timeout=120):
     raise SystemExit("no response")
 
 
-send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "dump", "version": "0"}}})
+send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "dump", "version": "0"}}})
 recv(1)
 send({"jsonrpc": "2.0", "method": "notifications/initialized"})
 tools, cursor, i = [], None, 2

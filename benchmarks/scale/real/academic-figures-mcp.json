@@ -1,0 +1,777 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "plan_figure",
+   "description": "Plan the best figure type, route, and guardrails before generation.\n\nThis tool returns a structured plan so an MCP host can decide whether to use\ndirect image generation, SVG-style rendering, or deterministic chart routes.\n\nProvide either pmid or a generic source brief. Generic planning supports\npreprints, repositories, and freeform briefs by passing source_title plus\noptional source_summary and source_identifier.\n\noutput_format: Optional final raster delivery type such as png, gif, jpeg, or webp.\nThe planner stores this preference inside planned_payload for downstream rendering.\n\nexpected_labels: Optional list of exact text labels (especially CJK) the\nfigure must contain. Enables CJK text fidelity guardrails and model escalation.\n",
+   "parameters": {
+    "properties": {
+     "pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmid"
+     },
+     "source_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source Title"
+     },
+     "source_summary": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source Summary"
+     },
+     "source_kind": {
+      "default": "paper",
+      "title": "Source Kind",
+      "type": "string"
+     },
+     "source_identifier": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source Identifier"
+     },
+     "output_format": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Format"
+     },
+     "figure_type": {
+      "default": "auto",
+      "title": "Figure Type",
+      "type": "string"
+     },
+     "style_preset": {
+      "default": "journal_default",
+      "title": "Style Preset",
+      "type": "string"
+     },
+     "language": {
+      "default": "zh-TW",
+      "title": "Language",
+      "type": "string"
+     },
+     "output_size": {
+      "default": "1024x1536",
+      "title": "Output Size",
+      "type": "string"
+     },
+     "target_journal": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target Journal"
+     },
+     "expected_labels": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Labels"
+     }
+    },
+    "title": "plan_figureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "generate_figure",
+   "description": "Generate a publication-ready visual asset.\n\nSingle high-level entrypoint: callers may provide planned_payload directly,\nor pass a PMID / generic source brief and let the use case plan internally\nbefore rendering.\n\noutput_format: Optional final raster delivery type such as png, gif, jpeg, or webp.\nMCP applies the conversion internally after generation when possible.\n\nfigure_type: auto | flowchart | mechanism | comparison |\n             infographic | anatomical | timeline | data_visualization\n",
+   "parameters": {
+    "properties": {
+     "pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Pmid"
+     },
+     "source_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source Title"
+     },
+     "source_summary": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source Summary"
+     },
+     "source_kind": {
+      "default": "paper",
+      "title": "Source Kind",
+      "type": "string"
+     },
+     "source_identifier": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source Identifier"
+     },
+     "planned_payload": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Planned Payload"
+     },
+     "figure_type": {
+      "default": "auto",
+      "title": "Figure Type",
+      "type": "string"
+     },
+     "language": {
+      "default": "zh-TW",
+      "title": "Language",
+      "type": "string"
+     },
+     "output_size": {
+      "default": "1024x1536",
+      "title": "Output Size",
+      "type": "string"
+     },
+     "output_format": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Format"
+     },
+     "output_dir": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Dir"
+     },
+     "target_journal": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target Journal"
+     }
+    },
+    "title": "generate_figureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "edit_figure",
+   "description": "Refine an academic figure using natural language feedback.\n\noutput_format: Optional final raster delivery type such as png, gif, jpeg, or webp.\n\nExamples: \"箭頭改紅色\", \"標題字大一點\", \"Add PMID in footer\"\n",
+   "parameters": {
+    "properties": {
+     "image_path": {
+      "title": "Image Path",
+      "type": "string"
+     },
+     "feedback": {
+      "title": "Feedback",
+      "type": "string"
+     },
+     "output_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Path"
+     },
+     "output_format": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Format"
+     }
+    },
+    "required": [
+     "image_path",
+     "feedback"
+    ],
+    "title": "edit_figureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "prepare_publication_image",
+   "description": "Resize a raster image and write publication DPI metadata using code only.\n\nThis tool never calls image-generation providers. To truly meet 600 DPI for\nfinal publication size, pass width_mm and/or height_mm. Without a final print\nsize it preserves pixel dimensions and writes target_dpi metadata only.\n\noutput_format: Optional raster delivery type: png, jpeg, or tiff.\n",
+   "parameters": {
+    "properties": {
+     "image_path": {
+      "title": "Image Path",
+      "type": "string"
+     },
+     "output_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Path"
+     },
+     "target_dpi": {
+      "default": 600,
+      "title": "Target Dpi",
+      "type": "integer"
+     },
+     "width_mm": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Width Mm"
+     },
+     "height_mm": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Height Mm"
+     },
+     "output_format": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Format"
+     },
+     "preserve_aspect_ratio": {
+      "default": true,
+      "title": "Preserve Aspect Ratio",
+      "type": "boolean"
+     },
+     "allow_upscale": {
+      "default": true,
+      "title": "Allow Upscale",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "image_path"
+    ],
+    "title": "prepare_publication_imageArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "evaluate_figure",
+   "description": "Evaluate an academic figure using the 8-domain quality checklist.\n\nDomains: text accuracy, anatomy, color, layout,\n         scientific accuracy, legibility, visual polish, citation.\n",
+   "parameters": {
+    "properties": {
+     "image_path": {
+      "title": "Image Path",
+      "type": "string"
+     },
+     "figure_type": {
+      "default": "infographic",
+      "title": "Figure Type",
+      "type": "string"
+     },
+     "reference_pmid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Reference Pmid"
+     }
+    },
+    "required": [
+     "image_path"
+    ],
+    "title": "evaluate_figureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "batch_generate",
+   "description": "Generate academic figures for multiple PMIDs in sequence.\n\nBatch mode validates the full PMID list up front and propagates language,\noutput size, and output directory into every generation request.\n",
+   "parameters": {
+    "properties": {
+     "pmids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Pmids",
+      "type": "array"
+     },
+     "figure_type": {
+      "default": "auto",
+      "title": "Figure Type",
+      "type": "string"
+     },
+     "language": {
+      "default": "zh-TW",
+      "title": "Language",
+      "type": "string"
+     },
+     "output_size": {
+      "default": "1024x1536",
+      "title": "Output Size",
+      "type": "string"
+     },
+     "output_dir": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Dir"
+     }
+    },
+    "required": [
+     "pmids"
+    ],
+    "title": "batch_generateArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "composite_figure",
+   "description": "Composite multiple panel images into a publication-ready figure.",
+   "parameters": {
+    "properties": {
+     "panels": {
+      "items": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Panels",
+      "type": "array"
+     },
+     "labels": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Labels",
+      "type": "array"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "caption": {
+      "default": "",
+      "title": "Caption",
+      "type": "string"
+     },
+     "citation": {
+      "default": "",
+      "title": "Citation",
+      "type": "string"
+     },
+     "output_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Path"
+     }
+    },
+    "required": [
+     "panels",
+     "labels",
+     "title"
+    ],
+    "title": "composite_figureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "replay_manifest",
+   "description": "Replay a previously saved manifest using the same prompt.",
+   "parameters": {
+    "properties": {
+     "manifest_id": {
+      "title": "Manifest Id",
+      "type": "string"
+     },
+     "output_dir": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Dir"
+     }
+    },
+    "required": [
+     "manifest_id"
+    ],
+    "title": "replay_manifestArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "record_host_review",
+   "description": "Record a host-side visual review back into a persisted manifest.\n\nUse this when Copilot or another host model inspects the generated image\ndirectly and needs to write its verdict back into the review harness.\n",
+   "parameters": {
+    "properties": {
+     "manifest_id": {
+      "title": "Manifest Id",
+      "type": "string"
+     },
+     "passed": {
+      "title": "Passed",
+      "type": "boolean"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     },
+     "critical_issues": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Critical Issues"
+     },
+     "reviewer": {
+      "default": "copilot_host",
+      "title": "Reviewer",
+      "type": "string"
+     }
+    },
+    "required": [
+     "manifest_id",
+     "passed",
+     "summary"
+    ],
+    "title": "record_host_reviewArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "retarget_journal",
+   "description": "Apply a new journal profile to an existing manifest and regenerate the figure.",
+   "parameters": {
+    "properties": {
+     "manifest_id": {
+      "title": "Manifest Id",
+      "type": "string"
+     },
+     "target_journal": {
+      "title": "Target Journal",
+      "type": "string"
+     },
+     "output_dir": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Dir"
+     }
+    },
+    "required": [
+     "manifest_id",
+     "target_journal"
+    ],
+    "title": "retarget_journalArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_manifests",
+   "description": "List recent manifests for replay or retargeting.",
+   "parameters": {
+    "properties": {
+     "limit": {
+      "default": 20,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "title": "list_manifestsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_manifest_detail",
+   "description": "Load one manifest with full review history and lineage context.",
+   "parameters": {
+    "properties": {
+     "manifest_id": {
+      "title": "Manifest Id",
+      "type": "string"
+     },
+     "include_lineage": {
+      "default": true,
+      "title": "Include Lineage",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "manifest_id"
+    ],
+    "title": "get_manifest_detailArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "verify_figure",
+   "description": "Run the automated quality gate on a generated figure.\n\nUses vision self-check to evaluate 8 quality domains and verify CJK text\nrendering accuracy. Returns pass/fail verdict, domain scores, and any\nmissing or garbled labels.\n\nexpected_labels: Exact text strings (e.g. CJK labels) the figure should contain.\n",
+   "parameters": {
+    "properties": {
+     "image_path": {
+      "title": "Image Path",
+      "type": "string"
+     },
+     "expected_labels": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Expected Labels"
+     },
+     "figure_type": {
+      "default": "infographic",
+      "title": "Figure Type",
+      "type": "string"
+     },
+     "language": {
+      "default": "zh-TW",
+      "title": "Language",
+      "type": "string"
+     }
+    },
+    "required": [
+     "image_path"
+    ],
+    "title": "verify_figureArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "multi_turn_edit",
+   "description": "Iteratively refine a figure through a multi-turn editing session.\n\nSends multiple editing instructions turn-by-turn to fix CJK labels,\nadjust layout, or improve details. Each turn builds on the previous\nresult for precise iterative corrections.\n\ninstructions: List of natural language editing instructions applied in order.\nExamples: [\"修正標題為「急性冠心症處置流程」\", \"箭頭改紅色\", \"加大字體\"]\n",
+   "parameters": {
+    "properties": {
+     "image_path": {
+      "title": "Image Path",
+      "type": "string"
+     },
+     "instructions": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Instructions",
+      "type": "array"
+     },
+     "max_turns": {
+      "default": 5,
+      "title": "Max Turns",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "image_path",
+     "instructions"
+    ],
+    "title": "multi_turn_editArguments",
+    "type": "object"
+   }
+  }
+ }
+]

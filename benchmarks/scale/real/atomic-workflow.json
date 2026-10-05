@@ -1,0 +1,156 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "list_domains",
+   "description": "List all workflow domains available in the workspace",
+   "parameters": {
+    "properties": {},
+    "title": "list_domainsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_variants",
+   "description": "List available variants for a workflow domain",
+   "parameters": {
+    "properties": {
+     "domain": {
+      "title": "Domain",
+      "type": "string"
+     }
+    },
+    "required": [
+     "domain"
+    ],
+    "title": "list_variantsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_steps",
+   "description": "List resolved workflow steps for a domain/phase/variant",
+   "parameters": {
+    "properties": {
+     "domain": {
+      "title": "Domain",
+      "type": "string"
+     },
+     "phase": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Phase"
+     },
+     "variant": {
+      "default": "elective",
+      "title": "Variant",
+      "type": "string"
+     }
+    },
+    "required": [
+     "domain"
+    ],
+    "title": "list_stepsArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "query_step",
+   "description": "Query a single resolved workflow step by ID",
+   "parameters": {
+    "properties": {
+     "domain": {
+      "title": "Domain",
+      "type": "string"
+     },
+     "step_id": {
+      "title": "Step Id",
+      "type": "string"
+     },
+     "variant": {
+      "default": "elective",
+      "title": "Variant",
+      "type": "string"
+     }
+    },
+    "required": [
+     "domain",
+     "step_id"
+    ],
+    "title": "query_stepArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "validate_workflow",
+   "description": "Validate a workflow domain and return structured issues",
+   "parameters": {
+    "properties": {
+     "domain": {
+      "title": "Domain",
+      "type": "string"
+     }
+    },
+    "required": [
+     "domain"
+    ],
+    "title": "validate_workflowArguments",
+    "type": "object"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_phase_graph",
+   "description": "Return a phase graph in reactflow or raw graph format",
+   "parameters": {
+    "properties": {
+     "domain": {
+      "title": "Domain",
+      "type": "string"
+     },
+     "phase": {
+      "title": "Phase",
+      "type": "string"
+     },
+     "variant": {
+      "default": "elective",
+      "title": "Variant",
+      "type": "string"
+     },
+     "format": {
+      "default": "reactflow",
+      "title": "Format",
+      "type": "string"
+     }
+    },
+    "required": [
+     "domain",
+     "phase"
+    ],
+    "title": "get_phase_graphArguments",
+    "type": "object"
+   }
+  }
+ }
+]

@@ -1,0 +1,2869 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "init_project",
+   "description": "建立新的 EDA 探索專案（Phase 0）。\n\n        建立專案目錄結構，初始化 project.yaml，產生唯一 project_id。\n        這是 13-Phase Pipeline 的第一步。\n\n        Args:\n            name: 專案名稱，用於識別此次探索性分析（如 \"sepsis_eda\"、\"aki_analysis\"）\n            data_dir: 原始資料目錄路徑，含 CSV/Excel/Parquet 等檔案（預設: data/rawdata）\n            research_question: 研究問題描述，如 \"ICU sepsis 患者自主呼吸試驗的成功因素\"（可選，Phase 3 再填）\n            mode: full_audit 或 quick_explore。quick_explore 會標示為 Not Audited 快速概況。\n        ",
+   "parameters": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "data_dir": {
+      "default": "data/rawdata",
+      "title": "Data Dir",
+      "type": "string"
+     },
+     "research_question": {
+      "default": "",
+      "title": "Research Question",
+      "type": "string"
+     },
+     "mode": {
+      "default": "full_audit",
+      "title": "Mode",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object",
+    "title": "init_projectArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_pipeline_status",
+   "description": "查看目前分析專案的 13-Phase Pipeline 進度。\n\n        顯示已完成階段、計畫鎖定狀態、已載入資料集數量。\n\n        Args:\n            project_id: 專案 ID，如 \"a1b2c3d4\"（可選，預設使用最近建立的專案）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_pipeline_statusArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_decision_log",
+   "description": "查詢分析決策紀錄（decision_log.jsonl）。\n\n        Phase 8 的每一步操作都會自動寫入 decision_log（H-009 強制）。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_decision_logArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_deviation_log",
+   "description": "查詢計畫偏離紀錄（deviation_log.jsonl）。\n\n        Phase 8+ 偏離已鎖定計畫時，系統自動偵測並記錄；也可手動呼叫 log_deviation()。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_deviation_logArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "log_deviation",
+   "description": "記錄計畫偏離（Phase 8+ 偏離已鎖定計畫時呼叫）。\n\n        Phase 8 的工具現在會自動偵測偏離並記錄（S-011），\n        但如需補充說明或主動記錄，仍可手動呼叫此工具。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n            planned_action: 原計畫的操作，如 \"比較 treatment 與 control 組的 mortality\"\n            actual_action: 實際執行的操作，如 \"改用 Kruskal-Wallis 檢定（因三組比較）\"\n            reason: 偏離理由，如 \"原計畫為兩組比較，但資料包含三個治療組\"\n            impact_assessment: 影響評估，如 \"不影響主要結論，已補充 Dunn post-hoc\"\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "planned_action": {
+      "default": "",
+      "title": "Planned Action",
+      "type": "string"
+     },
+     "actual_action": {
+      "default": "",
+      "title": "Actual Action",
+      "type": "string"
+     },
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "impact_assessment": {
+      "default": "",
+      "title": "Impact Assessment",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "log_deviationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "draft_sample_size_plan",
+   "description": "建立不依賴病人資料的前瞻樣本數草案；不計算或推進 EDA 階段。\n\n        先 init_project，再以新的 UUID plan_id 保存不可變草案。\n        planning_options 必須 design=independent_means/paired_means/independent_proportions、\n        population、endpoint、time_horizon、outcome_unit、contrast（1−2）、group_labels=[1,2]、\n        independent_units=true、normal_model=common_normal_sd/normal_differences/not_applicable、\n        alpha、target_power、allocation=[正整數1,正整數2]（最簡比；paired=null）、max_evaluable。\n        sources=[{id,kind:published/prior_study/clinical_judgment/engineering_fixture,citation,locator,justification}]；\n        design_source_ids 指到來源。primary_scenario_id 固定主情境。\n        scenarios 1..5 項：id、英文 label、loss_rate（共同缺失／不完整配對率）、\n        effect_source_ids、nuisance_source_ids、loss_source_ids；mean 加 difference/sd，\n        proportion 加 probabilities=[p1,p2]。SD 是共同組間 SD 或配對差值 SD。\n        僅 prospective_superiority、two-sided、零差值虛無；無預設效應或數值假設。\n        回傳完整草案 hash；用 get_sample_size_plan 讀完整人類審閱內容後才可核准。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     },
+     "planning_options": {
+      "additionalProperties": true,
+      "title": "Planning Options",
+      "type": "object"
+     }
+    },
+    "required": [
+     "project_id",
+     "plan_id",
+     "planning_options"
+    ],
+    "type": "object",
+    "title": "draft_sample_size_planArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_sample_size_plan",
+   "description": "讀回完整前瞻設計、審閱文字、核准與執行成果，逐一驗證保存 hash。",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "plan_id"
+    ],
+    "type": "object",
+    "title": "get_sample_size_planArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "render_sample_size_publication",
+   "description": "從核對過的樣本數數值另建不可變期刊圖稿；不重算，也不改原圖與主情境。\n\n        expected_run_sha256 是成功 run_sample_size_plan 回傳的 receipt_sha256。\n        新 edition_id 使用 UUID；preset_id 由 get_publication_presets 取得。\n        captions 可依原圖序號修改 title/caption_en/explanation_zh，須審閱文字。\n        保存六格式與圖說；相同圖稿 ID 重試僅驗證並取回既有版本。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "expected_run_sha256": {
+      "title": "Expected Run Sha256",
+      "type": "string"
+     },
+     "preset_id": {
+      "title": "Preset Id",
+      "type": "string"
+     },
+     "edition_id": {
+      "title": "Edition Id",
+      "type": "string"
+     },
+     "start_number": {
+      "default": 1,
+      "title": "Start Number",
+      "type": "integer"
+     },
+     "captions": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Captions"
+     }
+    },
+    "required": [
+     "project_id",
+     "plan_id",
+     "run_id",
+     "expected_run_sha256",
+     "preset_id",
+     "edition_id"
+    ],
+    "type": "object",
+    "title": "render_sample_size_publicationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "approve_sample_size_plan",
+   "description": "只在研究者已審閱明確草案後核准；不執行計算。\n\n        review={reviewer,note,confirmations:{population_and_endpoint:true,\n        assumptions_and_sources:true,method_and_independence:true,primary_scenario_allocation_and_loss:true}}。\n        expected_plan_sha256 必須是本次實際審閱草案的完整 hash；核准不可覆寫。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     },
+     "expected_plan_sha256": {
+      "title": "Expected Plan Sha256",
+      "type": "string"
+     },
+     "review": {
+      "additionalProperties": true,
+      "title": "Review",
+      "type": "object"
+     }
+    },
+    "required": [
+     "project_id",
+     "plan_id",
+     "expected_plan_sha256",
+     "review"
+    ],
+    "type": "object",
+    "title": "approve_sample_size_planArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_sample_size_plan",
+   "description": "在固定草案與核准 hash 下執行整數樣本數計算，保存中文報告、表格與英文六格式圖。\n\n        run_id 使用新 UUID；相同成功 run_id 僅核對並取回，不重算。\n        未完成／失敗的 run_id 保留原紀錄，需要檢視後用新 ID 明確重試。\n        計算上限、不支持設計、變更／損壞證據會停止，不自行降低目標或替代主情境。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     },
+     "expected_plan_sha256": {
+      "title": "Expected Plan Sha256",
+      "type": "string"
+     },
+     "expected_approval_sha256": {
+      "title": "Expected Approval Sha256",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "plan_id",
+     "expected_plan_sha256",
+     "expected_approval_sha256",
+     "run_id"
+    ],
+    "type": "object",
+    "title": "run_sample_size_planArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "scan_data_folder",
+   "description": "掃描指定目錄，列出所有可分析的資料檔案。\n\n        支援格式: CSV, Excel (.xlsx/.xls), Parquet, SAS (.sas7bdat),\n        SPSS (.sav), Stata (.dta), TSV。自動檢查 H-001 (≤500MB) 和 H-002 (格式白名單)。\n\n        Args:\n            directory: 要掃描的資料目錄路徑，如 \"data/rawdata\" 或 \"/mnt/data\"（預設: data/rawdata）\n        ",
+   "parameters": {
+    "properties": {
+     "directory": {
+      "default": "data/rawdata",
+      "title": "Directory",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "scan_data_folderArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "load_dataset",
+   "description": "載入資料集到記憶體，執行格式與大小的安全檢查。\n\n        自動執行 H-001 (檔案大小 ≤500MB)、H-002 (格式白名單)、\n        H-004 (PII 偵測 — 預設阻擋) 檢查。\n\n        Args:\n            file_path: 資料檔案路徑，如 \"data/rawdata/patient_data.csv\"\n            encoding: 檔案編碼，如 \"utf-8\"、\"big5\"、\"shift_jis\"（可選，自動偵測）\n            sheet_name: Excel 工作表名稱，僅 .xlsx/.xls 檔案適用（可選，預設讀取第一個工作表）\n            allow_pii: 是否允許載入含疑似 PII 的資料（預設 false，需明確設為 true 才放行 H-004）\n        ",
+   "parameters": {
+    "properties": {
+     "file_path": {
+      "title": "File Path",
+      "type": "string"
+     },
+     "encoding": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Encoding"
+     },
+     "sheet_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sheet Name"
+     },
+     "allow_pii": {
+      "default": false,
+      "title": "Allow Pii",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "file_path"
+    ],
+    "type": "object",
+    "title": "load_datasetArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_intake",
+   "description": "執行完整收件流程（Phase 1 orchestration）。\n\n        自動執行: 掃描目錄 → 格式檢查 (H-002) → 大小檢查 (H-001) → PII 初篩 (H-004)\n        → 載入第一個可用的資料集 → 儲存 intake_report.json artifact。\n\n        Args:\n            directory: 原始資料目錄路徑，如 \"data/rawdata\"（預設: data/rawdata）\n            project_id: 專案 ID，用於關聯 intake artifact（可選，如已呼叫 init_project）\n            allow_pii: 是否允許載入含疑似 PII 的資料（預設 false，需明確設為 true 才放行 H-004）\n            sheet_name: 明確選取 Excel 工作表；收件紀錄會保存此選擇供 session 恢復使用。\n        ",
+   "parameters": {
+    "properties": {
+     "directory": {
+      "default": "data/rawdata",
+      "title": "Directory",
+      "type": "string"
+     },
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "allow_pii": {
+      "default": false,
+      "title": "Allow Pii",
+      "type": "boolean"
+     },
+     "sheet_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sheet Name"
+     }
+    },
+    "type": "object",
+    "title": "run_intakeArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "build_schema",
+   "description": "建立完整 schema — 型別推論 + 變數分類 + 基礎統計（Phase 2 orchestration）。\n\n        對已載入資料集進行自動型別推論、變數分類（連續/類別/二元/序數/日期/ID），\n        並計算基礎統計量。結果儲存為 schema.json artifact。\n\n        Args:\n            dataset_id: 資料集 ID（可選，預設使用第一個）\n            project_id: 專案 ID（可選）\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Dataset Id"
+     },
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "build_schemaArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "profile_dataset",
+   "description": "生成資料集的完整 profiling 報告（ydata-profiling）。\n\n        產出每個變數的分佈、缺失模式、相關性矩陣，並偵測高缺失率變數。\n        若 ydata-profiling 未安裝，自動降級為 pandas 基礎 profiling。\n\n        Args:\n            dataset_id: 已載入的資料集 ID（由 load_dataset 或 run_intake 回傳）\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "dataset_id"
+    ],
+    "type": "object",
+    "title": "profile_datasetArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "assess_quality",
+   "description": "評估資料品質：完整性、一致性、有效性。自動偵測 PII (H-004)。\n\n        Args:\n            dataset_id: 已載入的資料集 ID（需先執行 profile_dataset）\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "dataset_id"
+    ],
+    "type": "object",
+    "title": "assess_qualityArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "align_concept",
+   "description": "對齊研究概念與資料 schema（Phase 3）。\n\n        將研究問題對應到實際變數，確認 outcome/predictor/confounder 角色。\n        ⚠️ 需要用戶確認 (confirm=true) 後才能解鎖 Phase 4。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n            research_question: 研究問題，如 \"ICU sepsis 患者 28 天死亡率的影響因素\"\n            variable_roles: 變數角色指定，格式: {\"outcome\": \"mortality\", \"group\": \"treatment\", \"covariates\": [\"age\", \"sex\"]}\n            confirm: 是否確認概念對齊，必須設為 true 才能解鎖 Phase 4（預設 false）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "dataset_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Dataset Id"
+     },
+     "research_question": {
+      "default": "",
+      "title": "Research Question",
+      "type": "string"
+     },
+     "variable_roles": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "items": {
+            "type": "string"
+           },
+           "type": "array"
+          }
+         ]
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Variable Roles"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "align_conceptArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "propose_analysis_plan",
+   "description": "產生 greedy autonomous EDA 候選計畫（Phase 4 — Creative Ideation）。\n\n        在 Phase 3 已確認後，根據 schema、variable roles 與研究問題，\n        用 deterministic greedy heuristic 產生一份「可直接送入 Phase 5」的\n        blueprint，協助 agent 更自主地驅動 EDA。\n\n        此工具包含內部 methodology review + repair，會先產生 draft，再補足缺失的分析家族。\n        `max_analyses` 是初始 greedy budget，不是硬性上限；若 review 認為應保留延伸 EDA 路線，\n        planner 會產生 soft-budget expansion 與 Phase 8 execution schedule。\n        另外可用 `enrich_rounds` 讓 planner 在 reviewed blueprint 後再多跑幾輪 enrich，\n        每輪都只補少量新 branch，避免一次暴衝失控。\n        這個工具不會鎖定計畫；真正鎖定仍需 `register_analysis_plan(confirm=true)`。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n            dataset_id: 資料集 ID（可選，預設使用當前資料集）\n            max_analyses: greedy 初始預算，review 可視需要擴張以保留更多分析路線（預設 8）\n            enrich_rounds: reviewed blueprint 後的 enrich 輪數，1 表示只做單輪 review/repair（預設 1）\n            include_advanced: 是否納入 regression / ROC / learning-curve 等進階候選（預設 true）\n            include_visualizations: 是否同時產生可納入 plan 的 visualization bundle（預設 true）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "dataset_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Dataset Id"
+     },
+     "max_analyses": {
+      "default": 8,
+      "title": "Max Analyses",
+      "type": "integer"
+     },
+     "enrich_rounds": {
+      "default": 1,
+      "title": "Enrich Rounds",
+      "type": "integer"
+     },
+     "include_advanced": {
+      "default": true,
+      "title": "Include Advanced",
+      "type": "boolean"
+     },
+     "include_visualizations": {
+      "default": true,
+      "title": "Include Visualizations",
+      "type": "boolean"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "propose_analysis_planArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "register_analysis_plan",
+   "description": "註冊分析計畫（Phase 6 — Plan Registration）。\n\n        ⚠️ 確認後計畫將被鎖定 (H-007)，後續偏離會自動偵測並記錄。\n        每項分析需指定 type、variables、rationale。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n            analyses: 計畫分析項目清單，每項必須含 type 和 variables，如 [{\"type\": \"compare_groups\", \"variables\": [\"sofa_score\"], \"rationale\": \"比較兩組 SOFA\"}]\n            alpha: 顯著水準 α，如 0.05、0.01（預設 0.05）\n            missing_strategy: 缺失值處理策略: listwise（預設）、pairwise；不隱含補值\n            multiple_comparison_method: 同次結果比較家族校正: bonferroni（預設）、holm、fdr (BH)；單一 weighting 契約必須 none\n            allow_methodology_override: 若 plan 明顯低於方法學最低覆蓋要求，是否仍強制允許鎖定（預設 false）\n            confirm: 是否確認並鎖定計畫，必須設為 true 才會鎖定（預設 false）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "analyses": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Analyses"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     },
+     "missing_strategy": {
+      "default": "listwise",
+      "title": "Missing Strategy",
+      "type": "string"
+     },
+     "multiple_comparison_method": {
+      "default": "bonferroni",
+      "title": "Multiple Comparison Method",
+      "type": "string"
+     },
+     "allow_methodology_override": {
+      "default": false,
+      "title": "Allow Methodology Override",
+      "type": "boolean"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "register_analysis_planArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "check_readiness",
+   "description": "執行探索前準備度檢查（Phase 7）。\n\n        驗證 H-003 (樣本量 ≥10), H-004 (PII), H-007 (計畫已鎖定),\n        H-008 (artifact gate), S-001 (常態性提醒), S-005 (缺失模式),\n        S-007 (共線性 VIF 預檢)。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "check_readinessArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "suggest_cleaning",
+   "description": "根據品質評估建議資料清理策略。\n\n        根據 assess_quality() 的結果，自動建議清理動作（如移除高缺失欄位、填補中位數、去重）。\n        建議需經用戶確認後，以 apply_cleaning() 執行。\n\n        Args:\n            dataset_id: 已評估品質的資料集 ID（先執行 assess_quality）\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "dataset_id"
+    ],
+    "type": "object",
+    "title": "suggest_cleaningArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "apply_cleaning",
+   "description": "執行用戶已確認的清理操作。\n\n        執行由 suggest_cleaning() 建議、用戶核准的清理動作。\n        支援 14 種清理動作（DROP/FILL/CLIP/ENCODE 等）。H-009 自動記錄。\n\n        Args:\n            dataset_id: 資料集 ID（已執行 suggest_cleaning）\n            approved_indices: 核准的清理動作索引列表，如 [0, 1, 3]（對應 suggest_cleaning 報告中的編號）\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "approved_indices": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Approved Indices",
+      "type": "array"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "approved_indices"
+    ],
+    "type": "object",
+    "title": "apply_cleaningArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "analyze_variable",
+   "description": "分析單一變數的分佈與描述統計。\n\n        自動判斷常態性 (S-001)、建議轉換 (S-004)、偵測極端值 (S-006)、\n        建議圖表類型 (S-003)。H-009 自動記錄。\n\n        Args:\n            dataset_id: 資料集 ID（由 load_dataset 或 run_intake 回傳）\n            variable_name: 要分析的變數名稱，如 \"age\"、\"sofa_score\"、\"treatment_group\"\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "variable_name": {
+      "title": "Variable Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "variable_name"
+    ],
+    "type": "object",
+    "title": "analyze_variableArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "compare_groups",
+   "description": "組間比較，自動選擇適當統計檢定。\n\n        政策未指定時使用鎖定計畫。listwise 使用本次所有結果／組別的共同完整列，\n        pairwise 使用各結果／組別的完整列；配對比較始終按 subject key 配對。\n        本次所有結果檢定構成一個校正家族，保留 raw / adjusted p，不跨呼叫校正。\n\n        自動應用: S-001 (常態性 → 有母數/無母數), S-002 (多重比較),\n        S-008 (樣本平衡), S-009 (effect size), S-010 (power)。H-009 自動記錄。\n        若操作不在已鎖定計畫中，自動偵測偏離並記錄 (S-011)。\n\n        Args:\n            dataset_id: 資料集 ID\n            outcome_variables: 要比較的結果變數列表，如 [\"sofa_score\", \"mortality\"]\n            group_variable: 分組變數，如 \"treatment_group\"、\"gender\"\n            is_paired: 是否為配對資料（如前後測），預設 false\n            subject_variable: 長格式配對資料必填的個案鍵；寬格式請用 run_repeated_measures\n            alpha: 顯著水準；省略時讀取鎖定計畫\n            missing_strategy: listwise / pairwise；省略時讀取鎖定計畫\n            multiple_comparison_method: bonferroni / holm / fdr (BH)；省略時讀取鎖定計畫\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "outcome_variables": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Outcome Variables",
+      "type": "array"
+     },
+     "group_variable": {
+      "title": "Group Variable",
+      "type": "string"
+     },
+     "is_paired": {
+      "default": false,
+      "title": "Is Paired",
+      "type": "boolean"
+     },
+     "subject_variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Subject Variable"
+     },
+     "alpha": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Alpha"
+     },
+     "missing_strategy": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Missing Strategy"
+     },
+     "multiple_comparison_method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Multiple Comparison Method"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "outcome_variables",
+     "group_variable"
+    ],
+    "type": "object",
+    "title": "compare_groupsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "correlation_matrix",
+   "description": "計算相關性矩陣，自動檢查共線性 (S-007)。H-009 自動記錄。\n\n        回報高相關變數對；這不是 VIF 計算。列出每一對實際 n，僅描述相關，不進行 p 值檢定。\n\n        Args:\n            dataset_id: 資料集 ID\n            variables: 要分析的數值變數列表，如 [\"age\", \"bmi\", \"creatinine\"]（可選，空則分析所有數值變數）\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "variables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Variables"
+     },
+     "missing_strategy": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Missing Strategy"
+     }
+    },
+    "required": [
+     "dataset_id"
+    ],
+    "type": "object",
+    "title": "correlation_matrixArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "generate_table_one",
+   "description": "生成 Table 1（基線特徵表）。H-009 自動記錄。\n\n        使用 tableone 套件生成標準化的基線特徵表，\n        自動判斷類別/連續變數並選擇適當的檢定方法。\n\n        Args:\n            dataset_id: 資料集 ID\n            group_variable: 分組變數，如 \"treatment_group\"、\"disease_severity\"\n            variables: 要納入 Table 1 的變數列表（可選，空則納入分組變數以外的所有變數）\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "group_variable": {
+      "title": "Group Variable",
+      "type": "string"
+     },
+     "variables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Variables"
+     },
+     "include_p_values": {
+      "default": false,
+      "title": "Include P Values",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "group_variable"
+    ],
+    "type": "object",
+    "title": "generate_table_oneArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_advanced_analysis",
+   "description": "執行進階統計分析，自動委派給 automl-stat-mcp（如可用）。\n\n        支援: propensity_score, survival_analysis, roc_auc,\n        logistic_regression, multiple_regression。\n        前瞻樣本數規劃另用 draft_sample_size_plan → 審閱核准 → run_sample_size_plan，不從當次觀察效應計算事後 power。\n        臨床 local methods: risk_estimates, diagnostic_accuracy, mcnemar,\n        bland_altman, cohens_kappa, gee, mixed_effects（不需 Docker）。\n        automl 不可用時自動降級為 local-lite statsmodels/scipy fallback（支援時）。\n        H-009 自動記錄 + S-011 偏離自動偵測。\n\n        Args:\n            dataset_id: 資料集 ID\n            analysis_type: 分析類型，如 \"propensity_score\"、\"survival_analysis\"、\"roc_auc\"、\"logistic_regression\"\n            target_variable: 目標變數（如 outcome），如 \"mortality\"、\"readmission\"（可選）\n            group_variable: 分組變數，如 \"treatment\"（可選）\n            covariates: 共變量列表，如 [\"age\", \"sex\", \"bmi\"]（可選）\n            time_variable: survival / learning-curve 類型使用的時間或次序欄位（可選）\n            score_variable: ROC 類型使用的風險分數欄位（可選）\n            problem_type: AutoML 類型可顯式指定 binary / multiclass / regression（可選）\n            endpoint: vendor 子端點，如 propensity full / survival cox / roc compare（可選）\n            test_type: power analysis 的 test 類型，如 ttest / anova / chisquare / survival（可選）\n            vendor_options: 原樣傳遞給 vendor adapter 的額外參數（可選）\n            subject_variable: GEE / mixed_effects 的受試者 ID 欄位（long format）\n            confidence_level: 臨床分析信賴水準（預設 0.95）\n            clinical_options: threshold、positive_direction 或 family；二元輸入須明確編碼為 0/1\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "analysis_type": {
+      "title": "Analysis Type",
+      "type": "string"
+     },
+     "target_variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target Variable"
+     },
+     "group_variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Group Variable"
+     },
+     "covariates": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Covariates"
+     },
+     "time_variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Time Variable"
+     },
+     "score_variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Score Variable"
+     },
+     "problem_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Problem Type"
+     },
+     "endpoint": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Endpoint"
+     },
+     "test_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Test Type"
+     },
+     "vendor_options": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Vendor Options"
+     },
+     "subject_variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Subject Variable"
+     },
+     "confidence_level": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confidence Level"
+     },
+     "missing_strategy": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Missing Strategy"
+     },
+     "clinical_options": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Clinical Options"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "analysis_type"
+    ],
+    "type": "object",
+    "title": "run_advanced_analysisArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_repeated_measures",
+   "description": "執行兩時點 Wilcoxon 或 3+ 時點 Friedman 重複量測分析。\n\n        兩時點使用依原始列對齊的 Wilcoxon signed-rank；3+ 時點使用共同完整\n        個案的 Friedman，顯著時執行 Bonferroni post-hoc。每個結果都回報\n        個別時點可觀察數、完整配對數與排除數，避免把 pairwise 誤寫成固定 cohort。\n        H-009 自動記錄 + S-011 偏離自動偵測。\n\n        Args:\n            dataset_id: 已載入的資料集 ID\n            variables: 逗號分隔的重複測量欄位名稱（至少 2 個）\n            alpha: 顯著水準（預設 0.05），用於判定顯著性和 Bonferroni 校正\n            subject_variable: 寬格式的一列一人識別欄；指定時逐列驗證非空且唯一\n            posthoc_case_strategy: 3+ 時點 post-hoc 使用 complete（共同完整 cohort）\n                或 pairwise（每一對各自完整配對）；Friedman 主檢定永遠使用共同完整 cohort\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "variables": {
+      "title": "Variables",
+      "type": "string"
+     },
+     "alpha": {
+      "default": 0.05,
+      "title": "Alpha",
+      "type": "number"
+     },
+     "posthoc_case_strategy": {
+      "default": "complete",
+      "title": "Posthoc Case Strategy",
+      "type": "string"
+     },
+     "subject_variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Subject Variable"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "variables"
+    ],
+    "type": "object",
+    "title": "run_repeated_measuresArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_prediction_study",
+   "description": "依鎖定計畫執行預測模型訓練內 CV 與單一保留集驗證。\n\n        prediction_options 必須與計畫 execution_arguments.prediction_options 完全相符。\n        必填 target、predictors、study_design、sampling、sampling_description、target_definition、prediction_time_definition、features_available_at_prediction=true。\n        task=binary/regression；split=random/group/temporal；候選 linear/random_forest。\n        同一資料集已完成的驗證只讀取保存結果，禁止看過保留集後更換設定重測。\n        所有補值、縮放與編碼只 fit 訓練 partition；完整列位置、CV、失敗、指標、圖表可稽核。\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "prediction_options": {
+      "additionalProperties": true,
+      "title": "Prediction Options",
+      "type": "object"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "prediction_options"
+    ],
+    "type": "object",
+    "title": "run_prediction_studyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "inspect_clinical_study",
+   "description": "計畫審閱前核對配對／獨立比較／生存／診斷／一致性／縱向／迴歸／加權角色、受試者與個案分母；不估計模型或 p 值。",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "clinical_options": {
+      "additionalProperties": true,
+      "title": "Clinical Options",
+      "type": "object"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "clinical_options"
+    ],
+    "type": "object",
+    "title": "inspect_clinical_studyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_clinical_study",
+   "description": "執行鎖定的臨床研究：survival、diagnostic_accuracy、bland_altman、cohens_kappa、longitudinal、regression、weighting、comparison、repeated。\n\n        repeated 必須 subject、measurements=[{column,label}]（2..8 時點）、contrasts=[[first,second]]（1..28 明確方向），\n        outcome_name、outcome_unit、outcome_definition、context、independent_subjects=true、same_outcome=true。\n        method=paired_mean（primary_effect=mean_difference）或 signed_rank（primary_effect=rank_biserial）。\n        case_strategy=complete/pairwise（兩時點只能 complete）；signed_rank 固定 bootstrap={resamples,seed}，可 omnibus=true（Friedman，至少三時點）。\n        confidence_level、multiplicity=holm/bonferroni/fdr 及可選 cohort_filter 事先指定；全部比較執行，不依整體 p 篩選。\n        區間逐項未校正，重抽樣保留整個受試者配對。共同描述與每對比較的分母分開保存；無法估計不代換成零寬區間。\n\n        comparison 必須 outcome、group、group_levels（2..8 明確順序）、contrasts（1..12 事先指定兩組順序），\n        method=welch_mean/rank/binary、primary_effect、outcome_unit、outcome_definition、outcome_window、\n        context、study_design、independent_rows=true；可 subject、cohort_filter、confidence_level、omnibus。\n        welch_mean 的主要效果 mean_difference；rank 為 rank_biserial，另指定 bootstrap={resamples,seed}。\n        binary 指定 outcome_levels=[non-event,event]，primary_effect=proportion_difference/proportion_ratio/odds_ratio；\n        病例對照或未指定抽樣只允許 odds_ratio。multiplicity=holm/bonferroni/fdr 涵蓋所有計畫對比與可選整體檢定。\n        信賴區間逐項未校正，保存零／未定義／無限大／未能估計，不自動挑檢定、比較對象或效果尺度。\n        clinical_options 必須逐項符合唯一計畫的 execution_arguments.clinical_options。\n        必填 time、event、event_value、censor_value、time_origin、time_unit、independent_rows=true。\n        可明列 group、subject、covariates、categorical_covariates、references、competing_values、risk_times、cohort_filter。\n        同一完整個案集合提供 KM/競爭事件曲線、在險人數、Cox HR/CI/比例風險檢查、圖表與中文報告。\n        不將競爭事件合併成目標事件，不自動挑選變項，不改寫既有成功結果。\n        診斷／一致性須 first、second、context、independent_rows=true 及明確 diagnostic／agreement／categories。\n        診斷固定陽性規則、參照標準與抽樣；一致性保留差異方向、單位、界限涵蓋率與臨床容許差異。\n        longitudinal 必須指定 outcome、subject、time、time_unit、time_origin、outcome_unit、context、\n        independent_subjects=true、method=gee/mixed、distribution=gaussian/binomial/poisson。\n        GEE correlation=independence/exchangeable；Gaussian mixed 要 correlation=null，可 random_slope=true。\n        time_mode=linear/categorical、time_reference、time_levels、group/group_reference、time_by_group 明訂。\n        binomial 指定 positive/negative；Poisson 可指定 exposure/exposure_unit。固定 covariates、\n        categorical_covariates、references、time_varying_covariates，不平均重複 subject/time、不自動選模。\n        regression 必須 outcome、outcome_unit、context、independent_rows=true、study_design、distribution、predictors。\n        distribution=gaussian/binomial/poisson/negative_binomial/ordinal；可 subject、cohort_filter、confidence_level。\n        predictor 連續定義 column/kind=continuous/label/unit/reference/increment/knots（空或3..5明確節點）；\n        類別定義 column/kind=categorical/label/reference/levels（完整原始類別）。interactions 為兩個主因素欄名的配對。\n        binomial outcome_levels=[negative,positive]；ordinal 為3..8由低至高類別。計數可 exposure/exposure_unit。\n        NB2 聯合估計 dispersion；序位採比例勝算，無截距；基底係數與臨床對比不得混稱。來源單位與參照固定。\n        weighting 必須 treatment、treatment_levels=[control,treated]、treatment_definition、outcome、\n        outcome_type=continuous/binary、outcome_unit、outcome_definition、time_origin、outcome_window、\n        study_design=observational_cohort、context、estimand=ATE/ATT/ATO、independent_rows=true、pretreatment_covariates=true。\n        covariates 沿用 regression predictor 完整型別，每項另需 pre_exposure_basis；可 interactions、subject、cohort_filter。\n        binary outcome_levels=[negative,positive]；continuous 無 levels。單一 Hájek 平均差／機率差，聯合估計方程含 propensity 不確定性。\n        不自動裁切／截斷、挑目標、配對、補值或把未確認追蹤者當作沒有事件；群集／時變處置／加權生存不屬此契約。\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "clinical_options": {
+      "additionalProperties": true,
+      "title": "Clinical Options",
+      "type": "object"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "clinical_options"
+    ],
+    "type": "object",
+    "title": "run_clinical_studyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "evidence_arm_preparation",
+   "description": "固定原始 binary trial arms、審閱納排／分母／補值與零事件策略，核准後換算。\n\n        request={\"op\":\"contract\"} 取得嚴格 JSON schema 與方法；其餘操作依序\n        inspect 原始格線 → draft → read 完整 plan/grid/review → approve → execute → read result。\n        受信任 adapter 將原檔放在 project.output_dir 下的\n        incoming/evidence-arms/<preparation_id>/<filename>，不接受任意絕對路徑。\n        草案不計算效應；來源、欄位、納排、方法改動必須另建新草案。\n        inspect/read 為固定 SHA256 的文字分頁，續頁須 expected_text_sha256；完整讀完才審核。\n        本流程不擬合統合分析、不推進個案資料 EDA 階段、不證明臨床來源正確。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "request": {
+      "additionalProperties": true,
+      "title": "Request",
+      "type": "object"
+     }
+    },
+    "required": [
+     "project_id",
+     "request"
+    ],
+    "type": "object",
+    "title": "evidence_arm_preparationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "import_evidence_source",
+   "description": "驗證並凍結已核准的外部 R 文獻整合結果，不执行統計或推進 EDA 階段。\n\n        init_project 後，受信任的 Workbench adapter 在該專案 output_dir 的\n        incoming/evidence/<source_id>/bundle.json 準備 evidence-source-bundle-v1。\n        source_id 為 canonical UUID；expected_bundle_sha256 固定實際 bundle bytes。\n        必須含原始資料、解析表、schema、核准前計畫原 bytes、已核准計畫、options、\n        完整納排及 pinned R input/script/execution/output hashes/numeric receipt。\n        每次取回驗證全部來源；相同 ID 不覆寫。此工具不核准研究或證明文獻真實性。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     },
+     "expected_bundle_sha256": {
+      "title": "Expected Bundle Sha256",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "source_id",
+     "expected_bundle_sha256"
+    ],
+    "type": "object",
+    "title": "import_evidence_sourceArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_evidence_source",
+   "description": "重啟後驗證保存的全部文獻來源與圖稿；列出完成、失敗及中斷的出圖嘗試。",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "source_id"
+    ],
+    "type": "object",
+    "title": "get_evidence_sourceArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "render_evidence_study",
+   "description": "從固定外部數值產生英文六格式研究圖及中文解釋；不重新估計模型。\n\n        expected_source_sha256 是 import_evidence_source 回傳的 receipt_sha256。\n        render_id 為新 UUID；相同完成 ID 僅驗證取回。失敗／中斷保留原嘗試，\n        明確用新 ID 可由原數值重新出圖，無須重新執行 R。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     },
+     "expected_source_sha256": {
+      "title": "Expected Source Sha256",
+      "type": "string"
+     },
+     "render_id": {
+      "title": "Render Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "source_id",
+     "expected_source_sha256",
+     "render_id"
+    ],
+    "type": "object",
+    "title": "render_evidence_studyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "render_evidence_publication",
+   "description": "另建不可變文獻投稿圖版，改期刊樣式、圖號與圖說但固定所有研究數值。\n\n        expected_study_sha256 是 render_evidence_study 的 receipt_sha256。\n        新 edition_id 為 UUID；preset 由 get_publication_presets 取得。\n        captions 以原圖序號為 key，接受 title/caption_en/explanation_zh；須研究者審閱。\n        display_dictionary 固定比較表來源與審閱版本；同一治療跨欄意義必須相同。\n        effect/se 為 log OR、log RR 或原 MD 單位；不得改標成另一個數值尺度。\n        同 ID 同請求讀回已存版次，不覆寫原圖、不重新分析。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     },
+     "render_id": {
+      "title": "Render Id",
+      "type": "string"
+     },
+     "expected_study_sha256": {
+      "title": "Expected Study Sha256",
+      "type": "string"
+     },
+     "preset_id": {
+      "title": "Preset Id",
+      "type": "string"
+     },
+     "edition_id": {
+      "title": "Edition Id",
+      "type": "string"
+     },
+     "start_number": {
+      "default": 1,
+      "title": "Start Number",
+      "type": "integer"
+     },
+     "captions": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Captions"
+     },
+     "display_dictionary": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Display Dictionary"
+     }
+    },
+    "required": [
+     "project_id",
+     "source_id",
+     "render_id",
+     "expected_study_sha256",
+     "preset_id",
+     "edition_id"
+    ],
+    "type": "object",
+    "title": "render_evidence_publicationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "import_genomics_source",
+   "description": "驗證並凍結已核准的外部 R 基因分析結果，不執行統計或推進 EDA 階段。\n\n        init_project 後，受信任的 Workbench adapter 在該專案 output_dir 的\n        incoming/genomics/<source_id>/bundle.json 準備 genomics-source-bundle-v1。\n        source_id 為 canonical UUID；expected_bundle_sha256 固定實際 bundle bytes。\n        必須含每個來源的原始資料、解析表、schema、角色、工作表、核准前計畫原 bytes、已核准計畫、options、\n        完整 counts／樣本設計／選用的基因集合及 pinned R input/script/execution/output hashes/publication data and numeric receipts。\n        每次取回驗證全部來源；相同 ID 不覆寫。此工具不核准研究或證明生物來源真實性。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     },
+     "expected_bundle_sha256": {
+      "title": "Expected Bundle Sha256",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "source_id",
+     "expected_bundle_sha256"
+    ],
+    "type": "object",
+    "title": "import_genomics_sourceArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_genomics_source",
+   "description": "重啟後驗證保存的全部基因來源與圖稿；列出完成、失敗及中斷的出圖嘗試。",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "source_id"
+    ],
+    "type": "object",
+    "title": "get_genomics_sourceArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "render_genomics_study",
+   "description": "從固定外部數值產生英文六格式研究圖及中文解釋；不重新估計模型。\n\n        expected_source_sha256 是 import_genomics_source 回傳的 receipt_sha256。\n        render_id 為新 UUID；相同完成 ID 僅驗證取回。失敗／中斷保留原嘗試，\n        明確用新 ID 可由原數值重新出圖，無須重新執行 R。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     },
+     "expected_source_sha256": {
+      "title": "Expected Source Sha256",
+      "type": "string"
+     },
+     "render_id": {
+      "title": "Render Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "source_id",
+     "expected_source_sha256",
+     "render_id"
+    ],
+    "type": "object",
+    "title": "render_genomics_studyArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "render_genomics_publication",
+   "description": "另建不可變基因投稿圖版，改期刊樣式、圖號與圖說但固定所有研究數值。\n\n        expected_study_sha256 是 render_genomics_study 的 receipt_sha256。\n        新 edition_id 為 UUID；preset 由 get_publication_presets 取得。\n        captions 以原圖序號為 key，接受 title/caption_en/explanation_zh；須研究者審閱。\n        display_dictionary 分別固定 counts、sample_metadata、gene_sets 的來源與字典版本；只改顯示。\n        同 ID 同請求讀回已存版次，不覆寫原圖、不重新分析。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     },
+     "render_id": {
+      "title": "Render Id",
+      "type": "string"
+     },
+     "expected_study_sha256": {
+      "title": "Expected Study Sha256",
+      "type": "string"
+     },
+     "preset_id": {
+      "title": "Preset Id",
+      "type": "string"
+     },
+     "edition_id": {
+      "title": "Edition Id",
+      "type": "string"
+     },
+     "start_number": {
+      "default": 1,
+      "title": "Start Number",
+      "type": "integer"
+     },
+     "captions": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Captions"
+     },
+     "display_dictionary": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Display Dictionary"
+     }
+    },
+    "required": [
+     "project_id",
+     "source_id",
+     "render_id",
+     "expected_study_sha256",
+     "preset_id",
+     "edition_id"
+    ],
+    "type": "object",
+    "title": "render_genomics_publicationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "render_branch_publication",
+   "description": "從已執行的生存或通用探索分支另存期刊圖稿；核對完整來源，絕不重估。\n\n        使用 br_*／exp_* 原始識別與該實驗分析 JSON 檔案 SHA256。\n        同 UUID 同請求可取回；保留探索性限制，不改分支採用決定或主要計畫。\n        通用探索需完整數值、來源清理鏈與六格式原圖；生存分支另核對主要固定個案。\n        舊式 PNG 圖檔或未綁定來源的數值不能冒充可重現圖稿。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "branch_id": {
+      "title": "Branch Id",
+      "type": "string"
+     },
+     "experiment_id": {
+      "title": "Experiment Id",
+      "type": "string"
+     },
+     "expected_record_sha256": {
+      "title": "Expected Record Sha256",
+      "type": "string"
+     },
+     "preset_id": {
+      "title": "Preset Id",
+      "type": "string"
+     },
+     "edition_id": {
+      "title": "Edition Id",
+      "type": "string"
+     },
+     "start_number": {
+      "default": 1,
+      "title": "Start Number",
+      "type": "integer"
+     },
+     "captions": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Captions"
+     },
+     "display_dictionary": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Display Dictionary"
+     }
+    },
+    "required": [
+     "project_id",
+     "branch_id",
+     "experiment_id",
+     "expected_record_sha256",
+     "preset_id",
+     "edition_id"
+    ],
+    "type": "object",
+    "title": "render_branch_publicationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_publication_presets",
+   "description": "列出有來源日期、字型可用性、尺寸與格式的期刊出圖樣式。",
+   "parameters": {
+    "properties": {},
+    "type": "object",
+    "title": "get_publication_presetsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "render_publication_figures",
+   "description": "從指定 SHA256 的已保存研究另建投稿圖版，不重估、不重抽樣、不改原圖。\n\n        study_artifact 是原始 clinical_study_*.json、prediction_study_*.json 或 advanced_study_*.json 檔名。\n        edition_id 為新 UUID；同 ID 同請求讀回已保存產物，其他內容拒絕覆寫。\n        captions 以原圖一開始的序號為 key，可明列 title/caption_en/explanation_zh；保留原圖說。\n        本工具僅改顯示版本，不核准新分析或改變原計畫。圖說修訂需研究者審閱。\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "title": "Project Id",
+      "type": "string"
+     },
+     "study_artifact": {
+      "title": "Study Artifact",
+      "type": "string"
+     },
+     "expected_record_sha256": {
+      "title": "Expected Record Sha256",
+      "type": "string"
+     },
+     "preset_id": {
+      "title": "Preset Id",
+      "type": "string"
+     },
+     "edition_id": {
+      "title": "Edition Id",
+      "type": "string"
+     },
+     "start_number": {
+      "default": 1,
+      "title": "Start Number",
+      "type": "integer"
+     },
+     "captions": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Captions"
+     },
+     "display_dictionary": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Display Dictionary"
+     }
+    },
+    "required": [
+     "project_id",
+     "study_artifact",
+     "expected_record_sha256",
+     "preset_id",
+     "edition_id"
+    ],
+    "type": "object",
+    "title": "render_publication_figuresArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "open_exploration_branch",
+   "description": "Open an auditable Phase 8 exploratory branch without amending the plan.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "hypothesis": {
+      "default": "",
+      "title": "Hypothesis",
+      "type": "string"
+     },
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "parent_plan_item": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Parent Plan Item"
+     },
+     "variables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Variables"
+     },
+     "risk_level": {
+      "default": "low",
+      "title": "Risk Level",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "open_exploration_branchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "suggest_branch_experiments",
+   "description": "Suggest deterministic branch experiments from schema and locked plan.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "max_suggestions": {
+      "default": 5,
+      "title": "Max Suggestions",
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "title": "suggest_branch_experimentsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_branch_experiment",
+   "description": "Append an experiment result to a branch ledger and result artifact.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "branch_id": {
+      "default": "",
+      "title": "Branch Id",
+      "type": "string"
+     },
+     "experiment_type": {
+      "default": "sensitivity",
+      "title": "Experiment Type",
+      "type": "string"
+     },
+     "parameters": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Parameters"
+     },
+     "result_summary": {
+      "default": "",
+      "title": "Result Summary",
+      "type": "string"
+     },
+     "metrics": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Metrics"
+     },
+     "status": {
+      "default": "completed",
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "run_branch_experimentArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "evaluate_branch",
+   "description": "Evaluate a branch and write a promotion review artifact.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "branch_id": {
+      "default": "",
+      "title": "Branch Id",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "evaluate_branchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "promote_branch_to_plan_amendment",
+   "description": "Promote a high-evidence branch into a plan amendment artifact.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "branch_id": {
+      "default": "",
+      "title": "Branch Id",
+      "type": "string"
+     },
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "promote_branch_to_plan_amendmentArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "discard_branch",
+   "description": "Discard an exploratory branch via append-only lifecycle event.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "branch_id": {
+      "default": "",
+      "title": "Branch Id",
+      "type": "string"
+     },
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "discard_branchArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_exploration_board",
+   "description": "Return the current branch board reconstructed from append-only events.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_exploration_boardArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "start_autoresearch_run",
+   "description": "Queue agent-authored hypotheses and optional built-in suggestions with a fixed budget.\n\n        agent_proposals accept hypothesis, reason, variables, optional branch_type,\n        and analysis_contract (tool, analysis_type and run_advanced_analysis roles).\n        Ideas are unrestricted; unsupported executors are recorded, never fabricated.\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "max_tasks": {
+      "default": 10,
+      "title": "Max Tasks",
+      "type": "integer"
+     },
+     "max_branches": {
+      "default": 10,
+      "title": "Max Branches",
+      "type": "integer"
+     },
+     "max_failures": {
+      "default": 3,
+      "title": "Max Failures",
+      "type": "integer"
+     },
+     "max_minutes": {
+      "default": 480,
+      "title": "Max Minutes",
+      "type": "integer"
+     },
+     "agent_proposals": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Agent Proposals"
+     },
+     "include_builtin_suggestions": {
+      "default": true,
+      "title": "Include Builtin Suggestions",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "start_autoresearch_runArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_autoresearch_status",
+   "description": "Return durable autoresearch queue/budget/progress status.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_autoresearch_statusArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "stop_autoresearch_run",
+   "description": "Stop the latest durable autoresearch run and write a stop decision.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "stop_autoresearch_runArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "resume_autoresearch_run",
+   "description": "Resume the latest stopped or expired durable autoresearch run.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "resume_autoresearch_runArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_autoresearch_next_task",
+   "description": "Execute one pending autoresearch queue item as an auditable branch task.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "lease_owner": {
+      "default": "agent",
+      "title": "Lease Owner",
+      "type": "string"
+     },
+     "lease_seconds": {
+      "default": 900,
+      "title": "Lease Seconds",
+      "type": "integer"
+     }
+    },
+    "type": "object",
+    "title": "run_autoresearch_next_taskArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_autoresearch_queue",
+   "description": "Drain pending autoresearch queue items until idle or budget limit.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "max_tasks": {
+      "default": 10,
+      "title": "Max Tasks",
+      "type": "integer"
+     },
+     "lease_owner": {
+      "default": "agent",
+      "title": "Lease Owner",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "title": "run_autoresearch_queueArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_approval_card",
+   "description": "Return the next explicit user approval card and persist it as an artifact.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_approval_cardArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_harness_dashboard",
+   "description": "Return a concise no-code dashboard for pipeline, approval, and artifacts.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_harness_dashboardArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "build_artifact_index",
+   "description": "Build a recursive artifact index for no-code review and handoff.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "build_artifact_indexArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_blocker_playbook",
+   "description": "Return action-oriented blocker guidance for the current harness state.",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_blocker_playbookArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "collect_results",
+   "description": "彙整 Phase 8 的所有分析結果，標記統計顯著候選內容 (Phase 9)。\n\n        掃描已完成的分析，生成 results_summary.json。\n        標記統計顯著候選結果，並建議敏感度分析 (S-012)。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n            force: 是否強制在未達 Phase 8 覆蓋率時收斂（會記錄偏離）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "force": {
+      "default": false,
+      "title": "Force",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "collect_resultsArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "assemble_report",
+   "description": "組裝完整 EDA 報告 (Phase 10)。\n\n        從各 Phase 的 artifacts 組裝報告，含附錄 (decision_log, deviation_log)。\n        執行 H-005 (報告完整性) 和 H-006 (輸出清毒)。\n\n        Args:\n            project_id: 專案 ID (預設使用當前專案)\n            title: 報告標題\n            allow_incomplete: 若為 True，允許在未達預設完整度目標時仍組裝報告\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "title": {
+      "default": "EDA Report",
+      "title": "Title",
+      "type": "string"
+     },
+     "allow_incomplete": {
+      "default": false,
+      "title": "Allow Incomplete",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "assemble_reportArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "create_visualization",
+   "description": "建立資料視覺化圖表。H-009 自動記錄。\n\n        支援類型: histogram, boxplot, scatter, bar, violin, heatmap, line, paired。\n        對 histogram / boxplot / scatter / bar / violin / heatmap / line / paired 會自動附加摘要統計；\n        圖表預設僅描述資料；include_tests=true 才加入未校正的探索性檢定。\n        heatmap 遵照 missing_strategy 或鎖定計畫的共同／成對完整策略。\n        圖表儲存在專案的 figures/ 目錄，報告和 handoff 時自動嵌入。\n\n        Args:\n            dataset_id: 資料集 ID\n            plot_type: 圖表類型，如 \"histogram\"、\"boxplot\"、\"scatter\"、\"violin\"、\"heatmap\"\n            variables: 變數列表，如 [\"age\"]（histogram）或 [\"age\", \"bmi\"]（scatter）\n            output_filename: 輸出檔名，如 \"age_distribution.png\"（可選，預設自動生成）\n            group_var: 分組變數，如 \"treatment_group\"（可選，用於組間比對圖）\n        ",
+   "parameters": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "plot_type": {
+      "title": "Plot Type",
+      "type": "string"
+     },
+     "variables": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Variables",
+      "type": "array"
+     },
+     "output_filename": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Output Filename"
+     },
+     "group_var": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Group Var"
+     },
+     "include_tests": {
+      "default": false,
+      "title": "Include Tests",
+      "type": "boolean"
+     },
+     "missing_strategy": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Missing Strategy"
+     },
+     "subject_variable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Subject Variable"
+     },
+     "labels": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Labels"
+     },
+     "ylabel": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Ylabel"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "plot_type",
+     "variables"
+    ],
+    "type": "object",
+    "title": "create_visualizationArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "export_report",
+   "description": "匯出 EDA 報告為 Word (.docx) 或 PDF 格式。\n\n        自動嵌入圖表和統計表格到文件中。\n        需先完成 assemble_report (Phase 10)。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n            formats: 匯出格式，以逗號分隔，如 \"docx\"、\"pdf\"、\"docx,pdf\"（預設: docx）\n            title: 報告標題，如 \"Sepsis EDA Report\"（預設: EDA Report）\n            allow_incomplete: 若為 True，允許在未達預設完整度目標時仍匯出報告\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "formats": {
+      "default": "docx",
+      "title": "Formats",
+      "type": "string"
+     },
+     "title": {
+      "default": "EDA Report",
+      "title": "Title",
+      "type": "string"
+     },
+     "allow_incomplete": {
+      "default": false,
+      "title": "Allow Incomplete",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "export_reportArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_audit",
+   "description": "執行完整審計 (Phase 11)。\n\n        檢查: 計畫符合度、方法適當性、效果量完整性、\n        偏離合理性、再現性、H-008/H-009/H-010 合規。\n        輸出 A-F 評分與改善建議。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "run_auditArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "auto_improve",
+   "description": "根據審計結果自動改善可修正項目 (Phase 12)。\n\n        讀取 audit_report.json，執行自動修正:\n        - 補缺效果量、補遺漏圖表、修正報告格式。\n        - final_report.md 會附上 production-readiness 摘要，說明為何已達或尚未達 production-ready。\n        不能自動修復的項目會列為手動建議。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "auto_improveArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "export_final_report",
+   "description": "匯出 Phase 12 final_report.md 為正式 DOCX / PDF。\n\n        會補齊 final_report.md 之外的正式輸出依賴：\n        - Table 1 轉為真正表格\n        - visualization manifest 中尚未寫進 markdown 的圖表一併附上\n        - 產出 final_report_export_manifest.json 供核對路徑與項目\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n            formats: 匯出格式，預設 \"docx,pdf\"\n            title: 自訂標題；空字串時沿用 final_report.md 標題\n            allow_incomplete: 若為 False，未達 production-ready 時拒絕匯出\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     },
+     "formats": {
+      "default": "docx,pdf",
+      "title": "Formats",
+      "type": "string"
+     },
+     "title": {
+      "default": "",
+      "title": "Title",
+      "type": "string"
+     },
+     "allow_incomplete": {
+      "default": false,
+      "title": "Allow Incomplete",
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "title": "export_final_reportArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "export_handoff",
+   "description": "匯出 handoff package 給下游工具 (e.g., med-paper-assistant)。\n\n        打包: 報告、統計結果、圖表、schema、decision/deviation log。\n        產出的 handoff_manifest.json 可直接提供給 med-paper-assistant。\n\n        Args:\n            project_id: 專案 ID（可選，預設使用當前專案）\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "export_handoffArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "verify_audit_trail",
+   "description": "驗證審計鏈完整性 (H-008, H-009, H-010)。\n\n        檢查 artifact gate、decision logging、append-only logs。\n\n        Args:\n            project_id: 專案 ID (預設使用當前專案)\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "verify_audit_trailArguments"
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_workflow_contract",
+   "description": "Get server-derived workflow state; never approve or execute an analysis.\n\n        project_id: Optional existing project ID. Missing project returns bootstrap guidance.\n        ",
+   "parameters": {
+    "properties": {
+     "project_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Project Id"
+     }
+    },
+    "type": "object",
+    "title": "get_workflow_contractArguments"
+   }
+  }
+ }
+]

@@ -1,0 +1,428 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_auth_status",
+   "description": "Check if the local OpenEvidence session is valid.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_history_list",
+   "description": "List question history from OpenEvidence account.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "limit": {
+      "default": 20,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+     },
+     "offset": {
+      "default": 0,
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "search": {
+      "type": "string",
+      "maxLength": 200
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_article_get",
+   "description": "Fetch article payload by article id.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "article_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+     },
+     "save_artifacts": {
+      "default": true,
+      "type": "boolean"
+     },
+     "crossref_validate": {
+      "default": true,
+      "type": "boolean"
+     },
+     "include_bibtex": {
+      "default": true,
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "article_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_ask",
+   "description": "Create a question and optionally wait for completion. For follow-up question pass original_article_id.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "question": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 6000
+     },
+     "original_article_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+     },
+     "wait_for_completion": {
+      "default": true,
+      "type": "boolean"
+     },
+     "timeout_sec": {
+      "default": 120,
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 600
+     },
+     "poll_interval_ms": {
+      "default": 1200,
+      "type": "integer",
+      "minimum": 300,
+      "maximum": 10000
+     },
+     "disable_caching": {
+      "default": false,
+      "type": "boolean"
+     },
+     "personalization_enabled": {
+      "default": false,
+      "type": "boolean"
+     },
+     "article_type": {
+      "default": "Ask OpenEvidence Light with citations",
+      "type": "string"
+     },
+     "variant_configuration_file": {
+      "default": "prod",
+      "type": "string"
+     },
+     "save_artifacts": {
+      "default": true,
+      "type": "boolean"
+     },
+     "crossref_validate": {
+      "default": true,
+      "type": "boolean"
+     },
+     "include_bibtex": {
+      "default": true,
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "question"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_list",
+   "description": "List all collections owned by the authenticated user.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_get",
+   "description": "Fetch a collection (incl. nested questions[] = membership list) by id.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "collection_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+     }
+    },
+    "required": [
+     "collection_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_create",
+   "description": "Create a new collection. By convention, agent-managed names start with '#'.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 500
+     }
+    },
+    "required": [
+     "name"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_add_article",
+   "description": "Add a chat (article) to a collection. Idempotent in practice.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "collection_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+     },
+     "article_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+     }
+    },
+    "required": [
+     "collection_id",
+     "article_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_db_init",
+   "description": "Create the local SQLite mirror at $OE_MCP_DB_PATH (default ~/.openevidence-mcp/db/oe.sqlite). Idempotent.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_sync_history",
+   "description": "Paginate /api/article/list and upsert chats. Incremental by default (stops on the first all-known page).",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "full": {
+      "default": false,
+      "type": "boolean"
+     },
+     "pages": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200
+     },
+     "page_size": {
+      "default": 20,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+     },
+     "rate_seconds": {
+      "default": 1,
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 10
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_sync_db",
+   "description": "Refresh collections and memberships from the API into local SQLite. Prunes collections + memberships the server no longer reports.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "rate_seconds": {
+      "default": 1,
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 10
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_unsorted",
+   "description": "Chats with no membership in any '#'-prefixed collection. Returns {unsorted_count, shown, items[]}.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "limit": {
+      "default": 200,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2000
+     },
+     "preview_chars": {
+      "default": 240,
+      "type": "integer",
+      "minimum": 20,
+      "maximum": 2000
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_summary",
+   "description": "Counts (chats, collections, hashtag, memberships, unsorted) + last sync timestamps.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_classify",
+   "description": "Predict hashtags for every unsorted chat (or all chats with reclassify_all). Combines curated keyword rules with a per-tag log-odds-ratio signature trained from your existing memberships. Returns the proposed plan as JSON; use oe_collections_bulk_apply to actually write.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "reclassify_all": {
+      "default": false,
+      "type": "boolean"
+     },
+     "threshold": {
+      "default": 8,
+      "type": "number",
+      "minimum": 0,
+      "maximum": 50
+     },
+     "top_k": {
+      "default": 3,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+     },
+     "top_n_terms": {
+      "default": 20,
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 100
+     },
+     "rules_only": {
+      "default": false,
+      "type": "boolean"
+     },
+     "no_rules": {
+      "default": false,
+      "type": "boolean"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "oe_collections_bulk_apply",
+   "description": "For each {article_id, hashtags[]} entry: ensure each '#'-prefixed collection exists, then add the article to it. Idempotent. Refuses non-'#' tags.",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "plan": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "article_id": {
+         "type": "string",
+         "format": "uuid",
+         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "hashtags": {
+         "minItems": 1,
+         "type": "array",
+         "items": {
+          "type": "string",
+          "pattern": "^#"
+         }
+        }
+       },
+       "required": [
+        "article_id",
+        "hashtags"
+       ]
+      }
+     },
+     "descriptions": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "rate_seconds": {
+      "default": 0.5,
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 10
+     }
+    },
+    "required": [
+     "plan"
+    ]
+   }
+  }
+ }
+]
