@@ -20,7 +20,8 @@
   "model_id": "agent",
   "triggers": [
     "/agent",
-    "@agent"
+    "@agent",
+    "agent:"
   ],
   "skills_dirs": [
     "/home/YOU/llama-mcp-router/examples/skills"

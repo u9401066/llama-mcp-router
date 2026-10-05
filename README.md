@@ -377,7 +377,8 @@ Web UI ── "/agent write a script that …" ──► llama-mcp-router ──
                                                │  after each turn: git commit, links to changed files               └─► llama-server (model)
 ```
 
-Start a conversation with `/agent`, `@agent` or `agent:` (or request `model: "agent"`, which `/v1/models` also lists):
+Start a conversation with `agent:` (use this one in llama-server's Web UI, where a leading `/` goes to its command picker and `@` to its
+file-mention picker), `/agent` or `@agent` from other clients, or request `model: "agent"`, which `/v1/models` also lists:
 
 ```bash
 llama-mcp-router serve --backend http://127.0.0.1:8081 --port 8001 --agent-config examples/agent-dsh.json
