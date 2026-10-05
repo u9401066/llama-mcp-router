@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import re
 import time
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -44,7 +45,7 @@ def tool_description(t: Tool) -> str:
 def first_sentence(text: str, limit: int = 200) -> str:
     """A short human description: first meaningful line/sentence of a (often huge) tool doc."""
     for line in text.splitlines():
-        line = line.strip(" \t#*=-─═🔍🔥🖼️")
+        line = re.sub(r"^[\W_]+", "", line).strip()  # leading emoji, box-drawing, markdown
         if len(line) > 8:
             text = line
             break

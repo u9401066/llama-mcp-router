@@ -228,3 +228,115 @@ def test_laya_selection_carries_ranking_and_hint():
     res = asyncio.run(sel.select("brca1", TOOLS))
     assert res.names == ["pm_gene"] and res.ranking[:3] == ["pm_gene", "pm_search", "pm_export"] and "genes (70%)" in res.hint
     assert set(res.ranking) == {t["function"]["name"] for t in TOOLS}
+
+
+# ------------------------------------------------------------------ escalation via catalog meta-tool
+from llama_mcp_router.proxy import META_TOOL, catalog_tool, expand_tools, requested_tools  # noqa: E402
+
+
+def names_of(tools):
+    return [t["function"]["name"] for t in tools]
+
+
+def test_catalog_and_expand_helpers():
+    cat = catalog_tool(TOOLS, TOOLS[:1])
+    fn = cat["function"]
+    assert fn["name"] == META_TOOL and "pm_search" not in fn["description"] and "- pm_gene:" in fn["description"]
+    assert fn["parameters"]["properties"]["names"]["items"]["enum"] == ["pm_export", "pm_gene", "pm_icd", "fs_read"]
+    assert catalog_tool(TOOLS, TOOLS) is None
+    assert names_of(expand_tools(TOOLS, TOOLS[:1] + [cat], ["pm_gene"])) == ["pm_search", "pm_gene"]
+    assert len(expand_tools(TOOLS, TOOLS[:1], ["nope"])) == 5  # nothing valid -> everything
+    assert requested_tools('{"names": ["a", 3]}') == ["a"] and requested_tools("not json") == [] and requested_tools({"names": "x"}) == []
+
+
+def test_escalation_json_reruns_with_requested_tools():
+    script = [{"role": "assistant", "content": None, "tool_calls": [call(META_TOOL, '{"names": ["pm_gene"]}')]},
+              {"role": "assistant", "content": None, "tool_calls": [call("pm_gene", '{"q": "BRCA1"}')]}]
+    b = FakeBackend(script)
+    with make(b, Pick("pm_export"), escalate=True) as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("look up the BRCA1 gene")]})
+    assert names_of(b.requests[0]["tools"]) == ["pm_export", META_TOOL]
+    assert names_of(b.requests[1]["tools"]) == ["pm_export", "pm_gene"]  # max_escalations=1 -> no catalog in the rerun
+    d = r.json()
+    assert d["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "pm_gene"
+    assert d["usage"]["total_tokens"] == 24 and r.headers["x-router-loaded"] == "pm_gene"
+    assert b.requests[1]["messages"] == b.requests[0]["messages"]  # rerun from the original conversation
+
+
+def test_escalation_not_triggered_by_real_tool_and_absent_when_nothing_left(backend):
+    b = FakeBackend([{"role": "assistant", "content": None, "tool_calls": [call("pm_export", "{}")]}])
+    with make(b, Pick("pm_export"), escalate=True) as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("export my papers to bibtex")]})
+    assert len(b.requests) == 1 and r.json()["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "pm_export"
+    with make(backend, Pick("pm_export"), escalate=True, apply="all") as c:
+        c.post("/v1/chat/completions", json={"messages": [user("export my papers to bibtex")]})
+    assert META_TOOL not in names_of(backend.requests[0]["tools"])
+
+
+def test_escalation_with_abstain_sends_only_the_catalog(backend):
+    class Quiet(Selector):
+        name = "quiet"
+
+        async def select(self, q, t):
+            return Selection([], {}, abstain=True)
+
+    with make(backend, Quiet(), escalate=True) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("hello, how are you today?")]})
+    assert names_of(backend.requests[0]["tools"]) == [META_TOOL]
+
+
+def _events(text):
+    return [json.loads(e[6:]) for e in text.split("\n\n") if e.startswith("data: {")]
+
+
+def test_escalation_stream_swallows_meta_round_and_streams_rerun():
+    script = [{"role": "assistant", "reasoning_content": "need gene tools", "content": None, "tool_calls": [call(META_TOOL, '{"names": ["pm_gene"]}')]},
+              {"role": "assistant", "reasoning_content": "now call it", "content": None, "tool_calls": [call("pm_gene", '{"q": "BRCA1"}')]}]
+    b = FakeBackend(script)
+    with make(b, Pick("pm_export"), escalate=True) as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("look up the BRCA1 gene")], "stream": True})
+    ev = _events(r.text)
+    text = r.text
+    assert META_TOOL not in text.replace("loading tools", "")  # the meta call itself never reaches the client
+    reasoning = "".join((e["choices"][0]["delta"].get("reasoning_content") or "") for e in ev)
+    assert "need gene tools" in reasoning and "router: loading tools pm_gene" in reasoning and "now call it" in reasoning
+    names = [tc["function"]["name"] for e in ev for tc in (e["choices"][0]["delta"].get("tool_calls") or []) if (tc.get("function") or {}).get("name")]
+    args = "".join(tc["function"].get("arguments", "") for e in ev for tc in (e["choices"][0]["delta"].get("tool_calls") or []))
+    assert names == ["pm_gene"] and json.loads(args) == {"q": "BRCA1"}
+    assert text.rstrip().endswith("data: [DONE]") and text.count("[DONE]") == 1
+    assert [e["choices"][0]["finish_reason"] for e in ev if e["choices"][0]["finish_reason"]] == ["tool_calls"]
+
+
+def test_escalation_stream_passes_normal_answers_through_unchanged():
+    b = FakeBackend([{"role": "assistant", "reasoning_content": "hm", "content": "just text", "tool_calls": None}])
+    with make(b, Pick("pm_export"), escalate=True) as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("tell me a joke please")], "stream": True})
+    ev = _events(r.text)
+    assert "".join(e["choices"][0]["delta"].get("content") or "" for e in ev) == "just text" and len(b.requests) == 1
+
+
+def test_escalation_in_agent_mode():
+    script = [{"role": "assistant", "content": None, "tool_calls": [call(META_TOOL, '{"names": ["pm_gene"]}')]},
+              {"role": "assistant", "content": None, "tool_calls": [call("pm_gene", '{"q": "x"}')]},
+              {"role": "assistant", "content": "BRCA1 is a gene."}]
+    b = FakeBackend(script)
+    with make(b, Pick("pm_export"), escalate=True, mode="agent") as c:
+        d = c.post("/v1/chat/completions", json={"messages": [user("look up the BRCA1 gene")]}).json()
+    assert d["choices"][0]["message"]["content"] == "BRCA1 is a gene." and d["router"]["escalations"] == 1
+    assert b.executed == [{"tool": "pm_gene", "params": {"q": "x"}}]
+    assert names_of(b.requests[1]["tools"]) == ["pm_export", "pm_gene"]
+
+
+def test_catalog_mode_with_none_selector(backend):
+    from llama_mcp_router import NoneSelector, load_selector
+
+    assert isinstance(load_selector("none"), NoneSelector)
+    with make(backend, NoneSelector(), escalate=True) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("look up the BRCA1 gene please")]})
+    assert names_of(backend.requests[0]["tools"]) == [META_TOOL]
+    assert len(backend.requests[0]["tools"][0]["function"]["parameters"]["properties"]["names"]["items"]["enum"]) == 5
+    msgs = [user("look up the BRCA1 gene please"), {"role": "assistant", "content": "", "tool_calls": [call("pm_gene")]}, {"role": "tool", "tool_call_id": "c1", "content": "x"}]
+    b3 = FakeBackend()
+    with make(b3, NoneSelector(), escalate=True) as c:
+        c.post("/v1/chat/completions", json={"messages": msgs})
+    assert names_of(b3.requests[0]["tools"]) == ["pm_gene", META_TOOL]  # tools already used stay loaded

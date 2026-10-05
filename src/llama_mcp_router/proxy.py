@@ -18,7 +18,7 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 from .selectors import AllSelector, Selector
-from .tools import ServerToolSource, Tool, exclude_tools, normalize_tool, tool_name
+from .tools import ServerToolSource, Tool, exclude_tools, first_sentence, normalize_tool, tool_description, tool_name
 
 log = logging.getLogger("llama_mcp_router")
 
@@ -38,6 +38,8 @@ class RouterConfig:
     fallback: str = "all"  # when the selector fails: "all" tools or "none"
     apply: str = "select"  # "select": send only the selection; "reorder": send ALL tools, most relevant first; "all": send all tools unchanged
     hint: bool = False  # append the selector's routing hint to the last user message
+    escalate: bool = False  # add a catalog meta-tool; if the model calls it, rerun with the tools it asked for
+    max_escalations: int = 1
     sticky: bool = False  # opt-in: keep a conversation's tool list append-only so llama-server's prompt cache can keep hitting
     sticky_conversations: int = 512  # how many conversations to remember
     tools_ttl: float = 60.0
@@ -77,6 +79,55 @@ def arrange(pool: Sequence[Tool], sel: Any, mode: str, max_tools: int, always: S
         order = {n: i for i, n in enumerate(list(sel.ranking) or list(sel.names))}
         return sorted(pool, key=lambda t: order.get(tool_name(t), len(order)))
     keep = set(sel.names[:max_tools]) | set(always) | set(extra)
+    return [t for t in pool if tool_name(t) in keep]
+
+
+META_TOOL = "router_load_tools"
+
+
+def catalog_tool(pool: Sequence[Tool], sent: Sequence[Tool], desc_chars: int = 80) -> Optional[Tool]:
+    """A meta-tool listing every pool tool that was *not* sent (name + one line), so the model can ask for it.
+
+    It turns a selector miss into one extra round-trip instead of a wrong tool call. ~15 tokens per listed tool.
+    """
+    sent_names = {tool_name(t) for t in sent}
+    rest = [t for t in pool if tool_name(t) not in sent_names]
+    if not rest:
+        return None
+    lines = "\n".join("- %s: %s" % (tool_name(t), first_sentence(tool_description(t), desc_chars)) for t in rest)
+    return {
+        "type": "function",
+        "function": {
+            "name": META_TOOL,
+            "description": (
+                "Only the tools most likely needed are loaded. If none of the loaded tools fits the request, "
+                "call this FIRST to load the right ones by name; you can call them right after. Not loaded yet:\n" + lines
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"names": {"type": "array", "items": {"type": "string", "enum": [tool_name(t) for t in rest]}, "description": "tool names to load"}},
+                "required": ["names"],
+            },
+        },
+    }
+
+
+def requested_tools(arguments: Any) -> List[str]:
+    try:
+        args = json.loads(arguments) if isinstance(arguments, str) else (arguments or {})
+        names = args.get("names") or []
+        return [n for n in names if isinstance(n, str)] if isinstance(names, list) else []
+    except (ValueError, AttributeError):
+        return []
+
+
+def expand_tools(pool: Sequence[Tool], sent: Sequence[Tool], names: Sequence[str]) -> List[Tool]:
+    """Tools for the rerun: what was sent plus what the model asked for (all tools if it asked for nothing valid)."""
+    known = {tool_name(t) for t in pool}
+    want = set(names) & known
+    if not want:
+        return list(pool)
+    keep = {tool_name(t) for t in sent if tool_name(t) != META_TOOL} | want
     return [t for t in pool if tool_name(t) in keep]
 
 
@@ -197,8 +248,10 @@ class Router:
         choice = await self.choose(last_user_query(body.get("messages") or []), pool, extra, conversation_key(body.get("messages") or []))
         if choice["hint"]:
             body["messages"] = add_hint(body.get("messages") or [], choice["hint"])
-        if choice["tools"]:
-            body["tools"] = choice["tools"]
+        meta_tool = catalog_tool(pool, choice["tools"]) if self.cfg.escalate else None
+        sent = choice["tools"] + ([meta_tool] if meta_tool else [])
+        if sent:
+            body["tools"] = sent
         else:  # nothing selected: send a tool-free prompt (also drop tool_choice, which would force a call)
             body.pop("tools", None)
             body.pop("tool_choice", None)
@@ -207,8 +260,88 @@ class Router:
 
         if self.cfg.mode == "agent":
             server_names = {tool_name(t) for t in await self.source.fetch()} - client_names
-            return await self._agent(body, headers, server_names, meta, choice)
+            return await self._agent(body, headers, server_names, meta, choice, pool)
+        if meta_tool:
+            return await (self._escalating_stream(body, headers, meta, pool) if body.get("stream") else self._escalating_json(body, headers, meta, pool))
         return await self._relay(body, headers, meta)
+
+    # ------------------------------------------------------------------ escalation (catalog meta-tool)
+    def _rerun_body(self, body: Dict[str, Any], pool: Sequence[Tool], names: Sequence[str], rounds_left: int) -> Dict[str, Any]:
+        sent = [t for t in body.get("tools") or [] if tool_name(t) != META_TOOL]
+        tools = expand_tools(pool, sent, names)
+        meta_tool = catalog_tool(pool, tools) if rounds_left > 0 else None
+        out = dict(body, tools=tools + ([meta_tool] if meta_tool else []))
+        if isinstance(out.get("tool_choice"), dict) and (out["tool_choice"].get("function") or {}).get("name") == META_TOOL:
+            out.pop("tool_choice")
+        return out
+
+    async def _escalating_json(self, body: Dict[str, Any], headers: Dict[str, str], meta: Dict[str, str], pool: Sequence[Tool]) -> Response:
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        loaded: List[str] = []
+        for rnd in range(self.cfg.max_escalations + 1):
+            r = await self.client.post("/v1/chat/completions", json=body, headers=headers)
+            if r.status_code != 200:
+                return Response(r.content, status_code=r.status_code, media_type=r.headers.get("content-type"))
+            data = r.json()
+            for k in usage:
+                usage[k] += (data.get("usage") or {}).get(k, 0)
+            calls = ((data.get("choices") or [{}])[0].get("message") or {}).get("tool_calls") or []
+            asked = [n for c in calls if (c.get("function") or {}).get("name") == META_TOOL for n in requested_tools(c["function"].get("arguments"))]
+            if not any((c.get("function") or {}).get("name") == META_TOOL for c in calls) or rnd == self.cfg.max_escalations:
+                break
+            loaded += asked
+            log.info("model asked to load %s; rerunning", asked or "(nothing valid -> all tools)")
+            body = self._rerun_body(body, pool, asked, self.cfg.max_escalations - rnd - 1)
+        data["usage"] = usage
+        if loaded:
+            meta = dict(meta, **{"x-router-loaded": ",".join(loaded)[:1000]})
+        return JSONResponse(data, headers=meta)
+
+    async def _escalating_stream(self, body: Dict[str, Any], headers: Dict[str, str], meta: Dict[str, str], pool: Sequence[Tool]) -> Response:
+        """Stream text/reasoning through immediately; hold tool-call chunks until the end of each round,
+        and if the model called the meta-tool, swallow that round's tail and stream a rerun instead."""
+
+        async def gen():
+            nonlocal body
+            for rnd in range(self.cfg.max_escalations + 1):
+                last = rnd == self.cfg.max_escalations
+                held: List[str] = []
+                calls: Dict[int, Dict[str, str]] = {}
+                async with self.client.stream("POST", "/v1/chat/completions", json=body, headers=headers) as r:
+                    if r.status_code != 200:
+                        yield await r.aread()
+                        return
+                    async for line in r.aiter_lines():
+                        if not line:
+                            continue
+                        out = line + "\n\n"
+                        if line.startswith("data:") and line[5:].strip() != "[DONE]":
+                            try:
+                                chunk = json.loads(line[5:])
+                            except ValueError:
+                                chunk = {}
+                            for ch in chunk.get("choices") or []:
+                                for tc in (ch.get("delta") or {}).get("tool_calls") or []:
+                                    c = calls.setdefault(tc.get("index", 0), {"name": "", "arguments": ""})
+                                    f = tc.get("function") or {}
+                                    c["name"] += f.get("name") or ""
+                                    c["arguments"] += f.get("arguments") or ""
+                        if calls and not last:
+                            held.append(out)
+                        else:
+                            yield out.encode()
+                metas = [c for c in calls.values() if c["name"] == META_TOOL]
+                if last or not metas:
+                    for h in held:
+                        yield h.encode()
+                    return
+                asked = [n for c in metas for n in requested_tools(c["arguments"])]
+                log.info("model asked to load %s; rerunning (stream)", asked or "(nothing valid -> all tools)")
+                note = {"choices": [{"index": 0, "delta": {"reasoning_content": "\n[router: loading tools %s]\n" % (", ".join(asked) or "all")}, "finish_reason": None}], "object": "chat.completion.chunk"}
+                yield ("data: %s\n\n" % json.dumps(note)).encode()
+                body = self._rerun_body(body, pool, asked, self.cfg.max_escalations - rnd - 1)
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=meta)
 
     async def _relay(self, body: Dict[str, Any], headers: Dict[str, str], meta: Optional[Dict[str, str]] = None) -> Response:
         req = self.client.build_request("POST", "/v1/chat/completions", json=body, headers=headers)
@@ -217,13 +350,14 @@ class Router:
         out.update(meta or {})
         return StreamingResponse(r.aiter_raw(), status_code=r.status_code, headers=out, background=BackgroundTask(r.aclose))
 
-    async def _agent(self, body: Dict[str, Any], headers: Dict[str, str], server_names: Set[str], meta: Dict[str, str], choice: Dict[str, Any]) -> Response:
+    async def _agent(self, body: Dict[str, Any], headers: Dict[str, str], server_names: Set[str], meta: Dict[str, str], choice: Dict[str, Any], pool: Sequence[Tool] = ()) -> Response:
         want_stream = bool(body.pop("stream", False))
         body.pop("stream_options", None)
         messages = list(body.get("messages") or [])
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         data: Dict[str, Any] = {}
         iterations = 0
+        escalations = 0
         for iterations in range(1, self.cfg.max_iterations + 1):
             r = await self.client.post("/v1/chat/completions", json={**body, "messages": messages}, headers=headers)
             if r.status_code != 200:
@@ -233,13 +367,18 @@ class Router:
                 usage[k] += (data.get("usage") or {}).get(k, 0)
             msg = data["choices"][0]["message"]
             calls = msg.get("tool_calls") or []
+            metas = [c for c in calls if c["function"]["name"] == META_TOOL]
+            if metas and escalations < self.cfg.max_escalations:
+                escalations += 1
+                body = self._rerun_body(body, pool, [n for c in metas for n in requested_tools(c["function"].get("arguments"))], self.cfg.max_escalations - escalations)
+                continue
             if not calls or any(c["function"]["name"] not in server_names for c in calls):
                 break  # final answer, or the client has to run one of its own tools
             messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": calls})
             for c in calls:
                 messages.append({"role": "tool", "tool_call_id": c.get("id"), "content": await self._run_tool(c["function"])})
         data["usage"] = usage
-        data["router"] = {"selected": [tool_name(t) for t in choice["tools"]], "pool": choice["pool"], "select_ms": choice["ms"], "iterations": iterations, "info": choice["info"]}
+        data["router"] = {"selected": [tool_name(t) for t in choice["tools"]], "pool": choice["pool"], "select_ms": choice["ms"], "iterations": iterations, "escalations": escalations, "info": choice["info"]}
         if not want_stream:
             return JSONResponse(data, headers=meta)
         return StreamingResponse(self._fake_stream(data), media_type="text/event-stream", headers=meta)

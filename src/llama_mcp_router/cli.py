@@ -45,7 +45,7 @@ def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
 
 
 def _add_selector_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--selector", default=_env("SELECTOR", "laya+bm25"), help="all | bm25 | laya | a+b (union) | pkg.mod:Class  [laya+bm25]")
+    p.add_argument("--selector", default=_env("SELECTOR", "laya+bm25"), help="all | none | bm25 | laya | a+b (union) | pkg.mod:Class  [laya+bm25]; 'none --escalate' = catalog mode")
     p.add_argument("--groups", default=_env("GROUPS"), help="JSON file defining tool groups (see examples/pubmed_groups.json)")
     p.add_argument("--laya-url", default=_env("LAYA_URL", "http://127.0.0.1:8000"))
     p.add_argument("--laya-api-key", default=_env("LAYA_API_KEY"))
@@ -75,6 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--always", default=_env("ALWAYS", ""), help="comma-separated tool names always sent")
     s.add_argument("--exclude", default=_env("EXCLUDE", ""), help="comma-separated fnmatch patterns of tools never offered")
     s.add_argument("--apply", choices=["select", "reorder", "all"], default=_env("APPLY", "select"), help="select: send only the selection (default); reorder: send all tools, most relevant first; all: leave tools unchanged (use with --hint)")
+    s.add_argument("--escalate", action="store_true", help="add a catalog meta-tool listing the tools that were not sent; if the model calls it, rerun once with the tools it asked for")
     s.add_argument("--hint", action="store_true", help="append the selector's routing hint to the last user message")
     s.add_argument("--no-server-tools", action="store_true", help="only route tools the client sends, ignore llama-server's /tools")
     s.add_argument("--sticky", action="store_true", help="keep each conversation's tool list append-only so llama-server's prompt cache can hit on follow-up turns (helps on-topic chats, hurts topic-hopping ones; see README)")
@@ -143,6 +144,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         sticky=a.sticky,
         apply=a.apply,
         hint=a.hint,
+        escalate=a.escalate,
     )
     uvicorn.run(create_app(cfg), host=a.host, port=a.port, log_level=a.log_level.lower())
     return 0

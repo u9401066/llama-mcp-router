@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
 
@@ -28,6 +28,27 @@ GROUPS = {
 }
 
 
+def sse(msg, finish):
+    """Split a message into OpenAI stream chunks the way llama-server does (reasoning, content, tool calls by piece)."""
+
+    def ev(delta, fin=None):
+        return "data: " + json.dumps({"object": "chat.completion.chunk", "choices": [{"index": 0, "delta": delta, "finish_reason": fin}]}) + "\n\n"
+
+    out = [ev({"role": "assistant"})]
+    if msg.get("reasoning_content"):
+        out.append(ev({"reasoning_content": msg["reasoning_content"]}))
+    if msg.get("content"):
+        out.append(ev({"content": msg["content"]}))
+    for i, c in enumerate(msg.get("tool_calls") or []):
+        out.append(ev({"tool_calls": [{"index": i, "id": c["id"], "type": "function", "function": {"name": c["function"]["name"], "arguments": ""}}]}))
+        a = c["function"]["arguments"]
+        for j in range(0, len(a), 5):
+            out.append(ev({"tool_calls": [{"index": i, "function": {"arguments": a[j : j + 5]}}]}))
+    out.append(ev({}, finish))
+    out.append("data: [DONE]\n\n")
+    return out
+
+
 class FakeBackend:
     """Stands in for llama-server: /tools, /v1/chat/completions, /tools execution."""
 
@@ -50,6 +71,8 @@ class FakeBackend:
             self.requests.append(body)
             msg = self.script.pop(0) if self.script else {"role": "assistant", "content": "ok"}
             finish = "tool_calls" if msg.get("tool_calls") else "stop"
+            if body.get("stream"):
+                return StreamingResponse(sse(msg, finish), media_type="text/event-stream")
             return JSONResponse({"id": "x", "model": "fake", "choices": [{"index": 0, "message": msg, "finish_reason": finish}], "usage": {"prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12}})
 
         async def props(request):

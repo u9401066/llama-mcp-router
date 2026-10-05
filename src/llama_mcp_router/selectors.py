@@ -51,6 +51,16 @@ class AllSelector(Selector):
         return Selection([tool_name(t) for t in tools])
 
 
+class NoneSelector(Selector):
+    """Select nothing. With ``--escalate`` this is *catalog mode*: the model only sees a one-line-per-tool
+    catalog and loads the tools it wants by name (an extra round-trip per request that needs tools)."""
+
+    name = "none"
+
+    async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
+        return Selection([], abstain=True, ranking=[tool_name(t) for t in tools])
+
+
 class BM25Selector(Selector):
     """Lexical top-k over tool names and descriptions. No services needed, English-centric."""
 
@@ -358,7 +368,7 @@ def _entry_points() -> Dict[str, Any]:
         return {}
 
 
-BUILTIN: Dict[str, Callable[..., Selector]] = {"all": AllSelector, "bm25": BM25Selector, "laya": LayaSelector}
+BUILTIN: Dict[str, Callable[..., Selector]] = {"all": AllSelector, "none": NoneSelector, "bm25": BM25Selector, "laya": LayaSelector}
 
 
 def load_selector(spec: str, **options: Any) -> Selector:
