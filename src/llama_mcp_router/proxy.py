@@ -8,7 +8,7 @@ import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import httpx
 from starlette.applications import Starlette
@@ -18,7 +18,7 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 from .selectors import AllSelector, Selector
-from .tools import ServerToolSource, Tool, exclude_tools, first_sentence, normalize_tool, tool_description, tool_name
+from .tools import ServerToolSource, Tool, exclude_tools, first_sentence, normalize_tool, sanitize_tool, tool_description, tool_name
 
 log = logging.getLogger("llama_mcp_router")
 
@@ -40,6 +40,9 @@ class RouterConfig:
     hint: bool = False  # append the selector's routing hint to the last user message
     escalate: bool = False  # add a catalog meta-tool; if the model calls it, rerun with the tools it asked for
     max_escalations: int = 1
+    catalog_max: int = 80  # list left-out tools by name up to this many; beyond it the meta-tool takes a search query
+    search_k: int = 8  # tools loaded per escalation search query
+    sanitize: bool = True  # inline $refs / drop huge length limits so llama.cpp can build a grammar for every tool
     sticky: bool = False  # opt-in: keep a conversation's tool list append-only so llama-server's prompt cache can keep hitting
     sticky_conversations: int = 512  # how many conversations to remember
     tools_ttl: float = 60.0
@@ -85,15 +88,48 @@ def arrange(pool: Sequence[Tool], sel: Any, mode: str, max_tools: int, always: S
 META_TOOL = "router_load_tools"
 
 
-def catalog_tool(pool: Sequence[Tool], sent: Sequence[Tool], desc_chars: int = 80) -> Optional[Tool]:
-    """A meta-tool listing every pool tool that was *not* sent (name + one line), so the model can ask for it.
+def _server_summary(tools: Sequence[Tool], limit: int = 40) -> str:
+    counts: Dict[str, int] = {}
+    for t in tools:
+        p = tool_name(t).split("_", 1)[0]
+        counts[p] = counts.get(p, 0) + 1
+    items = sorted(counts.items(), key=lambda kv: -kv[1])
+    out = ", ".join("%s (%d)" % kv for kv in items[:limit])
+    return out + (", ..." if len(items) > limit else "")
 
-    It turns a selector miss into one extra round-trip instead of a wrong tool call. ~15 tokens per listed tool.
+
+def catalog_tool(pool: Sequence[Tool], sent: Sequence[Tool], desc_chars: int = 80, max_listed: Optional[int] = None) -> Optional[Tool]:
+    """A meta-tool for the tools that were *not* sent, so the model can ask for them.
+
+    Up to ``max_listed`` left-out tools: they are listed by name + one line (~15 tokens each) and the model
+    loads them by name. Beyond that the listing itself would be too big, so the meta-tool takes a free-text
+    ``query`` (the router searches the pool for it) and only summarises which servers are available.
+    It turns a selector miss into one extra round-trip instead of a wrong tool call.
     """
     sent_names = {tool_name(t) for t in sent}
     rest = [t for t in pool if tool_name(t) not in sent_names]
     if not rest:
         return None
+    if max_listed is not None and len(rest) > max_listed:
+        return {
+            "type": "function",
+            "function": {
+                "name": META_TOOL,
+                "description": (
+                    "Only the tools most likely needed are loaded. If none of the loaded tools fits the request, call this FIRST "
+                    "with a short description of the tool you need; matching tools are loaded and you can call them right after. "
+                    "%d more tools are available, prefixed by server: %s." % (len(rest), _server_summary(rest))
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "what the needed tool should do, e.g. 'convert a docx file to pdf'"},
+                        "names": {"type": "array", "items": {"type": "string"}, "description": "exact tool names, if you know them"},
+                    },
+                    "required": ["query"],
+                },
+            },
+        }
     lines = "\n".join("- %s: %s" % (tool_name(t), first_sentence(tool_description(t), desc_chars)) for t in rest)
     return {
         "type": "function",
@@ -112,13 +148,22 @@ def catalog_tool(pool: Sequence[Tool], sent: Sequence[Tool], desc_chars: int = 8
     }
 
 
-def requested_tools(arguments: Any) -> List[str]:
+def _args(arguments: Any) -> Dict[str, Any]:
     try:
-        args = json.loads(arguments) if isinstance(arguments, str) else (arguments or {})
-        names = args.get("names") or []
-        return [n for n in names if isinstance(n, str)] if isinstance(names, list) else []
-    except (ValueError, AttributeError):
-        return []
+        a = json.loads(arguments) if isinstance(arguments, str) else (arguments or {})
+        return a if isinstance(a, dict) else {}
+    except ValueError:
+        return {}
+
+
+def requested_tools(arguments: Any) -> List[str]:
+    names = _args(arguments).get("names") or []
+    return [n for n in names if isinstance(n, str)] if isinstance(names, list) else []
+
+
+def requested_query(arguments: Any) -> str:
+    q = _args(arguments).get("query")
+    return q.strip() if isinstance(q, str) else ""
 
 
 def expand_tools(pool: Sequence[Tool], sent: Sequence[Tool], names: Sequence[str]) -> List[Tool]:
@@ -182,6 +227,8 @@ class Router:
         self.client = httpx.AsyncClient(base_url=config.backend.rstrip("/"), timeout=config.request_timeout, transport=transport)
         self.source = ServerToolSource(self.client, ttl=config.tools_ttl)
         self._sticky: "OrderedDict[str, List[str]]" = OrderedDict()
+        self._fallback_retriever: Any = None
+        self._clean: Dict[str, Tool] = {}
 
     async def aclose(self) -> None:
         await self.client.aclose()
@@ -253,7 +300,10 @@ class Router:
         choice = await self.choose(last_user_query(body.get("messages") or []), pool, extra, conversation_key(body.get("messages") or []))
         if choice["hint"]:
             body["messages"] = add_hint(body.get("messages") or [], choice["hint"])
-        meta_tool = catalog_tool(pool, choice["tools"]) if self.cfg.escalate else None
+        if self.cfg.sanitize:
+            pool = self._sanitized(pool)
+            choice["tools"] = self._sanitized(choice["tools"])
+        meta_tool = self._catalog(pool, choice["tools"]) if self.cfg.escalate else None
         sent = choice["tools"] + ([meta_tool] if meta_tool else [])
         if sent:
             body["tools"] = sent
@@ -271,14 +321,53 @@ class Router:
         return await self._relay(body, headers, meta)
 
     # ------------------------------------------------------------------ escalation (catalog meta-tool)
-    def _rerun_body(self, body: Dict[str, Any], pool: Sequence[Tool], names: Sequence[str], rounds_left: int) -> Dict[str, Any]:
+    def _retriever(self) -> Any:
+        sel = self.cfg.selector
+        for s in [sel] + list(getattr(sel, "selectors", [])):
+            if getattr(s, "retriever", None) is not None:
+                return s.retriever
+        if self._fallback_retriever is None:
+            from .retrieval import Retriever
+
+            self._fallback_retriever = Retriever()
+        return self._fallback_retriever
+
+    def _sanitized(self, tools: Sequence[Tool]) -> List[Tool]:
+        out = []
+        for t in tools:
+            key = json.dumps(t, sort_keys=True)
+            if key not in self._clean:
+                if len(self._clean) > 5000:
+                    self._clean.clear()
+                self._clean[key] = sanitize_tool(t)
+            out.append(self._clean[key])
+        return out
+
+    def _catalog(self, pool: Sequence[Tool], sent: Sequence[Tool]) -> Optional[Tool]:
+        return catalog_tool(pool, sent, max_listed=self.cfg.catalog_max)
+
+    async def _rerun_body(self, body: Dict[str, Any], pool: Sequence[Tool], calls: Sequence[Dict[str, Any]], rounds_left: int) -> Tuple[Dict[str, Any], List[str]]:
         sent = [t for t in body.get("tools") or [] if tool_name(t) != META_TOOL]
-        tools = expand_tools(pool, sent, names)
-        meta_tool = catalog_tool(pool, tools) if rounds_left > 0 else None
+        names = [n for c in calls for n in requested_tools(c.get("arguments"))]
+        queries = [q for c in calls for q in [requested_query(c.get("arguments"))] if q]
+        known = {tool_name(t) for t in pool}
+        found: List[str] = [n for n in names if n in known]
+        for q in queries:
+            try:
+                found += [n for n in (await self._retriever().rank(q, pool))[: self.cfg.search_k] if n not in found]
+            except Exception as e:  # noqa: BLE001
+                log.warning("escalation search failed (%s: %s)", type(e).__name__, e)
+        if found or len(pool) <= self.cfg.catalog_max:
+            tools = expand_tools(pool, sent, found)  # nothing valid in a small pool -> everything
+        else:  # nothing usable and the pool is too big to send whole: search with the user's request instead
+            q = last_user_query(body.get("messages") or [])
+            found = (await self._retriever().rank(q, pool))[: self.cfg.search_k * 2]
+            tools = expand_tools(pool, sent, found)
+        meta_tool = self._catalog(pool, tools) if rounds_left > 0 else None
         out = dict(body, tools=tools + ([meta_tool] if meta_tool else []))
         if isinstance(out.get("tool_choice"), dict) and (out["tool_choice"].get("function") or {}).get("name") == META_TOOL:
             out.pop("tool_choice")
-        return out
+        return out, found
 
     async def _escalating_json(self, body: Dict[str, Any], headers: Dict[str, str], meta: Dict[str, str], pool: Sequence[Tool]) -> Response:
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
@@ -291,12 +380,12 @@ class Router:
             for k in usage:
                 usage[k] += (data.get("usage") or {}).get(k, 0)
             calls = ((data.get("choices") or [{}])[0].get("message") or {}).get("tool_calls") or []
-            asked = [n for c in calls if (c.get("function") or {}).get("name") == META_TOOL for n in requested_tools(c["function"].get("arguments"))]
-            if not any((c.get("function") or {}).get("name") == META_TOOL for c in calls) or rnd == self.cfg.max_escalations:
+            metas = [c["function"] for c in calls if (c.get("function") or {}).get("name") == META_TOOL]
+            if not metas or rnd == self.cfg.max_escalations:
                 break
-            loaded += asked
-            log.info("model asked to load %s; rerunning", asked or "(nothing valid -> all tools)")
-            body = self._rerun_body(body, pool, asked, self.cfg.max_escalations - rnd - 1)
+            body, found = await self._rerun_body(body, pool, metas, self.cfg.max_escalations - rnd - 1)
+            loaded += found
+            log.info("model asked for %s; loaded %s; rerunning", [m.get("arguments") for m in metas], found)
         data["usage"] = usage
         if loaded:
             meta = dict(meta, **{"x-router-loaded": ",".join(loaded)[:1000]})
@@ -340,11 +429,10 @@ class Router:
                     for h in held:
                         yield h.encode()
                     return
-                asked = [n for c in metas for n in requested_tools(c["arguments"])]
-                log.info("model asked to load %s; rerunning (stream)", asked or "(nothing valid -> all tools)")
-                note = {"choices": [{"index": 0, "delta": {"reasoning_content": "\n[router: loading tools %s]\n" % (", ".join(asked) or "all")}, "finish_reason": None}], "object": "chat.completion.chunk"}
+                body, found = await self._rerun_body(body, pool, metas, self.cfg.max_escalations - rnd - 1)
+                log.info("model asked for %s; loaded %s; rerunning (stream)", [m["arguments"] for m in metas], found)
+                note = {"choices": [{"index": 0, "delta": {"reasoning_content": "\n[router: loading tools %s]\n" % (", ".join(found) or "all")}, "finish_reason": None}], "object": "chat.completion.chunk"}
                 yield ("data: %s\n\n" % json.dumps(note)).encode()
-                body = self._rerun_body(body, pool, asked, self.cfg.max_escalations - rnd - 1)
 
         return StreamingResponse(gen(), media_type="text/event-stream", headers=meta)
 
@@ -372,10 +460,10 @@ class Router:
                 usage[k] += (data.get("usage") or {}).get(k, 0)
             msg = data["choices"][0]["message"]
             calls = msg.get("tool_calls") or []
-            metas = [c for c in calls if c["function"]["name"] == META_TOOL]
+            metas = [c["function"] for c in calls if c["function"]["name"] == META_TOOL]
             if metas and escalations < self.cfg.max_escalations:
                 escalations += 1
-                body = self._rerun_body(body, pool, [n for c in metas for n in requested_tools(c["function"].get("arguments"))], self.cfg.max_escalations - escalations)
+                body, _ = await self._rerun_body(body, pool, metas, self.cfg.max_escalations - escalations)
                 continue
             if not calls or any(c["function"]["name"] not in server_names for c in calls):
                 break  # final answer, or the client has to run one of its own tools

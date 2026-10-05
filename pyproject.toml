@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llama-mcp-router"
-version = "0.4.1"
+version = "0.5.0"
 description = "Tool-selection router for llama-server (llama.cpp) MCP tools: send the model only the few tools it needs instead of all of them."
 readme = "README.md"
 license = { text = "MIT" }
@@ -40,6 +40,8 @@ all = "llama_mcp_router.selectors:AllSelector"
 none = "llama_mcp_router.selectors:NoneSelector"
 bm25 = "llama_mcp_router.selectors:BM25Selector"
 laya = "llama_mcp_router.selectors:LayaSelector"
+retrieve = "llama_mcp_router.selectors:RetrieverSelector"
+laya-rerank = "llama_mcp_router.selectors:LayaRerankSelector"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/llama_mcp_router"]

@@ -37,6 +37,9 @@ def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
             "model": a.laya_model,
         },
         "bm25": {"top_k": a.top_k},
+        "retrieve": {"top_k": a.keep + a.also, "embed_url": a.embed_url, "embed_model": a.embed_model},
+        "laya-rerank": {"url": a.laya_url, "embed_url": a.embed_url, "embed_model": a.embed_model, "shortlist": a.shortlist,
+                        "keep": a.keep, "also": a.also, "api_key": a.laya_api_key, "model": a.laya_model},
     }
     if a.laya_none is not None:
         opts["laya"]["none_threshold"] = a.laya_none
@@ -45,7 +48,8 @@ def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
 
 
 def _add_selector_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--selector", default=_env("SELECTOR", "laya+bm25"), help="all | none | bm25 | laya | a+b (union) | pkg.mod:Class  [laya+bm25]; 'none --escalate' = catalog mode")
+    p.add_argument("--selector", default=_env("SELECTOR", "laya+bm25"), help="all | none | bm25 | laya | retrieve | laya-rerank | a+b (union) | pkg.mod:Class  [laya+bm25]. "
+                   "Small pools (<~80 tools): laya+bm25 with --groups. Hundreds of tools: laya-rerank with --embed-url. 'none --escalate' = catalog mode")
     p.add_argument("--groups", default=_env("GROUPS"), help="JSON file defining tool groups (see examples/pubmed_groups.json)")
     p.add_argument("--laya-url", default=_env("LAYA_URL", "http://127.0.0.1:8000"))
     p.add_argument("--laya-api-key", default=_env("LAYA_API_KEY"))
@@ -58,6 +62,11 @@ def _add_selector_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--top-p", type=float, default=float(_env("TOP_P", "1.0")), help="keep groups until this much probability mass (choice mode)")
     p.add_argument("--max-groups", type=int, default=int(_env("MAX_GROUPS", "2")))
     p.add_argument("--threshold", type=float, default=float(_env("THRESHOLD", "0.5")), help="noul mode: min probability to keep a group")
+    p.add_argument("--embed-url", default=_env("EMBED_URL"), help="OpenAI-compatible /v1/embeddings base URL for retrieve / laya-rerank (e.g. llama-server --embedding with bge-m3); without it they use BM25 only")
+    p.add_argument("--embed-model", default=_env("EMBED_MODEL"))
+    p.add_argument("--shortlist", type=int, default=int(_env("SHORTLIST", "24")), help="laya-rerank: tools retrieved for Laya to rank")
+    p.add_argument("--keep", type=int, default=int(_env("KEEP", "5")), help="laya-rerank: Laya's top tools sent")
+    p.add_argument("--also", type=int, default=int(_env("ALSO", "5")), help="laya-rerank: retriever's top tools sent in addition")
     p.add_argument("--top-k", type=int, default=int(_env("TOP_K", "3")), help="bm25: number of tools")
 
 
@@ -76,6 +85,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--exclude", default=_env("EXCLUDE", ""), help="comma-separated fnmatch patterns of tools never offered")
     s.add_argument("--apply", choices=["select", "reorder", "all"], default=_env("APPLY", "select"), help="select: send only the selection (default); reorder: send all tools, most relevant first; all: leave tools unchanged (use with --hint)")
     s.add_argument("--escalate", action="store_true", help="add a catalog meta-tool listing the tools that were not sent; if the model calls it, rerun once with the tools it asked for")
+    s.add_argument("--catalog-max", type=int, default=int(_env("CATALOG_MAX", "80")), help="--escalate lists left-out tools by name up to this many; beyond, the meta-tool takes a search query")
+    s.add_argument("--no-sanitize", action="store_true", help="send tool schemas unchanged (default: inline $refs and drop huge length limits that llama.cpp cannot turn into a grammar)")
     s.add_argument("--hint", action="store_true", help="append the selector's routing hint to the last user message")
     s.add_argument("--no-server-tools", action="store_true", help="only route tools the client sends, ignore llama-server's /tools")
     s.add_argument("--sticky", action="store_true", help="keep each conversation's tool list append-only so llama-server's prompt cache can hit on follow-up turns (helps on-topic chats, hurts topic-hopping ones; see README)")
@@ -145,6 +156,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         apply=a.apply,
         hint=a.hint,
         escalate=a.escalate,
+        catalog_max=a.catalog_max,
+        sanitize=not a.no_sanitize,
     )
     uvicorn.run(create_app(cfg), host=a.host, port=a.port, log_level=a.log_level.lower())
     return 0

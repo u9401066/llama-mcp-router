@@ -308,6 +308,94 @@ class LayaSelector(Selector):
         return Selection(names, info, ranking=ranking, hint=hint)
 
 
+# --------------------------------------------------------------------------- large pools: retrieve, then rerank
+
+class RetrieverSelector(Selector):
+    """Top-k tools from a :class:`~llama_mcp_router.retrieval.Retriever` (BM25 + optional embeddings)."""
+
+    name = "retrieve"
+
+    def __init__(self, retriever: Any = None, top_k: int = 8, embed_url: Optional[str] = None, embed_model: Optional[str] = None):
+        from .retrieval import HTTPEmbedder, Retriever
+
+        self.retriever = retriever or Retriever(HTTPEmbedder(embed_url, embed_model) if embed_url else None)
+        self.top_k = top_k
+
+    async def aclose(self) -> None:
+        await self.retriever.aclose()
+
+    async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
+        ranking = await self.retriever.rank(query, tools)
+        return Selection(ranking[: self.top_k], {"retrieved": ranking[: self.top_k]}, ranking=ranking)
+
+
+class LayaRerankSelector(Selector):
+    """For pools far beyond what Laya can read at once (hundreds of tools, many MCP servers).
+
+    1. a retriever shortlists ``shortlist`` tools (BM25 + embeddings; embeddings only for CJK requests)
+    2. Laya ranks the shortlist in chunks of <= ``chunk`` options (it reads ~11 tokens per option, and
+       laya-serve rejects >100 options per question) using "tool name: first sentence" labels
+    3. the result is Laya's top ``keep`` plus the retriever's top ``also`` (they miss different tools)
+
+    Measured on 639 real tools from 19 MCP servers (benchmarks/scale): 87.8% recall with ~8 tools vs 82.7%
+    for the retriever alone with 8 tools; ~100 ms of Laya time (3 calls) for a 24-tool shortlist.
+    If Laya fails, the retriever's top ``keep + also`` is returned.
+    """
+
+    name = "laya-rerank"
+
+    def __init__(self, url: str = "http://127.0.0.1:8000", retriever: Any = None, embed_url: Optional[str] = None,
+                 embed_model: Optional[str] = None, shortlist: int = 24, keep: int = 5, also: int = 5, chunk: int = 12,
+                 label_chars: int = 70, model: Optional[str] = None, api_key: Optional[str] = None, timeout: float = 10.0,
+                 transport: Optional[httpx.AsyncBaseTransport] = None):
+        from .retrieval import HTTPEmbedder, Retriever
+
+        self.retriever = retriever or Retriever(HTTPEmbedder(embed_url, embed_model) if embed_url else None)
+        self.shortlist, self.keep, self.also, self.chunk = shortlist, keep, also, max(2, min(chunk, 100))
+        self.label_chars, self.model = label_chars, model
+        headers = {"Authorization": "Bearer " + api_key} if api_key else {}
+        self.client = httpx.AsyncClient(base_url=url.rstrip("/"), headers=headers, timeout=timeout, transport=transport)
+
+    async def aclose(self) -> None:
+        await self.client.aclose()
+        await self.retriever.aclose()
+
+    async def _choice(self, query: str, options: Dict[str, str]) -> Dict[str, float]:
+        if len(options) <= 1:
+            return {k: 1.0 for k in options}
+        body: Dict[str, Any] = {"state": {"request": query}, "questions": {"t": {"type": "choice", "instructions": "Which tool does `request` need?", "criteria": options}}}
+        if self.model:
+            body["model"] = self.model
+        r = await self.client.post("/v1/systemone", json=body)
+        r.raise_for_status()
+        return {k: float(v) for k, v in r.json()["answers"]["t"]["probabilities"].items()}
+
+    async def rerank(self, query: str, cands: List[str], labels: Dict[str, str]) -> List[str]:
+        chunks = [cands[i:i + self.chunk] for i in range(0, len(cands), self.chunk)]
+        rank = lambda p: sorted(p, key=lambda k: -p[k])  # noqa: E731
+        if len(chunks) <= 1:
+            return rank(await self._choice(query, {c: labels[c] for c in cands}))
+        per = await asyncio.gather(*[self._choice(query, {c: labels[c] for c in ch}) for ch in chunks])
+        n_each = max(2, self.keep // len(chunks) + 1)
+        finalists = [n for p in per for n in rank(p)[:n_each]]
+        final = rank(await self._choice(query, {c: labels[c] for c in finalists}))
+        return final + [n for p in per for n in rank(p) if n not in final]
+
+    async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
+        ranking = await self.retriever.rank(query, tools)
+        short = ranking[: self.shortlist]
+        by = {tool_name(t): t for t in tools}
+        labels = {n: "%s: %s" % (n.replace("_", " "), first_sentence(tool_description(by[n]), self.label_chars)) for n in short}
+        try:
+            laya = await self.rerank(query, short, labels)
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            names = ranking[: self.keep + self.also]
+            return Selection(names, {"error": type(e).__name__, "retrieved": names}, ranking=ranking)
+        names = laya[: self.keep] + [n for n in ranking[: self.also] if n not in laya[: self.keep]]
+        order = names + [n for n in laya if n not in names] + [n for n in ranking if n not in names and n not in laya]
+        return Selection(names, {"laya": laya[: self.keep], "retrieved": ranking[: self.also]}, ranking=order)
+
+
 # --------------------------------------------------------------------------- combinators
 
 class UnionSelector(Selector):
@@ -368,7 +456,8 @@ def _entry_points() -> Dict[str, Any]:
         return {}
 
 
-BUILTIN: Dict[str, Callable[..., Selector]] = {"all": AllSelector, "none": NoneSelector, "bm25": BM25Selector, "laya": LayaSelector}
+BUILTIN: Dict[str, Callable[..., Selector]] = {"all": AllSelector, "none": NoneSelector, "bm25": BM25Selector, "laya": LayaSelector,
+                                               "retrieve": RetrieverSelector, "laya-rerank": LayaRerankSelector}
 
 
 def load_selector(spec: str, **options: Any) -> Selector:

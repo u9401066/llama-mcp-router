@@ -365,3 +365,46 @@ def test_passthrough_keeps_content_encoding_for_compressed_pages():
         assert seen["ae"] == "gzip"
         r = c.get("/", headers={"Accept-Encoding": "identity"})
         assert r.status_code == 415 and seen["ae"] == "identity"  # same behaviour as talking to the backend directly
+
+
+def test_escalation_search_mode_for_large_pools():
+    from conftest import mk
+
+    from llama_mcp_router import RetrieverSelector
+
+    extra = [mk("zz_tool%d" % i, "Unrelated operation %d" % i) for i in range(10)] + [mk("docs_convert_document", "Convert a document to PDF or another format")]
+    script = [{"role": "assistant", "content": None, "tool_calls": [call(META_TOOL, '{"query": "convert a document to pdf"}')]},
+              {"role": "assistant", "content": None, "tool_calls": [call("docs_convert_document", '{"q": "report.docx"}')]}]
+    b = FakeBackend(script)
+    with make(b, RetrieverSelector(top_k=1), escalate=True, catalog_max=3, use_server_tools=False) as c:
+        r = c.post("/v1/chat/completions", json={"messages": [user("search pubmed for papers please")], "tools": TOOLS + extra})
+    meta = b.requests[0]["tools"][-1]["function"]
+    assert meta["name"] == META_TOOL and "query" in meta["parameters"]["properties"] and "enum" not in json.dumps(meta["parameters"])
+    assert "zz (10)" in meta["description"]
+    assert "docs_convert_document" in names_of(b.requests[1]["tools"])
+    assert r.json()["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "docs_convert_document"
+    assert "docs_convert_document" in r.headers["x-router-loaded"]
+
+
+def test_escalation_search_with_empty_args_uses_user_request():
+    from conftest import mk
+
+    from llama_mcp_router import RetrieverSelector
+
+    extra = [mk("zz_tool%d" % i, "Unrelated operation %d" % i) for i in range(40)]
+    b = FakeBackend([{"role": "assistant", "content": None, "tool_calls": [call(META_TOOL, '{}')]}])
+    with make(b, RetrieverSelector(top_k=1), escalate=True, catalog_max=3, use_server_tools=False) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("export my citations to bibtex")], "tools": TOOLS + extra})
+    sent = names_of(b.requests[1]["tools"])
+    assert "pm_export" in sent and len(sent) < len(TOOLS) + len(extra)  # never "all tools" for a large pool
+
+
+def test_router_sanitizes_schemas_sent_to_backend(backend):
+    bad = {"type": "function", "function": {"name": "pm_bad", "description": "x", "parameters": {"type": "object", "properties": {"t": {"type": "string", "maxLength": 5000}}}}}
+    with make(backend, Pick("pm_bad"), use_server_tools=False) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("do the bad thing please")], "tools": [bad]})
+    assert backend.requests[0]["tools"][0]["function"]["parameters"]["properties"]["t"] == {"type": "string"}
+    b2 = FakeBackend()
+    with make(b2, Pick("pm_bad"), use_server_tools=False, sanitize=False) as c:
+        c.post("/v1/chat/completions", json={"messages": [user("do the bad thing please")], "tools": [bad]})
+    assert b2.requests[0]["tools"][0]["function"]["parameters"]["properties"]["t"]["maxLength"] == 5000
