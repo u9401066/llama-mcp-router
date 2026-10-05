@@ -57,7 +57,11 @@ Most errors are *semantic overlap between groups*, not wording: "Search the NCBI
 Zero-shot Laya has no way to know that in *this* MCP "search_gene" belongs to *gene*. Whatever the harness, ~35% of requests have the right group rank first; ~67% with the ensemble.
 That is the ceiling for a zero-shot Laya on this tool set. Fine-tuning Laya on routing data (its README: "fine-tuning is where most of the value is") is the real next step; it is **not done here**.
 
-## 6. Reproduce
+## 6. Postscript (v0.4): the miss is better fixed outside Laya
+
+The ~10% of requests whose group Laya ranks too low are recovered by the router's catalog meta-tool (`--escalate`): the model sees the names of the tools that were left out and loads them. End-to-end on 110 queries / 61 tools: Laya + catalog 94.5% vs Laya alone 89.1%. A catalog with *no* Laya at all scored 96.4% with the 27B model, so for strong models the harness work here matters less than giving the model a cheap way to ask. See the README.
+
+## 7. Reproduce
 
 ```bash
 python benchmarks/laya_lab.py --set tune --variants "baseline,state=json+crit=short,state=raw+crit=auto,model_multi"

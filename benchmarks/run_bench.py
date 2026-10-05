@@ -23,9 +23,9 @@ import httpx
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "src"))
 
-from llama_mcp_router import AllSelector, BM25Selector, LayaSelector, UnionSelector  # noqa: E402
+from llama_mcp_router import AllSelector, BM25Selector, LayaSelector, NoneSelector, UnionSelector  # noqa: E402
 from llama_mcp_router.selectors import build_groups, load_groups_config  # noqa: E402
-from llama_mcp_router.proxy import add_hint, arrange  # noqa: E402
+from llama_mcp_router.proxy import META_TOOL, add_hint, arrange, catalog_tool, expand_tools, requested_tools  # noqa: E402
 from llama_mcp_router.tools import tool_name  # noqa: E402
 
 SYSTEM = ("You are a biomedical literature research assistant with access to tools. "
@@ -60,8 +60,8 @@ class OracleSelector:
 class Cfg:
     """A selector plus how its output is applied (see RouterConfig.apply / hint)."""
 
-    def __init__(self, selector, apply="select", hint=False):
-        self.selector, self.apply, self.hint = selector, apply, hint
+    def __init__(self, selector, apply="select", hint=False, escalate=False):
+        self.selector, self.apply, self.hint, self.escalate = selector, apply, hint, escalate
         self.name = selector.name
 
     async def select(self, query, tools):
@@ -96,6 +96,9 @@ def make_selectors(a, cfg):
         "v0.2 reorder": Cfg(v2(), "reorder"),
         "v0.2 all+hint": Cfg(v2(), "all", True),
         "v0.2 select+hint": Cfg(v2(), "select", True),
+        "v0.2 +catalog": Cfg(v2(), escalate=True),
+        "v0.2 top3 +catalog": Cfg(UnionSelector([LayaSelector(url=U, groups=cfg, top_p=1.0, max_groups=3), BM25Selector(top_k=3)]), escalate=True),
+        "catalog only": Cfg(NoneSelector(), escalate=True),
         "oracle": Cfg(OracleSelector(cfg)),
         "oracle all+hint": Cfg(OracleSelector(cfg, hint=True), "all", True),
     }
@@ -140,6 +143,8 @@ async def ask(client, url, q, tools, effort, max_tokens, hint=""):
         valid = bool(calls)
     except ValueError:
         valid = False
+    if calls and first == META_TOOL:
+        return {"id": q["id"], "first": first, "meta_args": calls[0]["function"]["arguments"], "ok": False, "neg": not q["expect"], "valid_args": valid, "prompt_tokens": d["usage"]["prompt_tokens"], "completion_tokens": d["usage"]["completion_tokens"], "s": dt, "finish": d["choices"][0]["finish_reason"]}
     return {"id": q["id"], "first": first, "ok": (first in q["expect"]) if q["expect"] else first is None, "neg": not q["expect"], "valid_args": valid, "prompt_tokens": d["usage"]["prompt_tokens"], "completion_tokens": d["usage"]["completion_tokens"], "s": dt, "finish": d["choices"][0]["finish_reason"]}
 
 
@@ -160,7 +165,18 @@ async def phase2(a, selectors, tools, queries, p1):
                     sent = arrange(tools, Selection(row["names"], ranking=row["ranking"]), c.apply, 10 ** 6)
                     if not sent and not name.startswith("oracle") and not row.get("abstain"):
                         sent = tools  # selector returned nothing and did not abstain: fail open like the router
-                    return await ask(client, a.llm, q, sent, a.effort, a.max_tokens, row["hint"] if c.hint else "")
+                    hint = row["hint"] if c.hint else ""
+                    if not c.escalate:
+                        return await ask(client, a.llm, q, sent, a.effort, a.max_tokens, hint)
+                    meta = catalog_tool(tools, sent)
+                    r1 = await ask(client, a.llm, q, sent + ([meta] if meta else []), a.effort, a.max_tokens, hint)
+                    if r1["first"] != META_TOOL:
+                        r1["rounds"] = 1
+                        return r1
+                    asked = requested_tools(r1.get("meta_args"))
+                    r2 = await ask(client, a.llm, q, expand_tools(tools, sent, asked), a.effort, a.max_tokens, hint)
+                    r2.update(rounds=2, loaded=asked, prompt_tokens=r1["prompt_tokens"] + r2["prompt_tokens"], completion_tokens=r1["completion_tokens"] + r2["completion_tokens"], s=r1["s"] + r2["s"])
+                    return r2
 
             t0 = time.time()
             results[name] = await asyncio.gather(*[one(q) for q in queries])
@@ -232,13 +248,14 @@ def report(queries, p1, p2):
             statistics.mean(r["bytes"] for r in rows) / 1000, statistics.median(r["ms"] for r in rows)))
     out = ["### Selection (no LLM): %d tool requests, %d no-tool requests" % (npos, nneg), ""] + lines
     if p2:
-        out += ["", "### First tool call by the 27B model", "", "| selector | correct (all) | tool requests | no-tool requests (answered without a tool call) | EN | 中文 | prompt tokens (avg) | seconds/query (avg) |", "|---|---|---|---|---|---|---|---|"]
+        out += ["", "### First tool call by the 27B model", "", "| selector | correct (all) | tool requests | no-tool requests (answered without a tool call) | EN | 中文 | prompt tokens (avg, all rounds) | seconds/query (avg) | 2nd round (catalog used) |", "|---|---|---|---|---|---|---|---|---|"]
         for name, rows in p2.items():
             pos = [r for r in rows if not r["neg"]]
             neg = [r for r in rows if r["neg"]]
             en = [r for r in rows if qs[r["id"]]["lang"] == "en"]
             zh = [r for r in rows if qs[r["id"]]["lang"] == "zh"]
-            out.append("| %s | %s | %s | %s | %s | %s | %.0f | %.1f |" % (name, pct(sum(r["ok"] for r in rows), len(rows)), pct(sum(r["ok"] for r in pos), len(pos)), (pct(sum(r["ok"] for r in neg), len(neg)) if neg else "-"), pct(sum(r["ok"] for r in en), len(en)), pct(sum(r["ok"] for r in zh), len(zh)), statistics.mean(r["prompt_tokens"] for r in rows), statistics.mean(r["s"] for r in rows)))
+            esc = sum(r.get("rounds", 1) == 2 for r in rows)
+            out.append("| %s | %s | %s | %s | %s | %s | %.0f | %.1f | %s |" % (name, pct(sum(r["ok"] for r in rows), len(rows)), pct(sum(r["ok"] for r in pos), len(pos)), (pct(sum(r["ok"] for r in neg), len(neg)) if neg else "-"), pct(sum(r["ok"] for r in en), len(en)), pct(sum(r["ok"] for r in zh), len(zh)), statistics.mean(r["prompt_tokens"] for r in rows), statistics.mean(r["s"] for r in rows), ("%d/%d" % (esc, len(rows))) if any("rounds" in r for r in rows) else "-"))
     return "\n".join(out)
 
 
@@ -257,7 +274,7 @@ async def main():
     ap.add_argument("--concurrency", type=int, default=2)
     ap.add_argument("--distractors", action="store_true", help="add ~100 synthetic tools from other domains (bigger pool)")
     ap.add_argument("--prefill", action="store_true", help="with --llm: measure prefill time (max_tokens=1) instead of answer accuracy")
-    ap.add_argument("--sample", type=int, help="evenly sample this many queries (prefill runs)")
+    ap.add_argument("--sample", type=int, help="evenly sample this many queries")
     ap.add_argument("--only", help="comma-separated selector names")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--out", default=str(ROOT / "results"))

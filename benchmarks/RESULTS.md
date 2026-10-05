@@ -201,3 +201,44 @@ Note: the row `oracle all+hint` in this run is invalid (a bug sent no hint and n
 | v0.1 laya+bm25 | 7150 | 13 | 2578 | 2590 | 5.4x | 2544 |
 | v0.2 laya+bm25 | 5347 | 32 | 1943 | 1976 | 7.1x | 1936 |
 
+
+
+# v0.4 runs (catalog meta-tool)
+
+## Hard set, 61 tools, 110 queries, reasoning_effort=medium
+
+### Selection (no LLM): 98 tool requests, 12 no-tool requests
+
+| selector | recall on tool requests | tools sent (tool requests) | tools sent (no-tool requests) | no-tool requests sent zero tools | schema KB (avg, all) | selector ms (median) |
+|---|---|---|---|---|---|---|
+| v0.2 laya+bm25 | 90.8% | 9.7 | 8.6 | 0/12 | 20.4 | 33 |
+| v0.2 +catalog | 90.8% | 9.7 | 8.6 | 0/12 | 20.4 | 32 |
+| catalog only | 0.0% | 0.0 | 0.0 | 12/12 | 0.0 | 0 |
+
+### First tool call by the 27B model
+
+| selector | correct (all) | tool requests | no-tool requests (answered without a tool call) | EN | 中文 | prompt tokens (avg, all rounds) | seconds/query (avg) | 2nd round (catalog used) |
+|---|---|---|---|---|---|---|---|---|
+| v0.2 laya+bm25 | 89.1% | 87.8% | 100.0% | 93.7% | 77.4% | 4832 | 7.0 | - |
+| v0.2 +catalog | 94.5% | 93.9% | 100.0% | 94.9% | 93.5% | 6707 | 8.5 | 8/110 |
+| catalog only | 96.4% | 95.9% | 100.0% | 94.9% | 100.0% | 3076 | 6.5 | 98/110 |
+
+
+## Same pool, 30 evenly sampled queries, reasoning_effort=xhigh (max_tokens 16384)
+
+### Selection (no LLM): 27 tool requests, 3 no-tool requests
+
+| selector | recall on tool requests | tools sent (tool requests) | tools sent (no-tool requests) | no-tool requests sent zero tools | schema KB (avg, all) | selector ms (median) |
+|---|---|---|---|---|---|---|
+| all | 100.0% | 61.0 | 61.0 | 0/3 | 161.2 | 0 |
+| v0.2 +catalog | 85.2% | 9.5 | 7.3 | 0/3 | 21.8 | 33 |
+| catalog only | 0.0% | 0.0 | 0.0 | 3/3 | 0.0 | 0 |
+
+### First tool call by the 27B model
+
+| selector | correct (all) | tool requests | no-tool requests (answered without a tool call) | EN | 中文 | prompt tokens (avg, all rounds) | seconds/query (avg) | 2nd round (catalog used) |
+|---|---|---|---|---|---|---|---|---|
+| all | 83.3% | 85.2% | 66.7% | 88.2% | 76.9% | 36518 | 8.8 | - |
+| v0.2 +catalog | 83.3% | 85.2% | 66.7% | 94.1% | 69.2% | 7531 | 9.4 | 3/30 |
+| catalog only | 86.7% | 88.9% | 66.7% | 88.2% | 84.6% | 3820 | 7.2 | 28/30 |
+

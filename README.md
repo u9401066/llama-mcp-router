@@ -25,10 +25,11 @@ group the request belongs to (≈ 12 ms per call), and unions that with a lexica
 * **Python ≥ 3.9**, three small dependencies (`httpx`, `starlette`, `uvicorn`). No GPU, no model download for the router itself.
 * Extensible: selectors are plain classes, registered by name, entry-point or `pkg.mod:Class`.
 
-> **Read [the benchmark](#benchmark) before you adopt this.** It is a *latency / context* optimisation, not an accuracy booster:
-> with 61 tools (PubMed + Zotero MCP servers, 36.5k prompt tokens) the router cut cold prefill from **14.1 s to 2.0 s (7.1×)**, but a 27B
-> model with *all* tools already picked the right tool 92–96% of the time, and the router lost 3–5 points of that (89% in the same test).
-> And when llama-server's prompt cache is warm, sending *all* tools is faster (0.3 s) than a changing selection (1.9 s).
+> **Best measured setup (v0.4): `--escalate`.** The router adds a small *catalog* meta-tool listing every tool it did not send
+> (≈ 1.5k tokens for 61 tools). If the model needs one of them it calls the catalog, and the router transparently reruns with those tools.
+> On 110 queries over 61 PubMed + Zotero tools with a 27B model: **all tools 91.8%** (36.5k prompt tokens) → **Laya + catalog 94.5%**
+> (6.7k) → **catalog only, no Laya at all: 96.4%** (3.1k tokens, fastest). Without the catalog the router *lost* accuracy (89.1%).
+> So for a model of this size the catalog is what matters and Laya is optional; see [the v0.4 section](#v04-the-catalog-meta-tool---escalate).
 
 ## Install
 
@@ -51,11 +52,13 @@ pip install git+https://github.com/u9401066/llama-mcp-router      # or: pipx ins
 3. Tell the router what your tool groups are ([examples/pubmed_groups.json](examples/pubmed_groups.json) is a complete example):
 
    ```bash
-   llama-mcp-router serve --backend http://127.0.0.1:8080 --port 8090 \
+   llama-mcp-router serve --backend http://127.0.0.1:8080 --port 8090 --escalate \
        --groups examples/pubmed_groups.json --selector laya+bm25 --laya-url http://127.0.0.1:8000
+   # or, without Laya (measured best for a 27B model):
+   llama-mcp-router serve --backend http://127.0.0.1:8080 --port 8090 --selector none --escalate
    ```
 
-4. Point your client (Web UI, Open WebUI, VS Code, your own code) at `http://127.0.0.1:8090/v1` instead of `:8080`.
+4. Point your client at the router instead of llama-server: `http://127.0.0.1:8090/v1` for API clients, or open `http://127.0.0.1:8090/` for llama-server's own Web UI (every non-chat path is proxied, so the Web UI lists and runs MCP tools as usual).
 
 Check what would be sent for a query, without calling the model:
 
@@ -95,6 +98,7 @@ Skip the router per request with header `X-Router-Bypass: 1` or body field `"rou
 | `--apply reorder` | send **all** tools, most relevant first (no recall loss, no prefill saving) |
 | `--apply all --hint` | send all tools unchanged and add a one-line routing hint to the last user message |
 | `--hint` (with `select`) | selection + hint |
+| `--escalate` | also send a `router_load_tools` meta-tool listing the tools *not* sent (name + one line). If the model calls it, the router reruns the request with the tools it asked for (once, `max_escalations=1`); the client never sees the meta-tool. Works with streaming (text/reasoning stream immediately, tool-call chunks are held until the round ends) and in agent mode. |
 
 The hint is appended to the *last user message*, i.e. late in the prompt, so llama-server's cached prefix is not disturbed. See [benchmarks/HARNESS.md](benchmarks/HARNESS.md) for what each is worth.
 
@@ -119,6 +123,7 @@ Keep group descriptions short and about the *user's intent*; with Laya they are 
 | name | what it does | needs |
 |---|---|---|
 | `all` | every tool (baseline, same as plain llama-server) | – |
+| `none` | no tools; with `--escalate` = **catalog mode** (the model loads tools by name) | – |
 | `bm25` | lexical top-k over tool names + descriptions; CJK-aware tokeniser | – |
 | `laya` | Laya `choice` over tool groups; keeps the top `--max-groups` (default 2) groups (`--top-p` < 1 keeps fewer once that much probability mass is covered; fixed k measured better than adaptive cut-offs). `--laya-none 0.7` adds a *no tool needed* option (sends no tools for small talk; costs ~2 points recall, see HARNESS.md). By default it averages **three differently-framed questions** (`--laya-views ensemble`, ~30 ms); `--laya-views single --laya-state json\|raw --laya-labels label\|description\|auto --laya-model multilingual` pick one framing (see [benchmarks/HARNESS.md](benchmarks/HARNESS.md)) | a `laya-serve` instance |
 | `laya+bm25` | union (default) | both |
@@ -151,7 +156,7 @@ names = (await sel.select("export these to bibtex", tools)).names
 ## CLI
 
 ```
-llama-mcp-router serve  --backend URL --port 8090 --selector laya+bm25 --groups FILE [--mode inject|agent] [--max-tools 12] [--always a,b] [--exclude 'fs_*']
+llama-mcp-router serve  --backend URL --port 8090 --selector laya+bm25|none --groups FILE [--escalate] [--mode inject|agent] [--apply select|reorder|all] [--max-tools 12] [--always a,b] [--exclude 'fs_*']
 llama-mcp-router select "query" --backend URL --groups FILE      # what would be sent
 llama-mcp-router tools  --backend URL [--json]                   # tools + schema size
 ```
@@ -272,6 +277,31 @@ One query is 0.9 points, and running the same prompt twice gave 101 vs 102 corre
 * **The `none` option (`--laya-none`) lost accuracy** on the 41-tool test (88.2% → 82.4%); do not enable it unless you measure it on your workload.
 
 **What is left on the table:** fine-tuning Laya on routing data (its README claims this is where most of the value is) – not attempted – and testing smaller/weaker models, where a hint or a short list should matter more than for a 27B.
+
+## v0.4: the catalog meta-tool (`--escalate`)
+
+Every miss of the selector above was the same failure: the right tool was not in the prompt, so the model called the closest one.
+`--escalate` gives the model a way out: a compact catalog of the tools that were left out. Same 61-tool pool, 110 queries, model and settings as above:
+
+| configuration | correct first call | tool requests | 中文 | chit-chat | prompt tokens (avg, all rounds) | s / query | needed a 2nd round |
+|---|---|---|---|---|---|---|---|
+| all 61 tools (llama.cpp default) | 91.8% | 90.8% | 96.8% | 100% | 36,481 | 6.9 | – |
+| Laya v0.2 + BM25 (`--selector laya+bm25`) | 89.1% | 87.8% | 77.4% | 100% | 4,832 | 7.0 | – |
+| **Laya v0.2 + BM25 + catalog** (`--selector laya+bm25 --escalate`) | **94.5%** | 93.9% | 93.5% | 100% | 6,707 | 8.5 | 8 / 110 |
+| **catalog only** (`--selector none --escalate`) | **96.4%** | 95.9% | **100%** | 100% | **3,076** | **6.5** | 98 / 110 |
+
+The same 30 queries (evenly sampled) at `reasoning_effort=xhigh`: all tools 25/30 (8.8 s), Laya + catalog 25/30 (9.4 s), **catalog only 26/30 (7.2 s)**.
+At `medium` the same 30 were 27, 28 and 30/30 – for tool choice this model did better at medium than at xhigh in every configuration.
+
+What it means:
+
+* **The catalog fixes the router's accuracy problem.** Laya + catalog went from 89.1% to 94.5%, above sending all tools, with 82% fewer prompt tokens. The model asked for more tools in only 8 of 110 requests.
+* **For a 27B model, Laya is not needed.** With nothing but the catalog the model chose best (96.4%, every Chinese query right) and was fastest, even though every tool request costs a second generation round (~+150 completion tokens).
+  It is fast because the catalog is *identical for every request*, so llama-server's prompt cache always hits on it, and the contexts stay small. Laya's varying tool lists defeat that cache.
+* **Where Laya should still pay off** (not measured here): models that are too weak to do this two-step tool search reliably, slow generation where a second round is expensive, or a fine-tuned Laya.
+* Differences of 1–2 queries are noise (104 vs 106 is two queries). The 30-query xhigh sample is small.
+
+Recommended: `llama-mcp-router serve --selector none --escalate` (no Laya needed), or `--selector laya+bm25 --escalate` if you want one round for most requests.
 
 ## Development
 
