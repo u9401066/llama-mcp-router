@@ -22,7 +22,7 @@ from .tools import ServerToolSource, Tool, exclude_tools, first_sentence, normal
 
 log = logging.getLogger("llama_mcp_router")
 
-_HOP = {"host", "content-length", "connection", "keep-alive", "transfer-encoding", "te", "upgrade", "accept-encoding", "content-encoding"}
+_HOP = {"host", "content-length", "connection", "keep-alive", "transfer-encoding", "te", "upgrade"}
 
 
 @dataclass
@@ -159,7 +159,12 @@ def called_tool_names(messages: Sequence[Dict[str, Any]]) -> Set[str]:
 
 
 def _forward_headers(request: Request) -> Dict[str, str]:
-    return {k: v for k, v in request.headers.items() if k.lower() not in _HOP}
+    """Client headers minus hop-by-hop ones. Accept-Encoding is passed through as sent (or 'identity'), so the
+    backend compresses exactly as it would for the client; raw-proxied bodies then keep their Content-Encoding."""
+    out = {k: v for k, v in request.headers.items() if k.lower() not in _HOP}
+    if not any(k.lower() == "accept-encoding" for k in out):
+        out["accept-encoding"] = "identity"
+    return out
 
 
 def _result_text(res: Any) -> str:

@@ -340,3 +340,28 @@ def test_catalog_mode_with_none_selector(backend):
     with make(b3, NoneSelector(), escalate=True) as c:
         c.post("/v1/chat/completions", json={"messages": msgs})
     assert names_of(b3.requests[0]["tools"]) == ["pm_gene", META_TOOL]  # tools already used stay loaded
+
+
+def test_passthrough_keeps_content_encoding_for_compressed_pages():
+    import gzip
+
+    from starlette.applications import Starlette
+    from starlette.responses import Response as SResponse
+    from starlette.routing import Route
+
+    seen = {}
+
+    async def page(request):
+        seen["ae"] = request.headers.get("accept-encoding")
+        if "gzip" not in (request.headers.get("accept-encoding") or ""):
+            return SResponse("gzip required", status_code=415)
+        return SResponse(gzip.compress(b"<html>ui</html>"), media_type="text/html", headers={"Content-Encoding": "gzip"})
+
+    app = Starlette(routes=[Route("/", page)])
+    cfg = RouterConfig(backend="http://backend", selector=Pick())
+    with TestClient(create_app(cfg, transport=httpx.ASGITransport(app=app))) as c:
+        r = c.get("/", headers={"Accept-Encoding": "gzip"})
+        assert r.status_code == 200 and r.headers.get("content-encoding") == "gzip" and r.text == "<html>ui</html>"
+        assert seen["ae"] == "gzip"
+        r = c.get("/", headers={"Accept-Encoding": "identity"})
+        assert r.status_code == 415 and seen["ae"] == "identity"  # same behaviour as talking to the backend directly
