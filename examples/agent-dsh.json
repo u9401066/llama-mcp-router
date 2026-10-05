@@ -1,0 +1,42 @@
+{
+  "name": "deepseek-harness",
+  "command": [
+    "/home/YOU/agent-runtimes/dsh/node_modules/.bin/dsh",
+    "--profile",
+    "acp",
+    "--patch",
+    "{session_dir}/agent.patch.yml"
+  ],
+  "env": {
+    "PATH": "/home/YOU/.nvm/versions/node/v22.23.3/bin:/usr/local/bin:/usr/bin:/bin",
+    "DSH_HOME": "{home}",
+    "DSH_AGENTS_HOME": "{session_dir}/agents-home",
+    "LLAMACPP_API_KEY": "local"
+  },
+  "files": {
+    "agent.patch.yml": "- id: llm-pi-ai\n  config:\n    providers:\n      llamacpp:\n        apiKeyEnv: LLAMACPP_API_KEY\n        api: openai-completions\n        baseURL: http://127.0.0.1:8081/v1\n        models:\n          - id: bonsai\n            contextWindow: 131072\n            maxTokens: 16384\n- id: acp\n  config:\n    provider: llamacpp\n    model: bonsai\n"
+  },
+  "root": "/home/YOU/agent-sessions",
+  "model_id": "agent",
+  "triggers": [
+    "/agent",
+    "@agent"
+  ],
+  "skills_dirs": [
+    "/home/YOU/llama-mcp-router/examples/skills"
+  ],
+  "skills_target": ".agents/skills",
+  "permissions": "deny",
+  "idle_ttl": 1800,
+  "sandbox": "bwrap",
+  "sandbox_ro": [
+    "/home/YOU/agent-runtimes/dsh",
+    "/home/YOU/.nvm/versions/node/v22.23.3"
+  ],
+  "sandbox_hide": [
+    "~",
+    "/run",
+    "/tmp"
+  ],
+  "sandbox_network": true
+}

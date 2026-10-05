@@ -165,7 +165,7 @@ names = (await sel.select("export these to bibtex", tools)).names
 ## CLI
 
 ```
-llama-mcp-router serve  --backend URL --port 8090 --selector laya+bm25|none --groups FILE [--escalate] [--mode inject|agent] [--apply select|reorder|all] [--max-tools 12] [--always a,b] [--exclude 'fs_*']
+llama-mcp-router serve  --backend URL --port 8090 --selector laya+bm25|none --groups FILE [--escalate] [--agent-config FILE] [--mode inject|agent] [--apply select|reorder|all] [--max-tools 12] [--always a,b] [--exclude 'fs_*']
 llama-mcp-router select "query" --backend URL --groups FILE      # what would be sent
 llama-mcp-router tools  --backend URL [--json]                   # tools + schema size
 ```
@@ -359,6 +359,51 @@ sanitises schemas before forwarding (inlines local `$ref`s, drops length limits 
 
 **Recommended for many MCP servers:** run an embedding model (e.g. `llama-server -m bge-m3-Q8_0.gguf --embedding --pooling cls` on CPU, ~50 ms/query) and
 `llama-mcp-router serve --selector retrieve --embed-url http://127.0.0.1:8082 --escalate`. `--selector laya-rerank` is available for experiments.
+
+## v0.6: an existing agent per chat session (ACP agent bridge)
+
+The router can host a full coding agent behind the ordinary chat API, so llama-server's own Web UI (or any OpenAI client) gets
+an agent with **its own sandboxed, git-versioned workspace per conversation**, **skills**, and a history that is **not bounded by the
+chat client's context window** (only the newest message is sent; the agent keeps and compacts its own history).
+
+It speaks the [Agent Client Protocol](https://github.com/agentclientprotocol/agent-client-protocol) (ACP v1, JSON-RPC over stdio), so any
+of the [~35 ACP agents](https://github.com/agentclientprotocol/registry) can be plugged in by configuration. Tested here with
+**DeepSeek Harness** (`dsh --profile acp`, the default example) and **Qwen Code** (`qwen --acp`), both driving a local 27B model on llama-server.
+The agent is a separate process, so its language (TypeScript, Rust, Go …) does not matter.
+
+```
+Web UI ── "/agent write a script that …" ──► llama-mcp-router ──ACP──► agent process (per session, in bubblewrap)
+                                               │  stream: thoughts + tool steps → reasoning, answer → content      │
+                                               │  after each turn: git commit, links to changed files               └─► llama-server (model)
+```
+
+Start a conversation with `/agent`, `@agent` or `agent:` (or request `model: "agent"`, which `/v1/models` also lists):
+
+```bash
+llama-mcp-router serve --backend http://127.0.0.1:8081 --port 8001 --agent-config examples/agent-dsh.json
+```
+
+Per conversation the bridge creates `<root>/<session-id>/` with `workspace/` (a git repo, the agent's cwd; skills from `skills_dirs`
+are copied to `skills_target`), `home/` (the agent's private state, e.g. `DSH_HOME` / `QWEN_HOME`) and `agent.stderr.log`; it starts one
+agent process (stopped after `idle_ttl`, resumed with `session/resume` / `session/load` later), and commits after every turn. Every answer
+ends with links to the changed files; `GET /agent/sessions/<id>` lists files and history, `…/files/<path>` serves a file, `…/archive.zip` the workspace.
+
+**Sandbox** (`"sandbox": "bwrap"`, agent-independent): the whole agent process runs under bubblewrap: the host filesystem is read-only,
+`sandbox_hide` paths (default: your home, `/run` with the Docker socket, `/tmp`) are replaced by empty tmpfs, `sandbox_ro` paths (the agent's
+runtime) are mounted back read-only, and only the session directory is writable. Agents' own sandboxes still apply inside (DSH's bash sandbox
+nests fine; Qwen Code's refuses ACP mode, so the outer one is what isolates it). Permission requests from the agent (e.g. sandbox escalation)
+are **denied** unless `"permissions": "allow"`. Verified: the agent cannot read `~/.ssh` or reach the Docker socket but can write its workspace.
+Network is shared (the agent must reach llama-server); set `sandbox_network: false` for agents that do not need it.
+
+**Skills.** [examples/skills](examples/skills) has three small skills aimed at a 27B model's weak spots: `work-in-files` (write results to files,
+answer briefly), `session-notes` (keep `NOTES.md` as working memory across compaction), `deliverables` (edit deliverables in place, git keeps
+versions, log them in `outputs/CHANGELOG.md`). In the tests the model loaded them on its own and followed them.
+
+**Security.** Enabling the bridge lets anyone who can reach the router run (sandboxed) code and read the session files; session ids are
+random 128-bit, but put the router behind an API key or a trusted network.
+
+Configuration reference: `AgentConfig` in [agent.py](src/llama_mcp_router/agent.py); examples: [agent-dsh.json](examples/agent-dsh.json),
+[agent-qwen-code.json](examples/agent-qwen-code.json).
 
 ## Development
 

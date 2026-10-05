@@ -1,0 +1,29 @@
+{
+  "name": "qwen-code",
+  "command": [
+    "/home/YOU/agent-runtimes/node_modules/.bin/qwen",
+    "--acp",
+    "--experimental-skills"
+  ],
+  "env": {
+    "PATH": "/home/YOU/.nvm/versions/node/v20.19.6/bin:/usr/local/bin:/usr/bin:/bin",
+    "QWEN_HOME": "{home}",
+    "OPENAI_BASE_URL": "http://127.0.0.1:8081/v1",
+    "OPENAI_API_KEY": "local",
+    "OPENAI_MODEL": "bonsai"
+  },
+  "files": {
+    "home/settings.json": "{\"security\": {\"auth\": {\"selectedType\": \"openai\"}}, \"model\": {\"name\": \"bonsai\"}}"
+  },
+  "root": "/home/YOU/agent-sessions",
+  "skills_dirs": [
+    "/home/YOU/llama-mcp-router/examples/skills"
+  ],
+  "skills_target": ".qwen/skills",
+  "permissions": "deny",
+  "sandbox": "bwrap",
+  "sandbox_ro": [
+    "/home/YOU/agent-runtimes/node_modules",
+    "/home/YOU/.nvm/versions/node/v20.19.6"
+  ]
+}
