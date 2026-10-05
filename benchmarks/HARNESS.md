@@ -61,7 +61,16 @@ That is the ceiling for a zero-shot Laya on this tool set. Fine-tuning Laya on r
 
 The ~10% of requests whose group Laya ranks too low are recovered by the router's catalog meta-tool (`--escalate`): the model sees the names of the tools that were left out and loads them. End-to-end on 110 queries / 61 tools: Laya + catalog 94.5% vs Laya alone 89.1%. A catalog with *no* Laya at all scored 96.4% with the 27B model, so for strong models the harness work here matters less than giving the model a cheap way to ask. See the README.
 
-## 7. Reproduce
+## 7. Postscript (v0.5): 600+ tools
+
+At 639 tools from 19 servers Laya can no longer see the pool at all (hard limit: 100 options per question; effective resolution
+~11 tokens per option). The harness lessons that carried over: short, front-loaded option labels (tool name + first sentence beat
+first sentence alone and server-prefixed names); chunks of ≤ 12 options; `{"request": …}` framing. What did not carry over: ensembles and the
+multilingual checkpoint did not help as a reranker. End to end, a strong multilingual retriever (bge-m3) mattered far more than any Laya
+harness, and Laya reranking did not beat retrieval once the model could search for missing tools. See the README section "v0.5" and
+`benchmarks/scale/RESULTS.md`.
+
+## 8. Reproduce
 
 ```bash
 python benchmarks/laya_lab.py --set tune --variants "baseline,state=json+crit=short,state=raw+crit=auto,model_multi"

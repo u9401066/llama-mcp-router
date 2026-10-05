@@ -30,6 +30,10 @@ group the request belongs to (≈ 12 ms per call), and unions that with a lexica
 > On 110 queries over 61 PubMed + Zotero tools with a 27B model: **all tools 91.8%** (36.5k prompt tokens) → **Laya + catalog 94.5%**
 > (6.7k) → **catalog only, no Laya at all: 96.4%** (3.1k tokens, fastest). Without the catalog the router *lost* accuracy (89.1%).
 > So for a model of this size the catalog is what matters and Laya is optional; see [the v0.4 section](#v04-the-catalog-meta-tool---escalate).
+>
+> **Hundreds of tools / many MCP servers (v0.5): `--selector retrieve --embed-url … --escalate`.** With 639 real tools from 19 MCP
+> servers (247k tokens of schema, more than the model's context) a bge-m3 retriever picks 8 tools and the meta-tool becomes a search;
+> the 27B model chose the right tool **82%** of the time. Laya cannot read such a pool directly (see [600+ tools](#v05-600-tools-from-19-mcp-servers)).
 
 ## Install
 
@@ -98,7 +102,7 @@ Skip the router per request with header `X-Router-Bypass: 1` or body field `"rou
 | `--apply reorder` | send **all** tools, most relevant first (no recall loss, no prefill saving) |
 | `--apply all --hint` | send all tools unchanged and add a one-line routing hint to the last user message |
 | `--hint` (with `select`) | selection + hint |
-| `--escalate` | also send a `router_load_tools` meta-tool listing the tools *not* sent (name + one line). If the model calls it, the router reruns the request with the tools it asked for (once, `max_escalations=1`); the client never sees the meta-tool. Works with streaming (text/reasoning stream immediately, tool-call chunks are held until the round ends) and in agent mode. |
+| `--escalate` | also send a `router_load_tools` meta-tool listing the tools *not* sent (name + one line); above `--catalog-max` left-out tools (default 80) it instead takes a free-text `query` and the router searches the pool. If the model calls it, the router reruns the request with the tools it asked for (once, `max_escalations=1`); the client never sees the meta-tool. Works with streaming (text/reasoning stream immediately, tool-call chunks are held until the round ends) and in agent mode. |
 
 The hint is appended to the *last user message*, i.e. late in the prompt, so llama-server's cached prefix is not disturbed. See [benchmarks/HARNESS.md](benchmarks/HARNESS.md) for what each is worth.
 
@@ -127,6 +131,8 @@ Keep group descriptions short and about the *user's intent*; with Laya they are 
 | `bm25` | lexical top-k over tool names + descriptions; CJK-aware tokeniser | – |
 | `laya` | Laya `choice` over tool groups; keeps the top `--max-groups` (default 2) groups (`--top-p` < 1 keeps fewer once that much probability mass is covered; fixed k measured better than adaptive cut-offs). `--laya-none 0.7` adds a *no tool needed* option (sends no tools for small talk; costs ~2 points recall, see HARNESS.md). By default it averages **three differently-framed questions** (`--laya-views ensemble`, ~30 ms); `--laya-views single --laya-state json\|raw --laya-labels label\|description\|auto --laya-model multilingual` pick one framing (see [benchmarks/HARNESS.md](benchmarks/HARNESS.md)) | a `laya-serve` instance |
 | `laya+bm25` | union (default) | both |
+| `retrieve` | top-k by BM25 + embeddings (`--embed-url`, any OpenAI-compatible `/v1/embeddings`), fused; embeddings only for CJK requests | an embedding endpoint (optional; BM25 alone otherwise) |
+| `laya-rerank` | retriever shortlist (`--shortlist 24`) → Laya ranks it in chunks of ≤ 12 → Laya's `--keep` + retriever's `--also` | embedding endpoint + `laya-serve` |
 
 Write your own:
 
@@ -302,6 +308,54 @@ What it means:
 * Differences of 1–2 queries are noise (104 vs 106 is two queries). The 30-query xhigh sample is small.
 
 Recommended: `llama-mcp-router serve --selector none --escalate` (no Laya needed), or `--selector laya+bm25 --escalate` if you want one round for most requests.
+
+## v0.5: 600+ tools from 19 MCP servers
+
+The question: with 10+ MCP servers and hundreds of tools, sending everything is impossible. How should Laya be used then?
+Pool: **639 real tools** from 19 MCP servers (PubMed, Zotero, data analysis, statistics, pharmacy, FHIR, symbolic maths, LibreOffice,
+REAPER, …; `benchmarks/scale/`), 992 KB of schema ≈ **247k tokens** (> the 131k context). 168 queries (44 in Chinese). Only the
+servers' `tools/list` output is needed; nothing was executed. Full numbers: [benchmarks/scale/RESULTS.md](benchmarks/scale/RESULTS.md).
+
+**1. Laya cannot be the first stage.** laya-serve rejects more than 100 options per question, and with its 192-token head each option is
+read through ~11 tokens at 14 options, ~2 at 100. Asking Laya to pick 3 of 19 *servers* first lost recall (64% vs 75% for plain retrieval).
+Something else has to shortlist; Laya can only rerank.
+
+**2. The retriever decides almost everything.** Selector recall at ~8–10 tools:
+
+| retriever | recall | 中文 |
+|---|---|---|
+| BM25 (built-in, no service) | 61.5% | 22.0% |
+| multilingual-e5-small + BM25 | 75.0% | 48.8% |
+| bge-m3 + BM25 | 82.1% | 63.4% |
+| bge-m3 + BM25, embeddings only for CJK requests (shipped default) | 83.3% | 68.3% |
+
+**3. Laya as a reranker helps recall per tool, but not the final answer.** Reranking a 24-tool bge-m3 shortlist (tool name + first sentence
+as option labels, ~100 ms) reached 86.5–87.8% recall with 8 tools vs 82.7% for retrieval alone with 8 (retrieval needs ~20 tools for the same recall).
+Other harness variants (3-view ensembles, the multilingual checkpoint, server-prefixed labels, rank fusion) did not beat that.
+End to end, however, with the router's search escalation:
+
+| router (client sends all 639 tools) | correct first call | 中文 | tools sent | needed a search round |
+|---|---|---|---|---|
+| **`retrieve` top-8 + search escalation** | **82.1%** | 72.7% | 8.0 | 23/168 |
+| `laya-rerank` (keep 5 + also 5) + search escalation | 81.0% | 75.0% | 8.1 | 23/168 |
+| `laya-rerank` (keep 5 + also 3) + search escalation | 78.6% | 72.7% | 6.4 | 26/168 |
+| no tools, model searches itself (`none --escalate`) | 71.4% | 68.2% | 0 | 140/168 |
+
+Laya's extra recall is offset by the plausible-but-wrong tools it puts in front of the model; 136 vs 138 correct is within noise.
+And unlike at 61 tools (where a catalog alone was best, 96.4%), letting the model search from nothing is clearly worse at 639: the
+retriever working on the user's own words is a better first guess than the model's search query.
+
+**4. Real MCP schemas break llama.cpp.** 3 of the 639 tools were rejected by llama-server (HTTP 400: a `$defs` block nested inside a property
+but referenced from the root; `maxLength: 2000` unrolled into an unparsable grammar), which failed 7 of 168 requests. The router now
+sanitises schemas before forwarding (inlines local `$ref`s, drops length limits > 64; `--no-sanitize` to disable): 0 failures.
+
+**5. Where Laya can still add value at scale** (not shipped, measured only partly):
+* its confidence is informative (top-1 right 76% when p ≥ 0.9, 7% when 0.5–0.7) → send fewer tools when it is sure, more when it is not; needs calibrated temperatures
+* fine-tuning Laya on routing data: the router sees which tool the LLM finally called for each request, i.e. free labels
+* a cheap "no tool needed" gate before retrieval (tested at 41 tools in v0.2.2: saves prompt, cost 2 points)
+
+**Recommended for many MCP servers:** run an embedding model (e.g. `llama-server -m bge-m3-Q8_0.gguf --embedding --pooling cls` on CPU, ~50 ms/query) and
+`llama-mcp-router serve --selector retrieve --embed-url http://127.0.0.1:8082 --escalate`. `--selector laya-rerank` is available for experiments.
 
 ## Development
 
