@@ -45,5 +45,7 @@
   "default": true,
   "optout": [
     "chat:"
-  ]
+  ],
+  "max_processes": 4,
+  "users_file": null
 }

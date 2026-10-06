@@ -402,7 +402,7 @@ answer briefly), `session-notes` (keep `NOTES.md` as working memory across compa
 versions, log them in `outputs/CHANGELOG.md`). In the tests the model loaded them on its own and followed them.
 
 **Security.** Enabling the bridge lets anyone who can reach the router run (sandboxed) code and read the session files; session ids are
-random 128-bit, but put the router behind an API key or a trusted network.
+random 128-bit, but keep the router on a trusted network and/or give each person an API key (`users`, v0.8).
 
 Configuration reference: `AgentConfig` in [agent.py](src/llama_mcp_router/agent.py); examples: [agent-dsh.json](examples/agent-dsh.json),
 [agent-qwen-code.json](examples/agent-qwen-code.json).
@@ -434,6 +434,23 @@ Measured on the live stack (Bonsai 27B, 41 PubMed tools): "find 3 RCTs on remima
 9 of 41 PubMed tools, the agent searched via MCP and wrote the CSV; the follow-up "add the first paper's citation count" showed 8 of 41 (incl. the
 citation tools) and was answered in 81 s with iCite data, editing the same file. With the MCP server broken (before the `uv/python` mount fix)
 the agent fell back to PubMed's public E-utilities via web fetch: correct but 3–5× slower; the plugin now logs when no MCP tools appear.
+
+## v0.8: one agent and sandbox per person and per conversation
+
+Up to v0.7 an agent session was keyed by a hash of the system prompt and the first user message, so two people (or two chats) that both
+opened with "hi" shared one workspace. Now:
+
+* **Per conversation.** llama-server's Web UI sends `X-Conversation-Id: <conversation>::<model>` with every chat request (it uses it for
+  resumable streams); the bridge keys agent sessions by that conversation id, so every Web UI chat gets its own agent, workspace and
+  git history, whatever its first message. Clients without the header fall back to the first-message hash.
+* **Per person** (optional). Give the agent config `"users": {"<api key>": "<name>"}` and/or `"users_file": "users.json"` (same mapping, keep it
+  out of git). Then agent chats need `Authorization: Bearer <key>` — in the Web UI, *Settings → API Key* — and get `401` without a valid key;
+  sessions are keyed by (user, conversation) and stored in `<root>/<user>/<session-id>/`, and `GET /agent/sessions` lists the caller's own
+  sessions (id, title, turns). Plain `chat:` requests are not gated by these keys (llama-server ignores the header unless it has `--api-key`).
+  File links stay unguessable capability URLs (`/agent/sessions/<random 128-bit id>/files/…`), so they open in a browser without a header.
+* **`max_processes`** (default 4) caps live agent processes: a new session stops the least-recently-used idle agent first (its workspace stays;
+  it resumes on the next message); if every slot is busy the request gets an error instead of exhausting RAM/VRAM. Size it to your memory:
+  one DSH session with the PubMed MCP server measured ~290 MB RSS (DSH 184 MB + MCP 109 MB); all of them share the one llama-server, whose `--parallel` slots bound concurrent generation.
 
 ## Development
 
