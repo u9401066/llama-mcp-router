@@ -103,6 +103,9 @@ def build_parser() -> argparse.ArgumentParser:
     q.add_argument("--max-tools", type=int, default=int(_env("MAX_TOOLS", "12")))
     _add_selector_args(q)
 
+    d = sub.add_parser("install-dsh-plugin", help="copy the DeepSeek Harness tool-routing plugin into a dsh install (<dir>/plugins/)")
+    d.add_argument("dsh_dir", help="directory whose node_modules contains @deepseek-ai/dsh (e.g. ~/agent-runtimes/dsh)")
+
     t = sub.add_parser("tools", help="list the tools the backend exposes (and their rough size)")
     t.add_argument("--backend", default=_env("BACKEND", "http://127.0.0.1:8080"))
     t.add_argument("--json", action="store_true", help="dump full definitions (OpenAI format)")
@@ -134,6 +137,21 @@ async def _cmd_tools(a: argparse.Namespace) -> int:
     return 0
 
 
+def _install_dsh_plugin(dsh_dir: str) -> int:
+    import shutil
+
+    root = os.path.abspath(os.path.expanduser(dsh_dir))
+    if not os.path.isdir(os.path.join(root, "node_modules", "@deepseek-ai", "dsh-tools")):
+        print("%s does not look like a dsh install (no node_modules/@deepseek-ai/dsh-tools)" % root, file=sys.stderr)
+        return 1
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "integrations", "dsh-plugin.mjs")
+    dst = os.path.join(root, "plugins", "llama-mcp-router.mjs")
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copyfile(src, dst)
+    print(dst)
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     a = build_parser().parse_args(argv)
     logging.basicConfig(level=getattr(logging, str(getattr(a, "log_level", "info")).upper(), logging.INFO), format="%(asctime)s %(levelname)s %(message)s")
@@ -142,6 +160,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return asyncio.run(_cmd_select(a))
     if a.cmd == "tools":
         return asyncio.run(_cmd_tools(a))
+    if a.cmd == "install-dsh-plugin":
+        return _install_dsh_plugin(a.dsh_dir)
 
     import uvicorn
 

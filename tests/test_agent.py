@@ -185,3 +185,25 @@ for line in sys.stdin:
         sys.stdout.write(json.dumps({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "x", "update": {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "home_visible=%s write_ok=%s" % (vis, ok)}}}}) + "\n"); sys.stdout.flush()
         out({"stopReason": "end_turn"})
 '''
+
+
+def test_default_mode_sends_every_chat_to_agent_with_chat_optout(tmp_path):
+    c, backend = make(tmp_path, default=True)
+    with c:
+        r = c.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "no prefix at all"}]})
+        assert r.json()["choices"][0]["message"]["content"].startswith("done turn 1") and backend.requests == []
+        r2 = c.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "chat: just a quick question"}]})
+        assert r2.json()["choices"][0]["message"]["content"] == "ok"  # plain llama-server path
+        assert backend.requests[0]["messages"][0]["content"] == "just a quick question"  # opt-out prefix stripped
+        r3 = c.post("/v1/chat/completions", json={"messages": [{"role": "system", "content": "s"}]})  # no user message
+        assert r3.json()["choices"][0]["message"]["content"] == "ok"
+
+
+def test_install_dsh_plugin(tmp_path):
+    from llama_mcp_router.cli import main
+
+    assert main(["install-dsh-plugin", str(tmp_path)]) == 1  # not a dsh install
+    (tmp_path / "node_modules" / "@deepseek-ai" / "dsh-tools").mkdir(parents=True)
+    assert main(["install-dsh-plugin", str(tmp_path)]) == 0
+    text = (tmp_path / "plugins" / "llama-mcp-router.mjs").read_text()
+    assert "agent/pre-step" in text and "find_tools" in text and "/router/select" in text

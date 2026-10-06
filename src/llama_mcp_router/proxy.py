@@ -206,6 +206,18 @@ def _msg_text(m: Dict[str, Any]) -> str:
     return ""
 
 
+def _strip_prefix(messages: List[Dict[str, Any]], prefixes: Sequence[str]) -> None:
+    """Remove an opt-out prefix (e.g. 'chat:') from the first user message before it reaches the model."""
+    for m in messages:
+        if m.get("role") != "user":
+            continue
+        c = m.get("content")
+        for p in prefixes:
+            if isinstance(c, str) and c.lstrip().lower().startswith(p.lower()):
+                m["content"] = c.lstrip()[len(p):].lstrip()
+        return
+
+
 def _agent_summary(ev: Dict[str, Any]) -> str:
     sid = ev.get("session")
     base = "/agent/sessions/%s" % sid
@@ -316,6 +328,8 @@ class Router:
             return JSONResponse({"error": {"message": "invalid JSON body"}}, status_code=400)
         if self.agents and self._agent_trigger(body) is not None:
             return await self._agent_chat(body)
+        if self.agents and self.cfg.agent and self.cfg.agent.default:
+            _strip_prefix(body.get("messages") or [], self.cfg.agent.optout)
         bypass = request.headers.get("x-router-bypass") or body.pop("router", None) is False
         headers = _forward_headers(request)
         if bypass:
@@ -538,6 +552,8 @@ class Router:
         for t in cfg.triggers:
             if first.lstrip().lower().startswith(t.lower()):
                 return t
+        if cfg.default and first.strip() and not any(first.lstrip().lower().startswith(o.lower()) for o in cfg.optout):
+            return ""
         return None
 
     async def _agent_chat(self, body: Dict[str, Any]) -> Response:

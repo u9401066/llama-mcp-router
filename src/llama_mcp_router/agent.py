@@ -38,6 +38,8 @@ class AgentConfig:
     root: str = "~/agent-sessions"
     model_id: str = "agent"  # requests with this model go to the agent
     triggers: List[str] = field(default_factory=lambda: ["/agent", "@agent", "agent:"])  # ...or whose first user message starts so
+    default: bool = False  # every chat goes to the agent unless its first user message starts with an opt-out prefix
+    optout: List[str] = field(default_factory=lambda: ["chat:"])
     skills_dirs: List[str] = field(default_factory=list)  # copied into each new workspace
     skills_target: str = ".agents/skills"
     idle_ttl: float = 1800.0
