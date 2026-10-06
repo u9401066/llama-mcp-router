@@ -1,0 +1,9 @@
+[
+  {
+    "name": "llama-cot-sentinel",
+    "url": "http://127.0.0.1:8002",
+    "model": "sentinel",
+    "prefix": ["med:"],
+    "description": "reasoning checked step by step by a decision model (github.com/u9401066/llama-cot-sentinel)"
+  }
+]

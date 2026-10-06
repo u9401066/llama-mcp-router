@@ -30,6 +30,33 @@ _HOP = {"host", "content-length", "connection", "keep-alive", "transfer-encoding
 
 
 @dataclass
+class Upstream:
+    """Another OpenAI-compatible service that answers whole chats: those that ask for ``model`` or whose first user message
+    starts with one of ``prefix`` (e.g. llama-cot-sentinel for "med:"). The request is passed through unchanged."""
+
+    url: str
+    model: Optional[str] = None
+    prefix: List[str] = field(default_factory=list)
+    name: str = ""
+    description: str = ""
+    transport: Any = None  # tests only
+
+    def __post_init__(self) -> None:
+        if isinstance(self.prefix, str):
+            self.prefix = [self.prefix]
+        if not self.model and not self.prefix:
+            raise ValueError("route to %s needs a model and/or a prefix" % self.url)
+
+
+def load_routes(path: str) -> List[Upstream]:
+    """routes.json: a list (or {"routes": [...]}) of {"url", "model", "prefix", "name", "description"}."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    items = data.get("routes", []) if isinstance(data, dict) else data
+    return [Upstream(**{k: v for k, v in it.items() if k in Upstream.__dataclass_fields__ and k != "transport"}) for it in items]
+
+
+@dataclass
 class RouterConfig:
     backend: str = "http://127.0.0.1:8080"
     selector: Selector = field(default_factory=AllSelector)
@@ -48,6 +75,7 @@ class RouterConfig:
     search_k: int = 8  # tools loaded per escalation search query
     sanitize: bool = True  # inline $refs / drop huge length limits so llama.cpp can build a grammar for every tool
     agent: Optional[AgentConfig] = None  # run an ACP agent per conversation for model=agent.model_id / trigger prefix
+    routes: List[Upstream] = field(default_factory=list)  # whole chats to other OpenAI-compatible services (checked first)
     sticky: bool = False  # opt-in: keep a conversation's tool list append-only so llama-server's prompt cache can keep hitting
     sticky_conversations: int = 512  # how many conversations to remember
     tools_ttl: float = 60.0
@@ -312,6 +340,7 @@ class Router:
         self._clean: Dict[str, Tool] = {}
         self.agents: Optional[AgentManager] = AgentManager(config.agent) if config.agent else None
         self.streams: "OrderedDict[str, AgentStream]" = OrderedDict()
+        self.upstreams = [(u, httpx.AsyncClient(base_url=u.url.rstrip("/"), timeout=config.request_timeout, transport=u.transport)) for u in config.routes]
 
     async def aclose(self) -> None:
         for st in self.streams.values():
@@ -319,6 +348,8 @@ class Router:
                 st.task.cancel()
         await self.client.aclose()
         await self.cfg.selector.aclose()
+        for _, c in self.upstreams:
+            await c.aclose()
         if self.agents:
             await self.agents.aclose()
 
@@ -371,6 +402,9 @@ class Router:
             body = await request.json()
         except ValueError:
             return JSONResponse({"error": {"message": "invalid JSON body"}}, status_code=400)
+        route = self._route(body)
+        if route is not None:
+            return await self._to_upstream(route, body, request)
         if self.agents and self._agent_trigger(body) is not None:
             return await self._agent_chat(body, request)
         if self.agents and self.cfg.agent and self.cfg.agent.default:
@@ -586,6 +620,26 @@ class Router:
         yield "data: [DONE]\n\n"
 
     # ------------------------------------------------------------------ agent bridge
+    def _route(self, body: Dict[str, Any]) -> Optional[Tuple[Upstream, httpx.AsyncClient]]:
+        if not self.upstreams:
+            return None
+        first = next((_msg_text(m) for m in body.get("messages") or [] if m.get("role") == "user"), "").lstrip().lower()
+        for u, c in self.upstreams:
+            if (u.model and body.get("model") == u.model) or any(first.startswith(p.lower()) for p in u.prefix):
+                return u, c
+        return None
+
+    async def _to_upstream(self, route: Tuple[Upstream, httpx.AsyncClient], body: Dict[str, Any], request: Request) -> Response:
+        u, client = route
+        headers = dict(_forward_headers(request), **{"content-type": "application/json"})
+        try:
+            r = await client.send(client.build_request("POST", "/v1/chat/completions", content=json.dumps(body).encode("utf-8"), headers=headers), stream=True)
+        except httpx.HTTPError as e:
+            log.warning("route %s (%s) unavailable: %s: %s", u.name or u.model or u.prefix, u.url, type(e).__name__, e)
+            return JSONResponse({"error": {"message": "%s is not reachable (%s)" % (u.name or u.url, type(e).__name__), "type": "upstream_error"}}, status_code=502)
+        out = {k: v for k, v in r.headers.items() if k.lower() not in _HOP}
+        return StreamingResponse(r.aiter_raw(), status_code=r.status_code, headers=out, background=BackgroundTask(r.aclose))
+
     def _agent_trigger(self, body: Dict[str, Any]) -> Optional[str]:
         """'' when the request is for the agent by model name, the matched prefix when by trigger, else None."""
         cfg = self.cfg.agent
@@ -884,6 +938,14 @@ class Router:
             data = r.json()
         except ValueError:
             return Response(r.content, status_code=r.status_code, media_type=r.headers.get("content-type"))
+        if isinstance(data, dict):
+            for u in self.cfg.routes:
+                if not u.model:
+                    continue
+                if isinstance(data.get("data"), list) and not any(m.get("id") == u.model for m in data["data"]):
+                    data["data"].append({"id": u.model, "object": "model", "owned_by": u.name or "upstream", "created": 0})
+                if isinstance(data.get("models"), list) and not any(m.get("model") == u.model for m in data["models"]):
+                    data["models"].append({"name": u.model, "model": u.model, "type": "model", "description": u.description or "served by %s" % (u.name or u.url)})
         if self.cfg.agent and isinstance(data, dict):
             mid = self.cfg.agent.model_id
             if isinstance(data.get("data"), list) and not any(m.get("id") == mid for m in data["data"]):
@@ -919,12 +981,9 @@ def create_app(config: RouterConfig, transport: Optional[httpx.AsyncBaseTranspor
         yield
         await router.aclose()
 
-    extra = [
-        Route("/v1/models", router.models, methods=["GET"]),
-        Route("/models", router.models, methods=["GET"]),
-        Route("/v1/streams/lookup", router.streams_lookup, methods=["POST"]),
-        Route("/v1/stream", router.stream, methods=["GET", "DELETE"]),
-    ] if config.agent else []
+    extra = [Route("/v1/models", router.models, methods=["GET"]), Route("/models", router.models, methods=["GET"])] if (config.agent or config.routes) else []
+    if config.agent:
+        extra += [Route("/v1/streams/lookup", router.streams_lookup, methods=["POST"]), Route("/v1/stream", router.stream, methods=["GET", "DELETE"])]
     app = Starlette(
         routes=extra + [
             Route("/v1/chat/completions", router.chat, methods=["POST"]),
