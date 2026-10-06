@@ -1,8 +1,12 @@
+import contextlib
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
+import threading
+import time
 
 import httpx
 import pytest
@@ -290,3 +294,125 @@ def test_process_cap_stops_idle_agents_and_resumes_them(tmp_path):
         out = (tmp_path / "sessions" / "anonymous" / a / "workspace" / "out.txt").read_text().splitlines()
         assert out[0] == "turn 1: hi (permission=no)" and out[1].endswith("back (permission=no)")  # same workspace, resumed
         assert b != a
+
+
+@contextlib.contextmanager
+def live(app):
+    """Serve the app for real (TestClient buffers whole responses, so it cannot drop a stream half-way)."""
+    import uvicorn
+
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    th = threading.Thread(target=server.run, daemon=True)
+    th.start()
+    for _ in range(100):
+        if server.started:
+            break
+        time.sleep(0.05)
+    try:
+        yield "http://127.0.0.1:%d" % port
+    finally:
+        server.should_exit = True
+        th.join(10)
+
+
+def live_app(tmp_path, **kw):
+    cfg = RouterConfig(backend="http://backend", selector=NoTools(), agent=agent_cfg(tmp_path, **kw))
+    return create_app(cfg, transport=httpx.ASGITransport(app=FakeBackend().app()))
+
+
+def wait_done(base, conv):
+    for _ in range(100):
+        info = httpx.post(base + "/v1/streams/lookup", json={"conversation_ids": [conv]}).json()
+        if info and info[0]["is_done"]:
+            return info
+        time.sleep(0.1)
+    raise AssertionError("stream did not finish")
+
+
+def test_agent_stream_survives_disconnect_and_resumes_like_llama_server(tmp_path):
+    conv = {"X-Conversation-Id": "resume-c::agent"}
+    body = {"stream": True, "messages": [{"role": "user", "content": "slow write"}]}
+    with live(live_app(tmp_path, default=True)) as base:
+        with httpx.stream("POST", base + "/v1/chat/completions", json=body, headers=conv, timeout=30) as r:
+            first = next(r.iter_raw())  # the browser reloads after the first chunk
+        assert b"done turn" not in first
+        info = httpx.post(base + "/v1/streams/lookup", json={"conversation_ids": ["resume-c::agent", "other::m"]}).json()
+        assert [i["conversation_id"] for i in info] == ["resume-c::agent"]  # only the agent's; the backend knows neither
+        info = wait_done(base, "resume-c::agent")
+        assert info[0]["total_bytes"] > len(first)
+        rest = httpx.get(base + "/v1/stream", params={"conv_id": "resume-c::agent", "from": len(first)})
+        full = first + rest.content
+        assert rest.status_code == 200 and full == httpx.get(base + "/v1/stream", params={"conv_id": "resume-c::agent", "from": 0}).content
+        text = full.decode()
+        assert "done turn 1" in deltas(text, "content") and text.rstrip().endswith("data: [DONE]")  # finished without a client
+        sid = deltas(text, "content").split("/agent/sessions/")[1].split("/")[0]
+        assert (tmp_path / "sessions" / "anonymous" / sid / "workspace" / "out.txt").read_text().startswith("turn 1: slow write")
+        assert httpx.get(base + "/v1/stream", params={"conv_id": "unknown::m", "from": 0}).status_code == 404  # llama-server's answer
+
+
+def test_stop_button_cancels_the_agent_turn(tmp_path):
+    conv = {"X-Conversation-Id": "stop-c::agent"}
+    msgs = [{"role": "user", "content": "slow job"}]
+    with live(live_app(tmp_path, default=True)) as base:
+        with httpx.stream("POST", base + "/v1/chat/completions", json={"stream": True, "messages": msgs}, headers=conv, timeout=30) as r:
+            it = r.iter_raw()
+            seen = b""
+            while b"thinking about" not in seen:  # the agent is working on the prompt
+                seen += next(it)
+            t0 = time.time()
+            assert httpx.delete(base + "/v1/stream", params={"conv_id": "stop-c::agent"}).json() == {"success": True}
+            rest = b"".join(it)
+        assert time.time() - t0 < 1.2 and b"done turn" not in rest
+        wait_done(base, "stop-c::agent")
+        ws = next((tmp_path / "sessions" / "anonymous").iterdir()) / "workspace"
+        for _ in range(50):
+            if (ws / "cancelled.txt").exists():
+                break
+            time.sleep(0.1)
+        assert (ws / "cancelled.txt").read_text() == "turn 1 cancelled\n"  # the agent got session/cancel
+        more = msgs + [{"role": "assistant", "content": ""}, {"role": "user", "content": "next"}]
+        r2 = httpx.post(base + "/v1/chat/completions", json={"messages": more}, headers=conv, timeout=30)
+        assert r2.json()["choices"][0]["message"]["content"].startswith("done turn 2")  # the session still works
+
+
+def agent_children():
+    """PIDs of fake ACP agents started by this test process (Linux /proc)."""
+    out = []
+    for d in os.listdir("/proc"):
+        if not d.isdigit():
+            continue
+        try:
+            with open("/proc/%s/stat" % d) as f:
+                ppid = int(f.read().rsplit(")", 1)[1].split()[1])
+            with open("/proc/%s/cmdline" % d, "rb") as f:
+                cmd = f.read()
+        except OSError:
+            continue
+        if ppid == os.getpid() and b"fake_acp_agent.py" in cmd:
+            out.append(int(d))
+    return out
+
+
+@pytest.mark.skipif(not os.path.isdir("/proc"), reason="needs /proc")
+def test_stop_while_the_agent_starts_leaves_no_process(tmp_path):
+    app = live_app(tmp_path, default=True, env={"FAKE_SLOW_START": "1.0"})
+    conv = {"X-Conversation-Id": "early-c::agent"}
+    msgs = [{"role": "user", "content": "hello"}]
+    with live(app) as base:
+        with httpx.stream("POST", base + "/v1/chat/completions", json={"stream": True, "messages": msgs}, headers=conv, timeout=30) as r:
+            it = r.iter_raw()
+            next(it)  # role chunk, sent before the agent process is up
+            time.sleep(0.5)  # the agent process is running but has not answered 'initialize' yet
+            httpx.delete(base + "/v1/stream", params={"conv_id": "early-c::agent"})
+            b"".join(it)
+        wait_done(base, "early-c::agent")
+        mgr = app.state.router.agents
+        live_conns = [x.conn.proc.pid for x in mgr.sessions.values() if x.conn and x.conn.alive]
+        assert mgr._starting == 0 and sorted(agent_children()) == sorted(live_conns)  # no orphaned agent process
+        r2 = httpx.post(base + "/v1/chat/completions", json={"messages": msgs + [{"role": "assistant", "content": ""}, {"role": "user", "content": "again"}]},
+                        headers=conv, timeout=30)
+        assert r2.json()["choices"][0]["message"]["content"].startswith("done turn")

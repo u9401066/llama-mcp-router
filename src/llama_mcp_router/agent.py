@@ -351,21 +351,25 @@ class AgentManager:
         elif self.cfg.sandbox:
             raise ValueError("unknown agent sandbox %r (supported: bwrap)" % self.cfg.sandbox)
         conn = AcpConnection(argv, s.workspace, env, os.path.join(s.dir, "agent.stderr.log"), self.cfg.permissions)
-        await conn.start(self.cfg.start_timeout)
-        resumed = False
-        caps = conn.capabilities.get("sessionCapabilities") or {}
-        if s.acp_session and ("resume" in caps or conn.capabilities.get("loadSession")):
-            method = "session/resume" if "resume" in caps else "session/load"
-            try:
-                await conn.request(method, {"sessionId": s.acp_session, "cwd": s.workspace, "mcpServers": []}, self.cfg.start_timeout)
-                resumed = True
-            except AcpError as e:
-                log.info("could not %s %s (%s); starting a new agent session", method, s.acp_session, e)
-        if not resumed:
-            res = await conn.request("session/new", {"cwd": s.workspace, "mcpServers": []}, self.cfg.start_timeout)
-            s.acp_session = res["sessionId"]
-            self._index[s.key]["acp_session"] = s.acp_session
-            self._save_index()
+        try:
+            await conn.start(self.cfg.start_timeout)
+            resumed = False
+            caps = conn.capabilities.get("sessionCapabilities") or {}
+            if s.acp_session and ("resume" in caps or conn.capabilities.get("loadSession")):
+                method = "session/resume" if "resume" in caps else "session/load"
+                try:
+                    await conn.request(method, {"sessionId": s.acp_session, "cwd": s.workspace, "mcpServers": []}, self.cfg.start_timeout)
+                    resumed = True
+                except AcpError as e:
+                    log.info("could not %s %s (%s); starting a new agent session", method, s.acp_session, e)
+            if not resumed:
+                res = await conn.request("session/new", {"cwd": s.workspace, "mcpServers": []}, self.cfg.start_timeout)
+                s.acp_session = res["sessionId"]
+                self._index[s.key]["acp_session"] = s.acp_session
+                self._save_index()
+        except BaseException:  # failed or cancelled (e.g. Stop) while starting: do not leave the process behind
+            await conn.close()
+            raise
         s.conn = conn
         log.info("agent session %s: %s (acp %s)", s.id, "resumed" if resumed else "started", s.acp_session)
 

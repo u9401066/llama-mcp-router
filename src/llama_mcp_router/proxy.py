@@ -11,7 +11,7 @@ import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, AsyncIterator, Dict, List, Optional, Sequence, Set, Tuple
 
 import httpx
 from starlette.applications import Starlette
@@ -262,6 +262,46 @@ def _result_text(res: Any) -> str:
     return res if isinstance(res, str) else json.dumps(res, ensure_ascii=False)
 
 
+class AgentStream:
+    """A streamed agent turn that outlives its HTTP connection and can be replayed from a byte offset: the resumable-stream
+    protocol of llama-server's Web UI (POST /v1/streams/lookup, GET /v1/stream?conv_id=&from=, DELETE /v1/stream = Stop)."""
+
+    KEEP_S = 900
+    MAX = 256
+
+    def __init__(self, sid: str, owner: str):
+        self.id, self.owner = sid, owner
+        self.buf = bytearray()
+        self.done = False
+        self.started, self.completed = int(time.time()), 0
+        self.task: Optional["asyncio.Future[None]"] = None
+        self._changed = asyncio.Event()
+
+    def append(self, piece: str) -> None:
+        self.buf += piece.encode("utf-8")
+        self._changed.set()
+
+    def finish(self) -> None:
+        self.done, self.completed = True, int(time.time())
+        self._changed.set()
+
+    async def follow(self, start: int = 0) -> AsyncIterator[bytes]:
+        pos = max(0, start)
+        while True:
+            if pos < len(self.buf):
+                piece = bytes(self.buf[pos:])
+                pos += len(piece)
+                yield piece
+            elif self.done:
+                return
+            else:
+                self._changed.clear()
+                await self._changed.wait()
+
+    def info(self) -> Dict[str, Any]:
+        return {"conversation_id": self.id, "is_done": self.done, "total_bytes": len(self.buf), "started_at": self.started, "completed_at": self.completed}
+
+
 class Router:
     def __init__(self, config: RouterConfig, transport: Optional[httpx.AsyncBaseTransport] = None):
         self.cfg = config
@@ -271,8 +311,12 @@ class Router:
         self._fallback_retriever: Any = None
         self._clean: Dict[str, Tool] = {}
         self.agents: Optional[AgentManager] = AgentManager(config.agent) if config.agent else None
+        self.streams: "OrderedDict[str, AgentStream]" = OrderedDict()
 
     async def aclose(self) -> None:
+        for st in self.streams.values():
+            if st.task and not st.task.done():
+                st.task.cancel()
         await self.client.aclose()
         await self.cfg.selector.aclose()
         if self.agents:
@@ -638,7 +682,25 @@ class Router:
                 yield chunk({}, "stop")
                 yield "data: [DONE]\n\n"
 
-            return StreamingResponse(gen(), media_type="text/event-stream", headers={"x-router-agent": self.cfg.agent.name})
+            headers = {"x-router-agent": self.cfg.agent.name}
+            sid = self._stream_id(request)
+            if sid is None:  # no conversation id: the turn lives and dies with this connection
+                return StreamingResponse(gen(), media_type="text/event-stream", headers=headers)
+            st = self._new_stream(sid, owner)
+
+            async def run() -> None:
+                try:
+                    async for piece in gen():
+                        st.append(piece)
+                except Exception as e:  # pragma: no cover - gen() already turns agent failures into messages
+                    log.warning("agent stream %s failed: %s: %s", sid, type(e).__name__, e)
+                finally:
+                    st.finish()
+
+            # The turn keeps running if the browser reloads or the network drops; the Web UI reattaches via
+            # /v1/streams/lookup + GET /v1/stream, and its Stop button sends DELETE /v1/stream.
+            st.task = asyncio.ensure_future(run())
+            return StreamingResponse(st.follow(0), media_type="text/event-stream", headers=headers)
         content, reasoning, session = "", "", None
         async for ev in events():
             d = render(ev)
@@ -651,6 +713,65 @@ class Router:
         return JSONResponse({"id": cid, "object": "chat.completion", "created": created, "model": model,
                              "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}],
                              "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}, "router": {"agent_session": session}})
+
+    @staticmethod
+    def _stream_id(request: Request) -> Optional[str]:
+        raw = (request.headers.get("x-conversation-id") or "").strip()
+        return raw if raw and len(raw) <= 300 and re.fullmatch(r"[A-Za-z0-9_.:@-]+", raw) else None
+
+    def _new_stream(self, sid: str, owner: str) -> AgentStream:
+        now = time.time()
+        for k, old in list(self.streams.items()):
+            if old.done and now - old.completed > AgentStream.KEEP_S:
+                del self.streams[k]
+        while len(self.streams) >= AgentStream.MAX:
+            k = next((k for k, v in self.streams.items() if v.done), next(iter(self.streams)))
+            del self.streams[k]
+        st = self.streams[sid] = AgentStream(sid, owner)
+        self.streams.move_to_end(sid)
+        return st
+
+    def _own_stream(self, sid: Optional[str], request: Request) -> Optional[AgentStream]:
+        st = self.streams.get(sid or "")
+        if st is not None and self.cfg.agent and self.cfg.agent.users and self._agent_owner(request) != st.owner:
+            return None
+        return st
+
+    async def streams_lookup(self, request: Request) -> Response:
+        """POST /v1/streams/lookup: agent streams from the router, the rest from llama-server."""
+        try:
+            ids = [str(i) for i in (json.loads(await request.body() or b"{}").get("conversation_ids") or [])]
+        except (ValueError, AttributeError, TypeError):
+            return await self.passthrough(request)
+        mine = [st.info() for st in (self._own_stream(i, request) for i in ids) if st is not None]
+        if not mine:
+            return await self.passthrough(request)
+        rest = [i for i in ids if self._own_stream(i, request) is None]
+        theirs: List[Any] = []
+        if rest:
+            headers = dict(_forward_headers(request), **{"accept-encoding": "identity", "content-type": "application/json"})
+            try:
+                r = await self.client.post(request.url.path, content=json.dumps({"conversation_ids": rest}), headers=headers)
+                data = r.json() if r.status_code == 200 else []
+                theirs = data if isinstance(data, list) else []
+            except (httpx.HTTPError, ValueError):
+                theirs = []
+        return JSONResponse(mine + theirs)
+
+    async def stream(self, request: Request) -> Response:
+        """GET /v1/stream?conv_id=&from=<byte offset> (resume) and DELETE /v1/stream?conv_id= (Stop) for agent turns."""
+        st = self._own_stream(request.query_params.get("conv_id"), request)
+        if st is None:
+            return await self.passthrough(request)
+        if request.method == "DELETE":
+            if st.task is not None and not st.task.done():
+                st.task.cancel()
+            return JSONResponse({"success": True})
+        try:
+            start = int(request.query_params.get("from") or 0)
+        except ValueError:
+            start = 0
+        return StreamingResponse(st.follow(start), media_type="text/event-stream")
 
     async def agent_sessions(self, request: Request) -> Response:
         """GET /agent/sessions: the caller's sessions (only with a users map; without one there is no identity to list by)."""
@@ -721,7 +842,12 @@ def create_app(config: RouterConfig, transport: Optional[httpx.AsyncBaseTranspor
         yield
         await router.aclose()
 
-    extra = [Route("/v1/models", router.models, methods=["GET"]), Route("/models", router.models, methods=["GET"])] if config.agent else []
+    extra = [
+        Route("/v1/models", router.models, methods=["GET"]),
+        Route("/models", router.models, methods=["GET"]),
+        Route("/v1/streams/lookup", router.streams_lookup, methods=["POST"]),
+        Route("/v1/stream", router.stream, methods=["GET", "DELETE"]),
+    ] if config.agent else []
     app = Starlette(
         routes=extra + [
             Route("/v1/chat/completions", router.chat, methods=["POST"]),
