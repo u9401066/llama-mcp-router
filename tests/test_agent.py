@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import json
 import os
@@ -297,14 +298,15 @@ def test_process_cap_stops_idle_agents_and_resumes_them(tmp_path):
 
 
 @contextlib.contextmanager
-def live(app):
+def live(app, port=None):
     """Serve the app for real (TestClient buffers whole responses, so it cannot drop a stream half-way)."""
     import uvicorn
 
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
+    if port is None:
+        sock = socket.socket()
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+        sock.close()
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
     th = threading.Thread(target=server.run, daemon=True)
     th.start()
@@ -319,9 +321,9 @@ def live(app):
         th.join(10)
 
 
-def live_app(tmp_path, **kw):
+def live_app(tmp_path, backend=None, **kw):
     cfg = RouterConfig(backend="http://backend", selector=NoTools(), agent=agent_cfg(tmp_path, **kw))
-    return create_app(cfg, transport=httpx.ASGITransport(app=FakeBackend().app()))
+    return create_app(cfg, transport=httpx.ASGITransport(app=backend or FakeBackend().app()))
 
 
 def wait_done(base, conv):
@@ -416,3 +418,59 @@ def test_stop_while_the_agent_starts_leaves_no_process(tmp_path):
         r2 = httpx.post(base + "/v1/chat/completions", json={"messages": msgs + [{"role": "assistant", "content": ""}, {"role": "user", "content": "again"}]},
                         headers=conv, timeout=30)
         assert r2.json()["choices"][0]["message"]["content"].startswith("done turn")
+
+
+def timing_backend(seen):
+    """llama-server stand-in that streams timings (per token when asked, always in the last chunk)."""
+    from starlette.applications import Starlette
+    from starlette.responses import StreamingResponse
+    from starlette.routing import Route
+
+    async def chat(request):
+        body = await request.json()
+        seen.append(body)
+
+        async def gen():
+            if body.get("return_progress"):
+                yield "data: %s\n\n" % json.dumps({"choices": [{"index": 0, "delta": {"role": "assistant", "content": None}}],
+                                                    "prompt_progress": {"total": 1000, "cache": 900, "processed": 100, "time_ms": 50}})
+                await asyncio.sleep(0.3)
+            for i in range(1, 4):
+                t = {"prompt_n": 100, "prompt_ms": 50.0, "cache_n": 900, "predicted_n": 10 * i, "predicted_ms": 100.0 * i, "draft_n": 4 * i, "draft_n_accepted": 3 * i}
+                d = {"choices": [{"index": 0, "delta": {"content": "x"}, "finish_reason": None if i < 3 else "stop"}]}
+                if body.get("timings_per_token") or i == 3:
+                    d["timings"] = t
+                yield "data: %s\n\n" % json.dumps(d)
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(gen(), media_type="text/event-stream")
+
+    return Starlette(routes=[Route("/v1/chat/completions", chat, methods=["POST"])])
+
+
+def test_agent_stream_shows_tokens_and_speed(tmp_path):
+    seen = []
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    app = live_app(tmp_path, backend=timing_backend(seen), default=True,
+                   env={"FAKE_LLM_CALLS": "2", "FAKE_LLM_URL": "http://127.0.0.1:%d/agent/llm/{session}/v1/chat/completions" % port})
+    with live(app, port=port) as base:
+        with httpx.stream("POST", base + "/v1/chat/completions", json={"stream": True, "messages": [{"role": "user", "content": "go"}]},
+                          headers={"X-Conversation-Id": "t-c::agent"}, timeout=30) as r:
+            text = b"".join(r.iter_raw()).decode()
+        chunks = events(text)
+        timed = [c for c in chunks if "timings" in c]
+        final = timed[-1]["timings"]
+        assert timed[-1]["choices"][0]["finish_reason"] == "stop"  # totals ride on the last chunk, like llama-server's
+        assert final["prompt_n"] == 200 and final["cache_n"] == 1800 and final["predicted_n"] == 60 and final["predicted_ms"] == 600.0
+        assert final["predicted_per_second"] == 100.0 and final["prompt_per_second"] == 2000.0 and final["requests"] == 2
+        assert len(timed) >= 3  # live updates before the end
+        assert all(b.get("timings_per_token") is True and b.get("return_progress") is True for b in seen) and len(seen) == 2
+        assert any(c.get("prompt_progress", {}).get("processed") == 100 for c in chunks)  # prompt processing shown live
+        r2 = httpx.post(base + "/v1/chat/completions", json={"messages": [{"role": "user", "content": "go"}, {"role": "assistant", "content": "x"},
+                                                                          {"role": "user", "content": "again"}]}, headers={"X-Conversation-Id": "t-c::agent"}, timeout=30)
+        d = r2.json()
+        assert d["timings"]["predicted_n"] == 60 and d["usage"] == {"prompt_tokens": 2000, "completion_tokens": 60, "total_tokens": 2060}
+        assert httpx.post(base + "/agent/llm/%s/v1/chat/completions" % ("0" * 32), json={}).status_code == 404

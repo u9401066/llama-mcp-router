@@ -101,6 +101,9 @@ class AcpError(RuntimeError):
     pass
 
 
+_TIMINGS = object()  # queue marker: the session's model timings changed
+
+
 def safe_owner(owner: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", owner or "anonymous")[:64] or "anonymous"
 
@@ -224,6 +227,29 @@ class AcpConnection:
             self._stderr.close()
 
 
+_TIMING_KEYS = ("prompt_n", "prompt_ms", "cache_n", "predicted_n", "predicted_ms", "draft_n", "draft_n_accepted")
+
+
+def sum_timings(parts: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Add up llama-server ``timings`` of several requests into one block the Web UI can show (tokens, time, speed)."""
+    if not parts:
+        return None
+    out: Dict[str, Any] = {k: 0 for k in _TIMING_KEYS}
+    for t in parts:
+        for k in _TIMING_KEYS:
+            v = t.get(k)
+            if isinstance(v, (int, float)):
+                out[k] += v
+    for k in ("prompt_ms", "predicted_ms"):
+        out[k] = round(out[k], 3)
+    out["prompt_per_token_ms"] = out["prompt_ms"] / out["prompt_n"] if out["prompt_n"] else 0.0
+    out["prompt_per_second"] = 1000.0 * out["prompt_n"] / out["prompt_ms"] if out["prompt_ms"] else 0.0
+    out["predicted_per_token_ms"] = out["predicted_ms"] / out["predicted_n"] if out["predicted_n"] else 0.0
+    out["predicted_per_second"] = 1000.0 * out["predicted_n"] / out["predicted_ms"] if out["predicted_ms"] else 0.0
+    out["requests"] = len(parts)
+    return out
+
+
 @dataclass
 class AgentSession:
     id: str
@@ -237,6 +263,39 @@ class AgentSession:
     turns: int = 0
     last_used: float = field(default_factory=time.time)
     lock: Optional[asyncio.Lock] = None
+    # llama-server timings of the agent's model requests in the current turn (seen by the router's /agent/llm proxy)
+    done_timings: List[Dict[str, Any]] = field(default_factory=list)
+    inflight: Dict[int, Dict[str, Any]] = field(default_factory=dict)
+    notify: Optional[Callable[[Optional[Dict[str, Any]]], None]] = None  # (prompt_progress or None) -> event for the turn
+    _rid: int = 0
+    _notified: float = 0.0
+    _progressed: float = 0.0
+
+    def begin_request(self) -> int:
+        self._rid += 1
+        return self._rid
+
+    def update_request(self, rid: int, timings: Optional[Dict[str, Any]] = None, progress: Optional[Dict[str, Any]] = None) -> None:
+        if timings is not None:
+            self.inflight[rid] = timings
+        now = time.monotonic()
+        if progress is not None and self.notify and now - self._progressed >= 0.2:  # prompt processing, as it happens
+            self._progressed = now
+            self.notify(progress)
+        elif timings is not None and self.notify and now - self._notified >= 0.25:  # live speed while the model generates
+            self._notified = now
+            self.notify(None)
+
+    def end_request(self, rid: int, timings: Optional[Dict[str, Any]]) -> None:
+        self.inflight.pop(rid, None)
+        if timings:
+            self.done_timings.append(timings)
+        if self.notify:
+            self._notified = time.monotonic()
+            self.notify(None)
+
+    def timings(self) -> Optional[Dict[str, Any]]:
+        return sum_timings(self.done_timings + list(self.inflight.values()))
 
 
 async def _git(cwd: str, *args: str) -> str:
@@ -291,7 +350,7 @@ class AgentManager:
 
     # ------------------------------------------------------------------ lifecycle
     def _placeholders(self, s: AgentSession) -> Dict[str, str]:
-        return {"session_dir": s.dir, "workspace": s.workspace, "home": s.home}
+        return {"session_dir": s.dir, "workspace": s.workspace, "home": s.home, "session": s.id}
 
     async def _prepare_dirs(self, s: AgentSession) -> None:
         new = not os.path.isdir(s.workspace)
@@ -423,6 +482,8 @@ class AgentManager:
                 await self._connect(s)
             queue: asyncio.Queue = asyncio.Queue()
             s.conn.listener = queue.put_nowait  # type: ignore[union-attr]
+            s.done_timings, s.inflight = [], {}
+            s.notify = lambda progress=None: queue.put_nowait((_TIMINGS, progress))
             prompt = asyncio.ensure_future(s.conn.request(  # type: ignore[union-attr]
                 "session/prompt", {"sessionId": s.acp_session, "prompt": [{"type": "text", "text": text}]}, self.cfg.prompt_timeout))
             finished = False
@@ -431,14 +492,15 @@ class AgentManager:
                     getter = asyncio.ensure_future(queue.get())
                     done, _ = await asyncio.wait({getter, prompt}, return_when=asyncio.FIRST_COMPLETED)
                     if getter in done:
-                        ev = _event(getter.result())
-                        if ev:
+                        ev = self._timings_event(s, getter.result()) or _event(getter.result())
+                        if ev and ev["type"] != "none":
                             yield ev
                         continue
                     getter.cancel()
                     while not queue.empty():
-                        ev = _event(queue.get_nowait())
-                        if ev:
+                        msg = queue.get_nowait()
+                        ev = self._timings_event(s, msg) or _event(msg)
+                        if ev and ev["type"] != "none":
                             yield ev
                     res = prompt.result()  # raises AcpError on failure
                     finished = True
@@ -447,13 +509,26 @@ class AgentManager:
                     self._index[s.key]["turns"] = s.turns
                     self._save_index()
                     commit, changed = await self._commit(s, text)
-                    yield {"type": "done", "stop": res.get("stopReason"), "session": s.id, "commit": commit, "changed": changed}
+                    yield {"type": "done", "stop": res.get("stopReason"), "session": s.id, "commit": commit, "changed": changed,
+                           "timings": s.timings()}
                     return
             finally:
                 s.conn.listener = None  # type: ignore[union-attr]
+                s.notify = None
                 if not finished and not prompt.done():
                     await s.conn.notify("session/cancel", {"sessionId": s.acp_session})  # type: ignore[union-attr]
                     prompt.cancel()
+
+    @staticmethod
+    def _timings_event(s: AgentSession, msg: Any) -> Optional[Dict[str, Any]]:
+        if not (isinstance(msg, tuple) and msg and msg[0] is _TIMINGS):
+            return None
+        t, p = s.timings(), msg[1]
+        return {"type": "timings", "timings": t, "prompt_progress": p} if t or p else {"type": "none"}
+
+    def live_session(self, sid: str) -> Optional[AgentSession]:
+        """The running session with this id (its agent process calls the router's /agent/llm/<id>/ proxy)."""
+        return next((x for x in self.sessions.values() if x.id == sid), None)
 
     async def _commit(self, s: AgentSession, text: str):
         if not self.cfg.commit:

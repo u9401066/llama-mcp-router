@@ -634,9 +634,15 @@ class Router:
         created = int(time.time())
         cid = "chatcmpl-agent-%d" % created
 
-        def chunk(delta: Dict[str, Any], finish: Optional[str] = None) -> str:
-            return "data: %s\n\n" % json.dumps({"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
-                                                 "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}, ensure_ascii=False)
+        def chunk(delta: Dict[str, Any], finish: Optional[str] = None, timings: Optional[Dict[str, Any]] = None,
+                  progress: Optional[Dict[str, Any]] = None) -> str:
+            data: Dict[str, Any] = {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
+                                    "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
+            if timings:  # llama-server's per-request stats, summed over the agent's model calls: the Web UI shows tokens + speed
+                data["timings"] = timings
+            if progress:  # prompt processing of the agent's current model call
+                data["prompt_progress"] = progress
+            return "data: %s\n\n" % json.dumps(data, ensure_ascii=False)
 
         async def events():
             if not text:
@@ -675,11 +681,17 @@ class Router:
         if body.get("stream"):
             async def gen():
                 yield chunk({"role": "assistant", "content": ""})
+                last: Optional[Dict[str, Any]] = None
                 async for ev in events():
+                    if ev["type"] == "timings":
+                        last = ev.get("timings") or last
+                        yield chunk({}, timings=ev.get("timings"), progress=ev.get("prompt_progress"))
+                        continue
+                    last = ev.get("timings") or last
                     d = render(ev)
                     if d:
                         yield chunk(d)
-                yield chunk({}, "stop")
+                yield chunk({}, "stop", timings=last)
                 yield "data: [DONE]\n\n"
 
             headers = {"x-router-agent": self.cfg.agent.name}
@@ -702,7 +714,9 @@ class Router:
             st.task = asyncio.ensure_future(run())
             return StreamingResponse(st.follow(0), media_type="text/event-stream", headers=headers)
         content, reasoning, session = "", "", None
+        timings: Optional[Dict[str, Any]] = None
         async for ev in events():
+            timings = ev.get("timings") or timings
             d = render(ev)
             content += d.get("content", "")
             reasoning += d.get("reasoning_content", "")
@@ -710,9 +724,72 @@ class Router:
         msg = {"role": "assistant", "content": content}
         if reasoning:
             msg["reasoning_content"] = reasoning
-        return JSONResponse({"id": cid, "object": "chat.completion", "created": created, "model": model,
-                             "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}],
-                             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}, "router": {"agent_session": session}})
+        t = timings or {}
+        prompt_tokens = int(t.get("prompt_n", 0) + t.get("cache_n", 0))
+        usage = {"prompt_tokens": prompt_tokens, "completion_tokens": int(t.get("predicted_n", 0)), "total_tokens": prompt_tokens + int(t.get("predicted_n", 0))}
+        out: Dict[str, Any] = {"id": cid, "object": "chat.completion", "created": created, "model": model,
+                               "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}], "usage": usage, "router": {"agent_session": session}}
+        if timings:
+            out["timings"] = timings
+        return JSONResponse(out)
+
+    async def agent_llm(self, request: Request) -> Response:
+        """/agent/llm/<session>/<path>: the agent's own model requests (point its provider's base URL here). Passed to
+        llama-server unchanged, except that streams ask for per-token timings and prompt progress; timings are summed per turn
+        and sent along with the agent's answer (progress as it happens), so the Web UI shows prompt processing, tokens, time
+        and speed for agent turns as it does for plain chats."""
+        s = self.agents.live_session(request.path_params["sid"]) if self.agents else None
+        if s is None:
+            return JSONResponse({"error": {"message": "no running agent session with this id", "type": "not_found_error"}}, status_code=404)
+        url = "/" + request.path_params["path"] + (("?" + request.url.query) if request.url.query else "")
+        body = await request.body()
+        streaming = False
+        if request.method == "POST" and body:
+            try:
+                data = json.loads(body)
+            except ValueError:
+                data = None
+            if isinstance(data, dict) and data.get("stream"):
+                streaming = True
+                data["timings_per_token"] = True
+                data["return_progress"] = True
+                body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        headers = dict(_forward_headers(request), **{"accept-encoding": "identity"})
+        r = await self.client.send(self.client.build_request(request.method, url, content=body, headers=headers), stream=True)
+        out = {k: v for k, v in r.headers.items() if k.lower() not in _HOP and k.lower() != "content-encoding"}
+        rid = s.begin_request()
+        if not streaming or "text/event-stream" not in r.headers.get("content-type", ""):
+            content = await r.aread()
+            await r.aclose()
+            try:
+                t = json.loads(content).get("timings")
+            except (ValueError, AttributeError):
+                t = None
+            s.end_request(rid, t if isinstance(t, dict) else None)
+            return Response(content, status_code=r.status_code, headers=out)
+
+        async def relay() -> AsyncIterator[bytes]:
+            buf, last = b"", None
+            try:
+                async for piece in r.aiter_raw():
+                    yield piece
+                    buf += piece
+                    while b"\n" in buf:
+                        line, buf = buf.split(b"\n", 1)
+                        if line.startswith(b"data: {") and (b'"timings"' in line or b'"prompt_progress"' in line):
+                            try:
+                                d = json.loads(line[6:])
+                            except ValueError:
+                                continue
+                            t, pp = d.get("timings"), d.get("prompt_progress")
+                            t = t if isinstance(t, dict) else None
+                            last = t or last
+                            s.update_request(rid, t, pp if isinstance(pp, dict) else None)
+            finally:
+                await r.aclose()
+                s.end_request(rid, last)
+
+        return StreamingResponse(relay(), status_code=r.status_code, headers=out)
 
     @staticmethod
     def _stream_id(request: Request) -> Optional[str]:
@@ -857,6 +934,7 @@ def create_app(config: RouterConfig, transport: Optional[httpx.AsyncBaseTranspor
             Route("/agent/sessions/{sid}", router.agent_session, methods=["GET"]),
             Route("/agent/sessions/{sid}/archive.zip", router.agent_archive, methods=["GET"]),
             Route("/agent/sessions/{sid}/files/{path:path}", router.agent_file, methods=["GET"]),
+            Route("/agent/llm/{sid}/{path:path}", router.agent_llm, methods=["GET", "POST"]),
             Route("/{path:path}", router.passthrough, methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]),
         ],
         lifespan=lifespan,

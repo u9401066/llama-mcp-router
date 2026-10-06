@@ -49,6 +49,12 @@ while True:
         st["turns"] += 1
         text = p["prompt"][0]["text"]
         update(sid, {"sessionUpdate": "agent_thought_chunk", "content": {"type": "text", "text": "thinking about: " + text}})
+        for _ in range(int(os.environ.get("FAKE_LLM_CALLS", "0"))):  # model calls through the router's /agent/llm proxy
+            import urllib.request
+            req = urllib.request.Request(os.environ["FAKE_LLM_URL"], data=json.dumps({"stream": True, "messages": [{"role": "user", "content": text}]}).encode(),
+                                         headers={"content-type": "application/json"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                resp.read()
         if "slow" in text:  # a long turn that can be cancelled (session/cancel) while it works
             cancelled, t0 = False, time.time()
             while time.time() - t0 < 1.5 and not cancelled:
