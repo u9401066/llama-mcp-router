@@ -20,8 +20,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
-from .agent import AcpError, AgentConfig, AgentManager, sum_timings
-from .sentinel import SentinelConfig, SentinelRun, SystemOneCritic
+from .agent import AcpError, AgentConfig, AgentManager
 from .selectors import AllSelector, Selector
 from .tools import ServerToolSource, Tool, exclude_tools, first_sentence, normalize_tool, sanitize_tool, tool_description, tool_name
 
@@ -49,7 +48,6 @@ class RouterConfig:
     search_k: int = 8  # tools loaded per escalation search query
     sanitize: bool = True  # inline $refs / drop huge length limits so llama.cpp can build a grammar for every tool
     agent: Optional[AgentConfig] = None  # run an ACP agent per conversation for model=agent.model_id / trigger prefix
-    sentinel: Optional[SentinelConfig] = None  # step-checked reasoning for model=sentinel.model_id / trigger prefix (e.g. "med:")
     sticky: bool = False  # opt-in: keep a conversation's tool list append-only so llama-server's prompt cache can keep hitting
     sticky_conversations: int = 512  # how many conversations to remember
     tools_ttl: float = 60.0
@@ -314,7 +312,6 @@ class Router:
         self._clean: Dict[str, Tool] = {}
         self.agents: Optional[AgentManager] = AgentManager(config.agent) if config.agent else None
         self.streams: "OrderedDict[str, AgentStream]" = OrderedDict()
-        self.critic: Optional[SystemOneCritic] = SystemOneCritic(config.sentinel) if config.sentinel else None
 
     async def aclose(self) -> None:
         for st in self.streams.values():
@@ -322,8 +319,6 @@ class Router:
                 st.task.cancel()
         await self.client.aclose()
         await self.cfg.selector.aclose()
-        if self.critic:
-            await self.critic.aclose()
         if self.agents:
             await self.agents.aclose()
 
@@ -376,8 +371,6 @@ class Router:
             body = await request.json()
         except ValueError:
             return JSONResponse({"error": {"message": "invalid JSON body"}}, status_code=400)
-        if self.critic and self._sentinel_trigger(body) is not None:
-            return await self._sentinel_chat(body)
         if self.agents and self._agent_trigger(body) is not None:
             return await self._agent_chat(body, request)
         if self.agents and self.cfg.agent and self.cfg.agent.default:
@@ -593,73 +586,6 @@ class Router:
         yield "data: [DONE]\n\n"
 
     # ------------------------------------------------------------------ agent bridge
-    def _sentinel_trigger(self, body: Dict[str, Any]) -> Optional[str]:
-        """'' when the request is for the sentinel by model name, the matched prefix when by trigger, else None."""
-        cfg = self.cfg.sentinel
-        if cfg is None:
-            return None
-        if body.get("model") == cfg.model_id:
-            return ""
-        first = next((_msg_text(m) for m in body.get("messages") or [] if m.get("role") == "user"), "")
-        return next((t for t in cfg.triggers if first.lstrip().lower().startswith(t.lower())), None)
-
-    async def _sentinel_chat(self, body: Dict[str, Any]) -> Response:
-        """Answer with step-checked reasoning (see sentinel.py). No tools: the client's tool list is ignored."""
-        assert self.critic and self.cfg.sentinel
-        messages = [dict(m) for m in body.get("messages") or [] if m.get("role") in ("system", "user", "assistant")]
-        for m in messages:
-            m.pop("reasoning_content", None)
-            m.pop("tool_calls", None)
-        _strip_prefix(messages, self.cfg.sentinel.triggers)
-        options = {k: body[k] for k in ("temperature", "top_p", "chat_template_kwargs") if k in body}
-        run = SentinelRun(self.cfg.sentinel, self.client, self.critic, messages, options)
-        model = body.get("model") or self.cfg.sentinel.model_id
-        created = int(time.time())
-        cid = "chatcmpl-sentinel-%d" % created
-
-        def chunk(delta: Dict[str, Any], finish: Optional[str] = None, extra: Optional[Dict[str, Any]] = None) -> str:
-            data: Dict[str, Any] = {"id": cid, "object": "chat.completion.chunk", "created": created, "model": model,
-                                    "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
-            data.update(extra or {})
-            return "data: %s\n\n" % json.dumps(data, ensure_ascii=False)
-
-        def report(ev: Dict[str, Any]) -> Dict[str, Any]:
-            return {"sentinel": {k: ev[k] for k in ("interventions", "flagged", "steps_checked", "critic_ms", "attempts")}, "timings": sum_timings(ev["timings"]) or {}}
-
-        if body.get("stream"):
-            async def gen():
-                yield chunk({"role": "assistant", "content": ""})
-                try:
-                    async for ev in run.events():
-                        if ev["type"] in ("reasoning", "note"):
-                            yield chunk({"reasoning_content": ev["text"]})
-                        elif ev["type"] == "content":
-                            yield chunk({"content": ev["text"]})
-                        elif ev["type"] == "done":
-                            yield chunk({}, "stop", report(ev))
-                except httpx.HTTPError as e:
-                    log.warning("sentinel answer failed: %s: %s", type(e).__name__, e)
-                    yield chunk({"content": "\n\n**Sentinel error:** %s" % e}, "stop")
-                yield "data: [DONE]\n\n"
-
-            return StreamingResponse(gen(), media_type="text/event-stream", headers={"x-router-sentinel": "1"})
-        content, reasoning, final = "", "", {}
-        async for ev in run.events():
-            if ev["type"] in ("reasoning", "note"):
-                reasoning += ev["text"]
-            elif ev["type"] == "content":
-                content += ev["text"]
-            elif ev["type"] == "done":
-                final = report(ev)
-        msg: Dict[str, Any] = {"role": "assistant", "content": content}
-        if reasoning:
-            msg["reasoning_content"] = reasoning
-        t = final.get("timings") or {}
-        usage = {"prompt_tokens": int(t.get("prompt_n", 0) + t.get("cache_n", 0)), "completion_tokens": int(t.get("predicted_n", 0))}
-        usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]
-        return JSONResponse({"id": cid, "object": "chat.completion", "created": created, "model": model,
-                             "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}], "usage": usage, **final})
-
     def _agent_trigger(self, body: Dict[str, Any]) -> Optional[str]:
         """'' when the request is for the agent by model name, the matched prefix when by trigger, else None."""
         cfg = self.cfg.agent
@@ -958,12 +884,6 @@ class Router:
             data = r.json()
         except ValueError:
             return Response(r.content, status_code=r.status_code, media_type=r.headers.get("content-type"))
-        if self.cfg.sentinel and isinstance(data, dict):
-            sid = self.cfg.sentinel.model_id
-            if isinstance(data.get("data"), list) and not any(m.get("id") == sid for m in data["data"]):
-                data["data"].append({"id": sid, "object": "model", "owned_by": "llama-mcp-router", "created": 0})
-            if isinstance(data.get("models"), list) and not any(m.get("model") == sid for m in data["models"]):
-                data["models"].append({"name": sid, "model": sid, "type": "model", "description": "reasoning checked step by step by a decision model"})
         if self.cfg.agent and isinstance(data, dict):
             mid = self.cfg.agent.model_id
             if isinstance(data.get("data"), list) and not any(m.get("id") == mid for m in data["data"]):
@@ -1004,7 +924,7 @@ def create_app(config: RouterConfig, transport: Optional[httpx.AsyncBaseTranspor
         Route("/models", router.models, methods=["GET"]),
         Route("/v1/streams/lookup", router.streams_lookup, methods=["POST"]),
         Route("/v1/stream", router.stream, methods=["GET", "DELETE"]),
-    ] if config.agent else ([Route("/v1/models", router.models, methods=["GET"]), Route("/models", router.models, methods=["GET"])] if config.sentinel else [])
+    ] if config.agent else []
     app = Starlette(
         routes=extra + [
             Route("/v1/chat/completions", router.chat, methods=["POST"]),
