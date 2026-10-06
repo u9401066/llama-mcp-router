@@ -136,6 +136,7 @@ Keep group descriptions short and about the *user's intent*; with Laya they are 
 | `laya+bm25` | union (default) | both |
 | `retrieve` | top-k by BM25 + embeddings (`--embed-url`, any OpenAI-compatible `/v1/embeddings`), fused; embeddings only for CJK requests | an embedding endpoint (optional; BM25 alone otherwise) |
 | `laya-rerank` | retriever shortlist (`--shortlist 24`) → Laya ranks it in chunks of ≤ 12 → Laya's `--keep` + retriever's `--also` | embedding endpoint + `laya-serve` |
+| `2pass` | a decision model twice: its top `--draft-groups` (3) groups + BM25 top 8 as a draft, then it ranks the drafted tools one by one → its `--keep` (5) + the draft's `--also` (3). Use a model that can tell tools apart: with Clef-Flash 98.1% correct first calls on 41 and 133 tools (v0.10) | a SystemOne server at `--laya-url` (llama-server with Clef / Clef-Flash; works with `laya-serve` but loses recall) |
 
 Write your own:
 
@@ -492,6 +493,26 @@ provider at the router instead of llama-server — `baseURL: http://127.0.0.1:<r
 session, see [examples/agent-dsh.json](examples/agent-dsh.json)). That path passes requests to llama-server unchanged, except that streams ask for
 per-token timings and prompt progress; the router sums the timings of all model calls of a turn and sends them with the agent's answer (live,
 and the totals in the last chunk, as llama-server does), plus `usage` for non-streamed answers. No tool routing happens on this path.
+
+## v0.10: a stronger local decision model, asked twice (`2pass`)
+
+Laya picks *groups* well enough, but cannot tell individual tools apart: it reads the question and all options through a 192-token
+head. Cloudflare's **Clef-Flash** (9B, Apache-2.0, `ggml-org/Clef-Flash-GGUF`, runs in llama.cpp ≥ b11433 with the same
+`/v1/systemone` API as Laya) can. The `2pass` selector asks such a model twice — groups (+ BM25) as a draft, then the drafted tools one
+by one — like a draft model and a verifier. First tool call of the 27B model on the 52 held-out queries:
+
+| pool | `laya+bm25` | **`2pass` with Clef-Flash** | every tool | oracle |
+|---|---|---|---|---|
+| 41 tools | 92.3% (中文 85%), 6.2k prompt tokens | **98.1% (中文 100%), 4.4k** | 96.2% | 96.2% |
+| 133 tools | 84.6% (中文 60%), 5.1k | **98.1% (中文 100%), 4.1k** | 96.2% | 98.1% |
+
+```bash
+llama-server -m Clef-Flash-Q4_K_M.gguf -c 8192 -b 2048 -ub 2048 -np 1 --cache-ram 0 --port 8084   # upstream llama.cpp
+llama-mcp-router serve --selector 2pass --laya-url http://127.0.0.1:8084 --groups my_groups.json …
+```
+
+Running *Laya* twice lowers recall (93.5% → 83.3%), and a 0.6B cross-encoder reranker helps only on the big pool; details, all
+variants and how to reproduce: [benchmarks/DECISION_MODELS.md](benchmarks/DECISION_MODELS.md).
 
 ## Development
 

@@ -22,6 +22,7 @@ import httpx
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "src"))
+sys.path.insert(0, str(ROOT))
 
 from llama_mcp_router import AllSelector, BM25Selector, LayaSelector, NoneSelector, UnionSelector  # noqa: E402
 from llama_mcp_router.selectors import build_groups, load_groups_config  # noqa: E402
@@ -102,6 +103,13 @@ def make_selectors(a, cfg):
         "oracle": Cfg(OracleSelector(cfg)),
         "oracle all+hint": Cfg(OracleSelector(cfg, hint=True), "all", True),
     }
+    if a.clef_url:  # a stronger SystemOne-compatible decision model (Cloudflare Clef-Flash) in Laya's place, see selector_lab.py
+        from selector_lab import DraftRanking, laya_groups
+        from llama_mcp_router.selectors import LayaRerankSelector
+
+        sels["clef groups+bm25"] = Cfg(UnionSelector([laya_groups(a.clef_url, cfg, 2, views="single"), BM25Selector(top_k=3)]))
+        sels["clef 2-pass"] = Cfg(LayaRerankSelector(url=a.clef_url, retriever=DraftRanking(UnionSelector([laya_groups(a.clef_url, cfg, 3, views="single"), BM25Selector(top_k=8)])),
+                                                     shortlist=24, keep=5, also=3, chunk=24, label_chars=120))
     return sels
 
 
@@ -265,6 +273,7 @@ async def main():
     ap.add_argument("--queries", default=str(ROOT / "data/queries.jsonl"))
     ap.add_argument("--groups", default=str(ROOT.parent / "examples/pubmed_groups.json"))
     ap.add_argument("--laya-url", default="http://127.0.0.1:8000")
+    ap.add_argument("--clef-url", help="SystemOne-compatible decision model (e.g. Clef-Flash on llama-server) for the clef selectors")
     ap.add_argument("--top-p", type=float, default=1.0)
     ap.add_argument("--max-groups", type=int, default=2)
     ap.add_argument("--top-k", type=int, default=5)
