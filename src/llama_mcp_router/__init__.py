@@ -1,6 +1,6 @@
 """Tool-selection router for llama-server (llama.cpp) MCP tools."""
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"
 
 from .tools import normalize_tool, tool_name  # noqa: E402,F401
 from .retrieval import HTTPEmbedder, Retriever  # noqa: E402,F401

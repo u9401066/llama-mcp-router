@@ -514,20 +514,19 @@ llama-mcp-router serve --selector 2pass --laya-url http://127.0.0.1:8084 --group
 Running *Laya* twice lowers recall (93.5% → 83.3%), and a 0.6B cross-encoder reranker helps only on the big pool; details, all
 variants and how to reproduce: [benchmarks/DECISION_MODELS.md](benchmarks/DECISION_MODELS.md).
 
-## v0.11: Sentinel – reasoning checked step by step (research)
+## v0.12: routes – whole chats to other OpenAI-compatible services
 
-`--sentinel-config examples/sentinel-medical.json`: requests for model `sentinel`, or whose first message starts with `med:`, are
-answered by the reasoning model while a SystemOne decision model (Clef-Flash) checks every reasoning step against rules — e.g.
-*red flag missed*, *contraindication unchecked*, *premature closure*. A step that breaks a `rollback` rule is discarded and the model
-restarts from the accepted reasoning plus a first-person correction; an `inject` rule keeps the step and adds a reflection ("Wait,
-…"); the final answer is held and checked before release. Each rule fires at most twice, all rules at most four times per answer;
-an answer that is still flagged is released **with a visible warning**, never silently. Interventions are annotated in the reasoning.
+`--routes routes.json` sends chats that ask for a given `model` or whose first user message starts with a `prefix` to another
+OpenAI-compatible service, unchanged (stream, headers such as `X-Conversation-Id` and `Authorization` included); its model is listed
+in `/v1/models`. Routes are checked before everything else (also before the agent's default mode), so one Web UI can reach several
+services. Example ([examples/routes.json](examples/routes.json)):
 
-Measured (details: [benchmarks/sentinel/README.md](benchmarks/sentinel/README.md)): the critic catches all textbook violations
-(15/15) in ~50 ms per step and passes 20 of 22 correct steps — the 27B itself as a JSON judge passes 3 of 17 and needs 8 s; on live
-cases no false interventions on normal questions, and biased answers get corrected or flagged. Limits: a general decision model does
-not know enough medicine to see through a *rationalised* error, cannot check doses, and steering cannot override a strong system
-instruction. Not a validated clinical safety device.
+```json
+[{"name": "llama-cot-sentinel", "url": "http://127.0.0.1:8002", "model": "sentinel", "prefix": ["med:"]}]
+```
+
+The step-checked reasoning service that was briefly part of this router (v0.11.0) is now its own project,
+**[llama-cot-sentinel](https://github.com/u9401066/llama-cot-sentinel)**; route `med:` chats to it as above.
 
 ## Development
 
