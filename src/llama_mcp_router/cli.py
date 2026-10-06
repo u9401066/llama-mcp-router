@@ -13,6 +13,7 @@ import httpx
 
 from . import __version__
 from .agent import AgentConfig
+from .sentinel import SentinelConfig
 from .proxy import RouterConfig, create_app
 from .selectors import load_groups_config, load_selector
 from .tools import FileToolSource, ServerToolSource, tool_name
@@ -97,6 +98,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--catalog-max", type=int, default=int(_env("CATALOG_MAX", "80")), help="--escalate lists left-out tools by name up to this many; beyond, the meta-tool takes a search query")
     s.add_argument("--no-sanitize", action="store_true", help="send tool schemas unchanged (default: inline $refs and drop huge length limits that llama.cpp cannot turn into a grammar)")
     s.add_argument("--agent-config", default=_env("AGENT_CONFIG"), help="JSON file enabling the ACP agent bridge (see examples/agent-dsh.json)")
+    s.add_argument("--sentinel-config", default=_env("SENTINEL_CONFIG"), help="JSON file enabling step-checked reasoning for model 'sentinel' / prefix 'med:' "
+                   "(see examples/sentinel-medical.json)")
     s.add_argument("--hint", action="store_true", help="append the selector's routing hint to the last user message")
     s.add_argument("--no-server-tools", action="store_true", help="only route tools the client sends, ignore llama-server's /tools")
     s.add_argument("--sticky", action="store_true", help="keep each conversation's tool list append-only so llama-server's prompt cache can hit on follow-up turns (helps on-topic chats, hurts topic-hopping ones; see README)")
@@ -189,6 +192,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         catalog_max=a.catalog_max,
         sanitize=not a.no_sanitize,
         agent=AgentConfig.load(a.agent_config) if a.agent_config else None,
+        sentinel=SentinelConfig.load(a.sentinel_config) if a.sentinel_config else None,
     )
     uvicorn.run(create_app(cfg), host=a.host, port=a.port, log_level=a.log_level.lower())
     return 0
