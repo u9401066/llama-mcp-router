@@ -423,9 +423,9 @@ Web UI / OpenAI client ──► llama-mcp-router :8001 ──ACP──► DeepS
 * **MCP lives in the agent.** Give DSH its MCP servers with `@deepseek-ai/dsh-mcp-client` entries in the per-session patch (see
   [examples/agent-dsh.json](examples/agent-dsh.json)); their tools appear as `mcp__<server>__<tool>`.
 * **The tool router is a DSH plugin** ([integrations/dsh-plugin.mjs](src/llama_mcp_router/integrations/dsh-plugin.mjs), shipped in the
-  wheel): `llama-mcp-router install-dsh-plugin ~/agent-runtimes/dsh` copies it into a DSH install; the patch mounts it. On `agent/pre-step`
-  it asks the router which MCP tools fit the user's message and hides the rest for that agent (`agent.ctx.tools.restrict`); DSH's own tools are
-  never hidden; `find_tools(query)` loads more; it fails open if the router is down. The selection logic (Laya groups, BM25, retriever, sanitizing)
+  wheel): `llama-mcp-router install-dsh-plugin ~/agent-runtimes/dsh` copies it into a DSH install; the patch mounts it. It asks
+  the router which MCP tools fit the user's message and leaves the rest out of the agent's requests (since v0.9 directly in DSH's
+  `system-prompt/assemble`, see below); DSH's own tools are not routed; `find_tools(query)` loads more; it fails open if the router is down. The selection logic (Laya groups, BM25, retriever, sanitizing)
   stays in one place, the router, and also serves plain chats and other harnesses.
 * **Sandboxed MCP servers need their runtimes mounted**: e.g. a `uv tool install`ed server needs both its tool environment and
   `~/.local/share/uv/python` (the venv's interpreter is a symlink through uv's version-alias directory) in `sandbox_ro`.
@@ -451,6 +451,40 @@ opened with "hi" shared one workspace. Now:
 * **`max_processes`** (default 4) caps live agent processes: a new session stops the least-recently-used idle agent first (its workspace stays;
   it resumes on the next message); if every slot is busy the request gets an error instead of exhausting RAM/VRAM. Size it to your memory:
   one DSH session with the PubMed MCP server measured ~290 MB RSS (DSH 184 MB + MCP 109 MB); all of them share the one llama-server, whose `--parallel` slots bound concurrent generation.
+
+## v0.9: where an agent turn's time goes, and what fixed it
+
+Measured on the live stack (RTX 4090, Bonsai 27B = Qwen3.5 *hybrid* architecture: Gated-DeltaNet layers plus attention every 4th layer,
+41 PubMed MCP tools, DeepSeek Harness). llama-server prefills ~2,850 tokens/s and generates ~100 tokens/s (MTP speculative decoding), so
+**re-processed prompt tokens** are what make a turn slow. A hybrid model can only reuse its cache for a byte-identical prefix (its recurrent
+state cannot be rewound to an arbitrary point), and the tool list sits in the prompt *before* the conversation.
+
+| what was wrong | effect | v0.9 |
+|---|---|---|
+| the plugin hid tools in `agent/pre-step`, after DSH had assembled the step | turn 1 went out without MCP tools; each turn's step 1 used the previous turn's tools, step 2 switched → full re-prefill (8–10 s per turn) | shape `system-prompt/assemble` itself: the selection applies to the request being built |
+| MCP servers connect ~1 s after the agent starts | their tools + instructions appeared at step 2 → full re-prefill | the session's first request waits for `servers` and re-assembles |
+| PubMed's MCP server instructions | 5,870 tokens in every prompt | `instructions: tool`: summary + one-line-per-tool catalog + `mcp_server_guide` tool |
+| DSH tools a 27B model here cannot use (DeepSeek web search without a key, images without a vision projector, workflow/goal/sub-agent control) | ~2,400 tokens | `hide: [...]` |
+| re-selecting tools every turn | each change re-processes the whole conversation: 49,367 tokens = 19.8 s for a "write it to paper.md" turn | `policy: session` (default): route once, then only `find_tools` changes the list |
+
+Result on the same three turns ("what are the settings?" → "find a 2024 remimazolam RCT" → "write its PMID to paper.md"): turn 1 prefilled
+6.3k + 22.5k tokens before (no MCP tools, then all of them), now 14.5k once (4.8 s); the third turn 25.7 s → 7.3 s (27–76 tokens re-processed per step instead of 49k); the model loaded the search tool
+itself with `find_tools` when it needed it. Unchanged prefix ⇒ a new turn costs < 1 s of prefill.
+
+Plugin options (`config:` of the plugin entry, see [examples/agent-dsh.json](examples/agent-dsh.json)): `routerUrl`, `policy`
+(`session` | `grow` | `turn`), `servers` + `startupWaitMs`, `always` (MCP tools always visible), `hide`, `instructions`
+(`keep` | `tool` | `drop`), `instructionsChars`, `catalogChars`, `searchK`, `timeoutMs`, `log`.
+
+**Laya's "no tool needed" option does not help here**: on agent-style turns ("what are the settings?", "write a Python script", "write it to
+paper.md") its probability was 0.05–0.17, below a real search query (0.32), so it cannot gate routing; letting the model ask (`find_tools`)
+works better.
+
+**llama-server flags** tried on the same prompt (each a restart): `-ub 256` 2,685 tok/s, `-ub 512` (default) 2,871, `-ub 1024` 2,718;
+`--spec-draft-n-max 3` 97.9 tok/s vs 101.5 with 2. The defaults stay.
+
+**Agent turns survive a reload.** llama-server's Web UI resumes streams after a reload (`POST /v1/streams/lookup`, `GET /v1/stream?conv_id=&from=<byte
+offset>`) and its Stop button sends `DELETE /v1/stream`. The router now implements these for agent turns: a turn keeps running when the browser
+drops the connection and can be reattached; Stop cancels it (`session/cancel`). A cancelled agent start no longer leaves its process behind.
 
 ## Development
 
