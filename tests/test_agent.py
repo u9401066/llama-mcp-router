@@ -54,10 +54,10 @@ def test_trigger_routes_to_agent_streams_and_commits(tmp_path):
         content = deltas(r.text, "content")
         assert content.startswith("done turn 1") and "out.txt" in content and "/archive.zip" in content
         sid = content.split("/agent/sessions/")[1].split("/")[0]
-        ws = tmp_path / "sessions" / sid / "workspace"
+        ws = tmp_path / "sessions" / "anonymous" / sid / "workspace"
         assert (ws / "out.txt").read_text() == "turn 1: make a file (permission=no)\n"  # trigger stripped, escalation denied
         assert (ws / ".agents/skills/demo-skill/SKILL.md").exists()
-        assert (tmp_path / "sessions" / sid / "agent.patch.yml").read_text().startswith("home: " + str(tmp_path / "sessions" / sid / "home"))
+        assert (tmp_path / "sessions" / "anonymous" / sid / "agent.patch.yml").read_text().startswith("home: " + str(tmp_path / "sessions" / "anonymous" / sid / "home"))
         log = subprocess.run(["git", "log", "--format=%s"], cwd=ws, capture_output=True, text=True).stdout.split("\n")
         assert log[0] == "turn 1: make a file" and "session start" in log
 
@@ -85,7 +85,7 @@ def test_model_name_routes_to_agent_and_allow_policy(tmp_path):
         r = c.post("/v1/chat/completions", json={"model": "my-agent", "messages": [{"role": "user", "content": "hello"}]})
         content = r.json()["choices"][0]["message"]["content"]
         sid = content.split("/agent/sessions/")[1].split("/")[0]
-        assert (tmp_path / "sessions" / sid / "workspace" / "out.txt").read_text() == "turn 1: hello (permission=ok)\n"
+        assert (tmp_path / "sessions" / "anonymous" / sid / "workspace" / "out.txt").read_text() == "turn 1: hello (permission=ok)\n"
         # other chats are untouched by the bridge
         c.post("/v1/chat/completions", json={"model": "local", "messages": [{"role": "user", "content": "plain question"}]})
         assert len(backend.requests) == 1
@@ -116,7 +116,7 @@ def test_session_survives_router_restart_via_resume(tmp_path, monkeypatch):
     with c2:
         d = c2.post("/v1/chat/completions", json={"messages": msgs + [{"role": "assistant", "content": "x"}, {"role": "user", "content": "again"}]}).json()
     assert d["router"]["agent_session"] == sid  # same workspace after a restart
-    out = (tmp_path / "sessions" / sid / "workspace" / "out.txt").read_text().splitlines()
+    out = (tmp_path / "sessions" / "anonymous" / sid / "workspace" / "out.txt").read_text().splitlines()
     assert out[0].startswith("turn 1: first") and out[1].startswith("turn 1: again")  # new process, resumed session id
 
 
@@ -153,13 +153,25 @@ import pytest  # noqa: E402
 
 
 @pytest.mark.skipif(not shutil.which("bwrap") or subprocess.run(["bwrap", "--ro-bind", "/", "/", "true"]).returncode != 0, reason="bubblewrap not usable here")
+def python_mounts():
+    """Directories the test interpreter needs, including every hop of a symlinked (venv / uv-managed) python."""
+    dirs, p = [sys.prefix, sys.base_prefix], sys.executable
+    for _ in range(10):
+        dirs.append(os.path.dirname(os.path.abspath(p)))
+        if not os.path.islink(p):
+            break
+        p = os.path.join(os.path.dirname(p), os.readlink(p))
+    dirs.append(os.path.dirname(os.path.realpath(sys.executable)))
+    return sorted(set(dirs))
+
+
 def test_agent_runs_inside_bwrap_and_cannot_see_home(tmp_path):
     secret = os.path.expanduser("~/.llama_mcp_router_test_secret")
     with open(secret, "w") as f:
         f.write("top secret")
     try:
         root = tmp_path / "sessions"
-        cfg = AgentConfig(command=[sys.executable, "-c", PROBE], root=str(root), sandbox="bwrap", sandbox_ro=[os.path.dirname(sys.executable), HERE])
+        cfg = AgentConfig(command=[sys.executable, "-c", PROBE], root=str(root), sandbox="bwrap", sandbox_ro=python_mounts() + [HERE])
         rc = RouterConfig(backend="http://backend", selector=NoTools(), agent=cfg)
         with TestClient(create_app(rc, transport=httpx.ASGITransport(app=FakeBackend().app()))) as c:
             d = c.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "/agent go"}]}).json()
@@ -207,3 +219,71 @@ def test_install_dsh_plugin(tmp_path):
     assert main(["install-dsh-plugin", str(tmp_path)]) == 0
     text = (tmp_path / "plugins" / "llama-mcp-router.mjs").read_text()
     assert "agent/pre-step" in text and "find_tools" in text and "/router/select" in text
+
+
+def sid_of(r):
+    return r.json()["router"]["agent_session"]
+
+
+def test_conversation_id_header_keeps_chats_with_same_first_message_apart(tmp_path):
+    c, _ = make(tmp_path, default=True)
+    hi = [{"role": "user", "content": "hi"}]
+    with c:
+        a = sid_of(c.post("/v1/chat/completions", json={"messages": hi}, headers={"X-Conversation-Id": "conv-a::agent"}))
+        b = sid_of(c.post("/v1/chat/completions", json={"messages": hi}, headers={"X-Conversation-Id": "conv-b::agent"}))
+        assert a != b  # same first message, different Web UI conversations
+        more = hi + [{"role": "assistant", "content": "x"}, {"role": "user", "content": "next"}]
+        r = c.post("/v1/chat/completions", json={"messages": more}, headers={"X-Conversation-Id": "conv-a::other-model"})
+        assert sid_of(r) == a and r.json()["choices"][0]["message"]["content"].startswith("done turn 2")
+        # without the header the first-message hash is the fallback key
+        assert sid_of(c.post("/v1/chat/completions", json={"messages": hi})) not in (a, b)
+        assert sid_of(c.post("/v1/chat/completions", json={"messages": hi}, headers={"X-Conversation-Id": "bad id/../x"})) not in (a, b)
+
+
+def test_per_user_api_keys_isolate_sessions(tmp_path):
+    users = tmp_path / "users.json"
+    users.write_text(json.dumps({"key-bob": "bob"}))
+    c, backend = make(tmp_path, default=True, users={"key-alice": "alice"}, users_file=str(users))
+    cfgfile = tmp_path / "agent.json"
+    cfgfile.write_text(json.dumps({"command": ["x"], "users": {"key-alice": "alice"}, "users_file": str(users)}))
+    assert AgentConfig.load(str(cfgfile)).users == {"key-alice": "alice", "key-bob": "bob"}
+    hi = {"messages": [{"role": "user", "content": "hi"}]}
+    conv = {"X-Conversation-Id": "same-conv"}
+    with c:
+        r = c.post("/v1/chat/completions", json=hi, headers=conv)
+        assert r.status_code == 401 and "API key" in r.json()["error"]["message"]
+        assert c.post("/v1/chat/completions", json=hi, headers={**conv, "Authorization": "Bearer nope"}).status_code == 401
+        a = sid_of(c.post("/v1/chat/completions", json=hi, headers={**conv, "Authorization": "Bearer key-alice"}))
+        b = sid_of(c.post("/v1/chat/completions", json=hi, headers={**conv, "Authorization": "Bearer key-bob"}))
+        assert a != b
+        assert (tmp_path / "sessions" / "alice" / a / "workspace" / "out.txt").exists()
+        assert (tmp_path / "sessions" / "bob" / b / "workspace" / "out.txt").exists()
+        mine = c.get("/agent/sessions", headers={"Authorization": "Bearer key-alice"}).json()
+        assert mine["user"] == "alice" and [s["session"] for s in mine["sessions"]] == [a] and mine["sessions"][0]["title"] == "hi"
+        assert c.get("/agent/sessions").status_code == 401
+        assert c.get("/agent/sessions/%s/files/out.txt" % b).status_code == 200  # file links stay capability URLs
+        # the plain (chat:) path is not gated by the agent's user keys
+        assert c.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "chat: q"}]}).status_code == 200
+        assert len(backend.requests) == 1
+
+
+def test_session_listing_needs_users_map(tmp_path):
+    c, _ = make(tmp_path)
+    with c:
+        assert c.get("/agent/sessions").status_code == 404
+
+
+def test_process_cap_stops_idle_agents_and_resumes_them(tmp_path):
+    c, _ = make(tmp_path, default=True, max_processes=1)
+    with c:
+        mgr = c.app.state.router.agents
+        hi = [{"role": "user", "content": "hi"}]
+        a = sid_of(c.post("/v1/chat/completions", json={"messages": hi}, headers={"X-Conversation-Id": "a"}))
+        b = sid_of(c.post("/v1/chat/completions", json={"messages": hi}, headers={"X-Conversation-Id": "b"}))
+        assert sum(1 for s in mgr.sessions.values() if s.conn and s.conn.alive) == 1
+        more = hi + [{"role": "assistant", "content": "x"}, {"role": "user", "content": "back"}]
+        assert sid_of(c.post("/v1/chat/completions", json={"messages": more}, headers={"X-Conversation-Id": "a"})) == a
+        assert sum(1 for s in mgr.sessions.values() if s.conn and s.conn.alive) == 1
+        out = (tmp_path / "sessions" / "anonymous" / a / "workspace" / "out.txt").read_text().splitlines()
+        assert out[0] == "turn 1: hi (permission=no)" and out[1].endswith("back (permission=no)")  # same workspace, resumed
+        assert b != a

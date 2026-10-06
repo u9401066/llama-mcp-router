@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
@@ -327,7 +328,7 @@ class Router:
         except ValueError:
             return JSONResponse({"error": {"message": "invalid JSON body"}}, status_code=400)
         if self.agents and self._agent_trigger(body) is not None:
-            return await self._agent_chat(body)
+            return await self._agent_chat(body, request)
         if self.agents and self.cfg.agent and self.cfg.agent.default:
             _strip_prefix(body.get("messages") or [], self.cfg.agent.optout)
         bypass = request.headers.get("x-router-bypass") or body.pop("router", None) is False
@@ -556,15 +557,35 @@ class Router:
             return ""
         return None
 
-    async def _agent_chat(self, body: Dict[str, Any]) -> Response:
+    def _agent_owner(self, request: Request) -> Optional[str]:
+        """The user an agent request belongs to: 'anonymous' without a users map, None if a required key is missing/wrong."""
+        users = self.cfg.agent.users if self.cfg.agent else {}
+        if not users:
+            return "anonymous"
+        auth = request.headers.get("authorization") or ""
+        key = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+        return users.get(key)
+
+    @staticmethod
+    def _conversation_id(request: Request) -> Optional[str]:
+        """The Web UI sends 'X-Conversation-Id: <conversation>::<model>' with every streamed chat request."""
+        raw = (request.headers.get("x-conversation-id") or "").split("::", 1)[0].strip()
+        return raw if raw and len(raw) <= 200 and re.fullmatch(r"[A-Za-z0-9_.:@-]+", raw) else None
+
+    async def _agent_chat(self, body: Dict[str, Any], request: Request) -> Response:
         assert self.agents and self.cfg.agent
+        owner = self._agent_owner(request)
+        if owner is None:
+            return JSONResponse({"error": {"message": "This agent needs a valid API key: set it in the Web UI (Settings → API key) or send "
+                                                      "'Authorization: Bearer <key>'.", "type": "authentication_error"}}, status_code=401)
         messages = body.get("messages") or []
         trigger = self._agent_trigger(body) or ""
         users = [m for m in messages if m.get("role") == "user"]
         text = _msg_text(users[-1]) if users else ""
         if trigger and text.lstrip().lower().startswith(trigger.lower()):
             text = text.lstrip()[len(trigger):].strip()
-        key = "agent:" + (conversation_key(messages) or "default")
+        conv = self._conversation_id(request)
+        key = "agent:%s:%s" % (owner, ("c:" + conv) if conv else ("h:" + (conversation_key(messages) or "default")))
         model = body.get("model") or self.cfg.agent.model_id
         created = int(time.time())
         cid = "chatcmpl-agent-%d" % created
@@ -578,7 +599,7 @@ class Router:
                 yield {"type": "message", "text": "Send a task after `%s`, e.g. `%s write a script that ...`." % (trigger or "/agent", trigger or "/agent")}
                 return
             try:
-                async for ev in self.agents.turn(key, text):  # type: ignore[union-attr]
+                async for ev in self.agents.turn(key, text, owner):  # type: ignore[union-attr]
                     yield ev
             except (AcpError, OSError, RuntimeError, asyncio.TimeoutError) as e:
                 log.warning("agent turn failed: %s: %s", type(e).__name__, e)
@@ -630,6 +651,15 @@ class Router:
         return JSONResponse({"id": cid, "object": "chat.completion", "created": created, "model": model,
                              "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}],
                              "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}, "router": {"agent_session": session}})
+
+    async def agent_sessions(self, request: Request) -> Response:
+        """GET /agent/sessions: the caller's sessions (only with a users map; without one there is no identity to list by)."""
+        if not self.agents or not self.cfg.agent or not self.cfg.agent.users:
+            return JSONResponse({"error": "session listing needs per-user API keys (agent config 'users')"}, status_code=404)
+        owner = self._agent_owner(request)
+        if owner is None:
+            return JSONResponse({"error": "invalid API key"}, status_code=401)
+        return JSONResponse({"user": owner, "sessions": self.agents.list_for(owner)})
 
     async def agent_session(self, request: Request) -> Response:
         if not self.agents:
@@ -697,6 +727,7 @@ def create_app(config: RouterConfig, transport: Optional[httpx.AsyncBaseTranspor
             Route("/v1/chat/completions", router.chat, methods=["POST"]),
             Route("/router/select", router.select_endpoint, methods=["POST"]),
             Route("/router/health", router.health, methods=["GET"]),
+            Route("/agent/sessions", router.agent_sessions, methods=["GET"]),
             Route("/agent/sessions/{sid}", router.agent_session, methods=["GET"]),
             Route("/agent/sessions/{sid}/archive.zip", router.agent_archive, methods=["GET"]),
             Route("/agent/sessions/{sid}/files/{path:path}", router.agent_file, methods=["GET"]),

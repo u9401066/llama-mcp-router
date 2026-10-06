@@ -39,6 +39,12 @@ class AgentConfig:
     model_id: str = "agent"  # requests with this model go to the agent
     triggers: List[str] = field(default_factory=lambda: ["/agent", "@agent", "agent:"])  # ...or whose first user message starts so
     default: bool = False  # every chat goes to the agent unless its first user message starts with an opt-out prefix
+    # Optional per-person access: API key -> user name (or users_file, a JSON file with that mapping). When set, agent chats
+    # need "Authorization: Bearer <key>" (the Web UI sends its API-key setting this way), each user's sessions live under
+    # <root>/<user>/ and GET /agent/sessions lists only their own.
+    users: Dict[str, str] = field(default_factory=dict)
+    users_file: Optional[str] = None
+    max_processes: int = 4  # live agent processes at once; idle ones are stopped first (their workspaces stay)
     optout: List[str] = field(default_factory=lambda: ["chat:"])
     skills_dirs: List[str] = field(default_factory=list)  # copied into each new workspace
     skills_target: str = ".agents/skills"
@@ -56,6 +62,14 @@ class AgentConfig:
     sandbox_ro: List[str] = field(default_factory=list)
     sandbox_hide: List[str] = field(default_factory=lambda: ["~", "/run", "/tmp"])
     sandbox_network: bool = True
+
+    def __post_init__(self) -> None:
+        if self.users_file:
+            with open(os.path.expanduser(self.users_file), encoding="utf-8") as f:
+                extra = json.load(f)
+            self.users = {**{str(k).strip(): str(v) for k, v in extra.items()}, **self.users}
+        if any(not k or not v for k, v in self.users.items()):
+            raise ValueError("agent users: every API key and user name must be non-empty")
 
     @classmethod
     def load(cls, path: str) -> "AgentConfig":
@@ -85,6 +99,10 @@ def bwrap_argv(cfg: "AgentConfig", session_dir: str, workspace: str) -> List[str
 
 class AcpError(RuntimeError):
     pass
+
+
+def safe_owner(owner: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", owner or "anonymous")[:64] or "anonymous"
 
 
 def _subst(s: str, mapping: Dict[str, str]) -> str:
@@ -210,6 +228,7 @@ class AcpConnection:
 class AgentSession:
     id: str
     key: str
+    owner: str
     dir: str
     workspace: str
     home: str
@@ -245,6 +264,7 @@ class AgentManager:
         self.sessions: Dict[str, AgentSession] = {}
         self._create_lock: Optional[asyncio.Lock] = None  # created inside the running loop (Python 3.9)
         self._reaper: Optional[asyncio.Task] = None
+        self._starting = 0  # agent processes being started (not yet in a session's conn)
 
     # ------------------------------------------------------------------ persistence
     def _save_index(self) -> None:
@@ -260,6 +280,14 @@ class AgentManager:
             if v.get("id") == sid:
                 return v
         return None
+
+    def _dir(self, meta: Dict[str, Any]) -> str:
+        return os.path.join(self.root, meta["dir"]) if meta.get("dir") else os.path.join(self.root, meta["id"])
+
+    def list_for(self, owner: str) -> List[Dict[str, Any]]:
+        out = [{"session": m["id"], "created": m.get("created"), "turns": m.get("turns", 0), "title": m.get("title", "")}
+               for m in self._index.values() if m.get("owner", "anonymous") == owner]
+        return sorted(out, key=lambda m: -(m["created"] or 0))
 
     # ------------------------------------------------------------------ lifecycle
     def _placeholders(self, s: AgentSession) -> Dict[str, str]:
@@ -288,7 +316,30 @@ class AgentManager:
             await _git(s.workspace, "add", "-A")
             await _git(s.workspace, "commit", "-q", "-m", "session start")
 
+    async def _make_room(self) -> None:
+        live = [x for x in self.sessions.values() if x.conn and x.conn.alive]
+        while len(live) + self._starting >= max(1, self.cfg.max_processes):
+            idle = sorted((x for x in live if not (x.lock and x.lock.locked())), key=lambda x: x.last_used)
+            if not idle:
+                if self._starting and not live:
+                    await asyncio.sleep(0.2)  # every slot is an agent that is still starting
+                    live = [x for x in self.sessions.values() if x.conn and x.conn.alive]
+                    continue
+                raise AcpError("all %d agent slots are busy; try again in a moment" % self.cfg.max_processes)
+            log.info("agent process limit (%d): stopping idle session %s", self.cfg.max_processes, idle[0].id)
+            await idle[0].conn.close()  # type: ignore[union-attr]
+            idle[0].conn = None
+            live = [x for x in live if x is not idle[0]]
+
     async def _connect(self, s: AgentSession) -> None:
+        await self._make_room()
+        self._starting += 1
+        try:
+            await self._spawn(s)
+        finally:
+            self._starting -= 1
+
+    async def _spawn(self, s: AgentSession) -> None:
         ph = self._placeholders(s)
         argv = [_subst(a, ph) for a in self.cfg.command]
         env = dict(os.environ)
@@ -318,7 +369,7 @@ class AgentManager:
         s.conn = conn
         log.info("agent session %s: %s (acp %s)", s.id, "resumed" if resumed else "started", s.acp_session)
 
-    async def get(self, key: str) -> AgentSession:
+    async def get(self, key: str, owner: str = "anonymous", title: str = "") -> AgentSession:
         if self._create_lock is None:
             self._create_lock = asyncio.Lock()
         async with self._create_lock:
@@ -327,10 +378,12 @@ class AgentManager:
                 meta = self._index.get(key)
                 if meta is None:
                     sid = uuid.uuid4().hex
-                    meta = self._index[key] = {"id": sid, "created": time.time(), "acp_session": None, "turns": 0}
+                    meta = self._index[key] = {"id": sid, "owner": owner, "dir": os.path.join(safe_owner(owner), sid), "created": time.time(),
+                                               "acp_session": None, "turns": 0, "title": " ".join(title.split())[:80]}
                     self._save_index()
-                d = os.path.join(self.root, meta["id"])
-                s = AgentSession(meta["id"], key, d, os.path.join(d, "workspace"), os.path.join(d, "home"), meta.get("acp_session"), turns=meta.get("turns", 0), lock=asyncio.Lock())
+                d = self._dir(meta)
+                s = AgentSession(meta["id"], key, meta.get("owner", "anonymous"), d, os.path.join(d, "workspace"), os.path.join(d, "home"),
+                                 meta.get("acp_session"), turns=meta.get("turns", 0), lock=asyncio.Lock())
                 await self._prepare_dirs(s)
                 self.sessions[key] = s
             if self._reaper is None:
@@ -355,9 +408,9 @@ class AgentManager:
                 await s.conn.close()
 
     # ------------------------------------------------------------------ a turn
-    async def turn(self, key: str, text: str) -> AsyncIterator[Dict[str, Any]]:
+    async def turn(self, key: str, text: str, owner: str = "anonymous") -> AsyncIterator[Dict[str, Any]]:
         """Yield events: {"type": "thought"|"message"|"tool"|"plan"|"permission"|"done", ...}."""
-        s = await self.get(key)
+        s = await self.get(key, owner, text)
         assert s.lock is not None
         async with s.lock:
             s.last_used = time.time()
@@ -421,7 +474,7 @@ class AgentManager:
     # ------------------------------------------------------------------ files
     def workspace_of(self, sid: str) -> Optional[str]:
         meta = self.by_id(sid)
-        return os.path.join(self.root, meta["id"], "workspace") if meta else None
+        return os.path.join(self._dir(meta), "workspace") if meta else None
 
     async def describe(self, sid: str) -> Optional[Dict[str, Any]]:
         ws = self.workspace_of(sid)
