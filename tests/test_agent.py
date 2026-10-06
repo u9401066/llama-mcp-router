@@ -1,9 +1,11 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 
 import httpx
+import pytest
 from starlette.testclient import TestClient
 
 from conftest import FakeBackend
@@ -165,6 +167,7 @@ def python_mounts():
     return sorted(set(dirs))
 
 
+@pytest.mark.skipif(not shutil.which("bwrap"), reason="bubblewrap not installed")
 def test_agent_runs_inside_bwrap_and_cannot_see_home(tmp_path):
     secret = os.path.expanduser("~/.llama_mcp_router_test_secret")
     with open(secret, "w") as f:
