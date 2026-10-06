@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llama-mcp-router"
-version = "0.9.1"
+version = "0.10.0"
 description = "Tool-selection router for llama-server (llama.cpp) MCP tools: send the model only the few tools it needs instead of all of them."
 readme = "README.md"
 license = { text = "MIT" }

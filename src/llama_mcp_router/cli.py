@@ -23,6 +23,8 @@ def _env(name: str, default: Optional[str] = None) -> Optional[str]:
 
 
 def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
+    keep = a.keep if a.keep is not None else 5
+    also = a.also if a.also is not None else 5
     opts: Dict[str, Dict[str, Any]] = {
         "laya": {
             "url": a.laya_url,
@@ -38,9 +40,12 @@ def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
             "model": a.laya_model,
         },
         "bm25": {"top_k": a.top_k},
-        "retrieve": {"top_k": a.keep + a.also, "embed_url": a.embed_url, "embed_model": a.embed_model},
+        "retrieve": {"top_k": keep + also, "embed_url": a.embed_url, "embed_model": a.embed_model},
         "laya-rerank": {"url": a.laya_url, "embed_url": a.embed_url, "embed_model": a.embed_model, "shortlist": a.shortlist,
-                        "keep": a.keep, "also": a.also, "api_key": a.laya_api_key, "model": a.laya_model},
+                        "keep": keep, "also": also, "api_key": a.laya_api_key, "model": a.laya_model},
+        "2pass": {"url": a.laya_url, "groups": load_groups_config(a.groups), "max_groups": a.draft_groups, "keep": keep,
+                  "also": a.also if a.also is not None else 3, "views": a.laya_views or "single", "model": a.laya_model,
+                  "api_key": a.laya_api_key},
     }
     if a.laya_none is not None:
         opts["laya"]["none_threshold"] = a.laya_none
@@ -49,10 +54,12 @@ def _selector_options(a: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
 
 
 def _add_selector_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--selector", default=_env("SELECTOR", "laya+bm25"), help="all | none | bm25 | laya | retrieve | laya-rerank | a+b (union) | pkg.mod:Class  [laya+bm25]. "
-                   "Small pools (<~80 tools): laya+bm25 with --groups. Hundreds of tools: laya-rerank with --embed-url. 'none --escalate' = catalog mode")
+    p.add_argument("--selector", default=_env("SELECTOR", "laya+bm25"), help="all | none | bm25 | laya | retrieve | laya-rerank | 2pass | a+b (union) | pkg.mod:Class  [laya+bm25]. "
+                   "Small pools (<~80 tools): laya+bm25 with --groups; with a stronger decision model at --laya-url (e.g. Clef-Flash): 2pass. "
+                   "Hundreds of tools: laya-rerank with --embed-url. 'none --escalate' = catalog mode")
     p.add_argument("--groups", default=_env("GROUPS"), help="JSON file defining tool groups (see examples/pubmed_groups.json)")
-    p.add_argument("--laya-url", default=_env("LAYA_URL", "http://127.0.0.1:8000"))
+    p.add_argument("--laya-url", default=_env("LAYA_URL", "http://127.0.0.1:8000"), help="SystemOne decision-model server (POST /v1/systemone): "
+                   "laya-serve, or llama-server with Cloudflare Clef / Clef-Flash")
     p.add_argument("--laya-api-key", default=_env("LAYA_API_KEY"))
     p.add_argument("--laya-mode", choices=["choice", "noul"], default=_env("LAYA_MODE", "choice"))
     p.add_argument("--laya-state", choices=["json", "raw"], default=_env("LAYA_STATE"), help="how the request is passed to Laya")
@@ -66,8 +73,9 @@ def _add_selector_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--embed-url", default=_env("EMBED_URL"), help="OpenAI-compatible /v1/embeddings base URL for retrieve / laya-rerank (e.g. llama-server --embedding with bge-m3); without it they use BM25 only")
     p.add_argument("--embed-model", default=_env("EMBED_MODEL"))
     p.add_argument("--shortlist", type=int, default=int(_env("SHORTLIST", "24")), help="laya-rerank: tools retrieved for Laya to rank")
-    p.add_argument("--keep", type=int, default=int(_env("KEEP", "5")), help="laya-rerank: Laya's top tools sent")
-    p.add_argument("--also", type=int, default=int(_env("ALSO", "5")), help="laya-rerank: retriever's top tools sent in addition")
+    p.add_argument("--keep", type=int, default=(int(_env("KEEP")) if _env("KEEP") else None), help="laya-rerank / 2pass: the decision model's top tools sent [5]")
+    p.add_argument("--also", type=int, default=(int(_env("ALSO")) if _env("ALSO") else None), help="laya-rerank: retriever's top tools sent in addition [5]; 2pass: the draft's [3]")
+    p.add_argument("--draft-groups", type=int, default=int(_env("DRAFT_GROUPS", "3")), help="2pass: groups the decision model picks for the draft")
     p.add_argument("--top-k", type=int, default=int(_env("TOP_K", "3")), help="bm25: number of tools")
 
 

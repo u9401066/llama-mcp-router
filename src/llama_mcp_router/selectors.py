@@ -443,6 +443,55 @@ class UnionSelector(Selector):
         return Selection(names, info, ranking=ranking, hint=hint)
 
 
+
+class _DraftRanking:
+    """A selector's picks (then the rest of its ranking) as a 'retriever' ranking for a second pass."""
+
+    def __init__(self, draft: Selector):
+        self.draft = draft
+
+    async def rank(self, query: str, tools: Sequence[Tool]) -> List[str]:
+        d = await self.draft.select(query, tools)
+        return list(dict.fromkeys(list(d.names) + list(d.ranking or [])))
+
+    async def aclose(self) -> None:
+        await self.draft.aclose()
+
+
+class TwoPassSelector(Selector):
+    """Ask a SystemOne decision model twice (Laya, Cloudflare Clef / Clef-Flash, Jev: same ``/v1/systemone`` API).
+
+    1. draft: the model picks up to ``max_groups`` tool groups, plus BM25's top ``draft_bm25``
+    2. the same model ranks the drafted tools one by one ("tool name: first sentence", chunks of <= ``chunk``) -- the draft's
+       picks first, filled up to ``shortlist`` tools from the rest of the draft's ranking;
+       the result is its top ``keep`` plus the draft's top ``also``. If the second pass fails, the draft is used.
+
+    It needs a model that can tell individual tools apart. Measured (benchmarks/selector_lab.py, 108 queries; run_bench.py,
+    52 held-out queries with a 27B model): with Clef-Flash 100% / 99.1% recall with ~5.8 tools on 41 / 133 tools and
+    98.1% correct first tool calls on 133 tools (Laya+BM25: 84.6%, all tools: 96.2%). With Laya the second pass loses
+    recall (93.5% -> 83.3% on 41 tools): Laya reads question and options through a 192-token head.
+    """
+
+    name = "2pass"
+
+    def __init__(self, url: str = "http://127.0.0.1:8000", groups: Optional[Dict[str, Any]] = None, max_groups: int = 3,
+                 draft_bm25: int = 8, shortlist: int = 24, keep: int = 5, also: int = 3, chunk: int = 24, label_chars: int = 120, views: Any = "single",
+                 model: Optional[str] = None, api_key: Optional[str] = None, timeout: float = 30.0,
+                 transport: Optional[httpx.AsyncBaseTransport] = None):
+        first = LayaSelector(url=url, groups=groups, top_p=1.0, max_groups=max_groups, views=views, api_key=api_key, timeout=timeout,
+                             transport=transport)
+        self.draft = UnionSelector([first, BM25Selector(top_k=draft_bm25)])
+        self.second = LayaRerankSelector(url=url, retriever=_DraftRanking(self.draft), shortlist=shortlist, keep=keep, also=also,
+                                         chunk=chunk, label_chars=label_chars, model=model, api_key=api_key, timeout=timeout,
+                                         transport=transport)
+
+    async def aclose(self) -> None:
+        await self.second.aclose()
+
+    async def select(self, query: str, tools: Sequence[Tool]) -> Selection:
+        return await self.second.select(query, tools)
+
+
 # --------------------------------------------------------------------------- registry
 
 def _entry_points() -> Dict[str, Any]:
@@ -457,7 +506,7 @@ def _entry_points() -> Dict[str, Any]:
 
 
 BUILTIN: Dict[str, Callable[..., Selector]] = {"all": AllSelector, "none": NoneSelector, "bm25": BM25Selector, "laya": LayaSelector,
-                                               "retrieve": RetrieverSelector, "laya-rerank": LayaRerankSelector}
+                                               "retrieve": RetrieverSelector, "laya-rerank": LayaRerankSelector, "2pass": TwoPassSelector}
 
 
 def load_selector(spec: str, **options: Any) -> Selector:

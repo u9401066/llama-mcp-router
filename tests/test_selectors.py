@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 import pytest
 
@@ -228,3 +229,53 @@ def test_union_abstain_policies():
     assert run(UnionSelector([Abs(), Abs()]).select("q", TOOLS)).abstain
     with pytest.raises(ValueError):
         UnionSelector([], abstain="x")
+
+
+def test_two_pass_drafts_groups_then_ranks_tools():
+    from llama_mcp_router.selectors import TwoPassSelector
+
+    calls = []
+
+    def answer(query, questions):
+        q = next(iter(questions.values()))
+        calls.append(sorted(q["criteria"]))
+        if "tool_group" in questions:  # pass 1: groups
+            return {"tool_group": {"probabilities": {"search": 0.1, "export": 0.2, "gene": 0.7}}}
+        # pass 2: individual tools, the gene tool wins
+        return {"t": {"probabilities": {k: (0.9 if k == "pm_gene" else 0.1 / len(q["criteria"])) for k in q["criteria"]}}}
+
+    sel = TwoPassSelector(url="http://laya", groups=GROUPS, max_groups=2, draft_bm25=2, shortlist=2, keep=1, also=2, transport=laya_transport(answer))
+    res = run(sel.select("look up the BRCA1 gene", TOOLS))
+    assert res.names == ["pm_gene", "pm_export"]  # the model's top 1 + the draft's top 2 (gene and export groups first)
+    assert {"export", "gene", "search"} <= set(calls[0])  # pass 1: one question over the groups
+    assert calls[1] == ["pm_export", "pm_gene"]  # pass 2 ranks the draft's picks (the two chosen groups' tools)
+    run(sel.aclose())
+
+
+def test_two_pass_falls_back_to_the_draft_when_the_second_pass_fails():
+    import httpx
+
+    from llama_mcp_router.selectors import TwoPassSelector
+
+    def handler(request):
+        body = json.loads(request.content)
+        if "tool_group" in body["questions"]:
+            return httpx.Response(200, json={"answers": {"tool_group": {"probabilities": {"search": 0.9, "export": 0.05, "gene": 0.05}}}})
+        return httpx.Response(500)
+
+    sel = TwoPassSelector(url="http://laya", groups=GROUPS, max_groups=1, draft_bm25=1, keep=2, also=1, transport=httpx.MockTransport(handler))
+    res = run(sel.select("search papers", TOOLS))
+    assert res.names and res.names[0] == "pm_search" and res.info.get("error")
+
+
+def test_cli_builds_two_pass(tmp_path):
+    from llama_mcp_router.cli import _selector_options, build_parser
+    from llama_mcp_router.selectors import TwoPassSelector, load_selector
+
+    groups = tmp_path / "g.json"
+    groups.write_text(json.dumps(GROUPS))
+    a = build_parser().parse_args(["serve", "--selector", "2pass", "--groups", str(groups), "--laya-url", "http://clef:8084"])
+    sel = load_selector(a.selector, **_selector_options(a))
+    assert isinstance(sel, TwoPassSelector) and sel.second.keep == 5 and sel.second.also == 3
+    assert str(sel.second.client.base_url).startswith("http://clef:8084")
+    run(sel.aclose())
