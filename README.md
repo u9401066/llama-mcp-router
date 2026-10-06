@@ -168,6 +168,7 @@ names = (await sel.select("export these to bibtex", tools)).names
 llama-mcp-router serve  --backend URL --port 8090 --selector laya+bm25|none --groups FILE [--escalate] [--agent-config FILE] [--mode inject|agent] [--apply select|reorder|all] [--max-tools 12] [--always a,b] [--exclude 'fs_*']
 llama-mcp-router select "query" --backend URL --groups FILE      # what would be sent
 llama-mcp-router tools  --backend URL [--json]                   # tools + schema size
+llama-mcp-router install-dsh-plugin DSH_DIR                     # copy the DSH tool-routing plugin into a dsh install
 ```
 
 Every option also reads an environment variable `LLAMA_ROUTER_<NAME>` (e.g. `LLAMA_ROUTER_BACKEND`, `LLAMA_ROUTER_LAYA_URL`).
@@ -405,6 +406,34 @@ random 128-bit, but put the router behind an API key or a trusted network.
 
 Configuration reference: `AgentConfig` in [agent.py](src/llama_mcp_router/agent.py); examples: [agent-dsh.json](examples/agent-dsh.json),
 [agent-qwen-code.json](examples/agent-qwen-code.json).
+
+## v0.7: one stack — llama.cpp + DeepSeek Harness + the router as a DSH plugin
+
+```
+Web UI / OpenAI client ──► llama-mcp-router :8001 ──ACP──► DeepSeek Harness (per chat, in bubblewrap)
+                              │ default: every chat           │  skills, git workspace, compaction, sub-agents
+                              │ "chat:" → plain llama.cpp      │  MCP servers (dsh-mcp-client, e.g. PubMed)
+                              │                                │  plugin "llama-mcp-router": per turn, POST /router/select
+                              │◄──────── /router/select ───────┘  (Laya+BM25) → ctx.tools.restrict(); `find_tools` to load more
+                              └──► llama-server :8081 (model) ◄── DSH's model requests
+```
+
+* **`"default": true`** in the agent config sends every chat to the agent; a first message starting with `chat:` (configurable `optout`)
+  goes to plain llama.cpp instead (fast Q&A; the prefix is stripped).
+* **MCP lives in the agent.** Give DSH its MCP servers with `@deepseek-ai/dsh-mcp-client` entries in the per-session patch (see
+  [examples/agent-dsh.json](examples/agent-dsh.json)); their tools appear as `mcp__<server>__<tool>`.
+* **The tool router is a DSH plugin** ([integrations/dsh-plugin.mjs](src/llama_mcp_router/integrations/dsh-plugin.mjs), shipped in the
+  wheel): `llama-mcp-router install-dsh-plugin ~/agent-runtimes/dsh` copies it into a DSH install; the patch mounts it. On `agent/pre-step`
+  it asks the router which MCP tools fit the user's message and hides the rest for that agent (`agent.ctx.tools.restrict`); DSH's own tools are
+  never hidden; `find_tools(query)` loads more; it fails open if the router is down. The selection logic (Laya groups, BM25, retriever, sanitizing)
+  stays in one place, the router, and also serves plain chats and other harnesses.
+* **Sandboxed MCP servers need their runtimes mounted**: e.g. a `uv tool install`ed server needs both its tool environment and
+  `~/.local/share/uv/python` (the venv's interpreter is a symlink through uv's version-alias directory) in `sandbox_ro`.
+
+Measured on the live stack (Bonsai 27B, 41 PubMed tools): "find 3 RCTs on remimazolam for ICU sedation and save them as CSV" → the plugin showed
+9 of 41 PubMed tools, the agent searched via MCP and wrote the CSV; the follow-up "add the first paper's citation count" showed 8 of 41 (incl. the
+citation tools) and was answered in 81 s with iCite data, editing the same file. With the MCP server broken (before the `uv/python` mount fix)
+the agent fell back to PubMed's public E-utilities via web fetch: correct but 3–5× slower; the plugin now logs when no MCP tools appear.
 
 ## Development
 

@@ -14,7 +14,7 @@
     "LLAMACPP_API_KEY": "local"
   },
   "files": {
-    "agent.patch.yml": "- id: llm-pi-ai\n  config:\n    providers:\n      llamacpp:\n        apiKeyEnv: LLAMACPP_API_KEY\n        api: openai-completions\n        baseURL: http://127.0.0.1:8081/v1\n        models:\n          - id: bonsai\n            contextWindow: 131072\n            maxTokens: 16384\n- id: acp\n  config:\n    provider: llamacpp\n    model: bonsai\n"
+    "agent.patch.yml": "- id: llm-pi-ai\n  config:\n    providers:\n      llamacpp:\n        apiKeyEnv: LLAMACPP_API_KEY\n        api: openai-completions\n        baseURL: http://127.0.0.1:8081/v1\n        models:\n          - id: bonsai\n            contextWindow: 131072\n            maxTokens: 16384\n- id: acp\n  config:\n    provider: llamacpp\n    model: bonsai\n- insert:\n    - id: mcp-pubmed\n      name: '@deepseek-ai/dsh-mcp-client'\n      config:\n        serverName: pubmed\n        transport: stdio\n        command: /home/YOU/.local/share/uv/tools/pubmed-search-mcp/bin/pubmed-search-mcp\n        args: []\n        env:\n          NCBI_EMAIL: you@example.com\n        toolCallTimeoutMs: 120000\n    - id: llama-mcp-router\n      name: '/home/YOU/agent-runtimes/dsh/plugins/llama-mcp-router.mjs'\n      config:\n        routerUrl: http://127.0.0.1:8001\n"
   },
   "root": "/home/YOU/agent-sessions",
   "model_id": "agent",
@@ -32,12 +32,18 @@
   "sandbox": "bwrap",
   "sandbox_ro": [
     "/home/YOU/agent-runtimes/dsh",
-    "/home/YOU/.nvm/versions/node/v22.23.3"
+    "/home/YOU/.nvm/versions/node/v22.23.3",
+    "/home/YOU/.local/share/uv/tools/pubmed-search-mcp",
+    "/home/YOU/.local/share/uv/python"
   ],
   "sandbox_hide": [
     "~",
     "/run",
     "/tmp"
   ],
-  "sandbox_network": true
+  "sandbox_network": true,
+  "default": true,
+  "optout": [
+    "chat:"
+  ]
 }
