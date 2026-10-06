@@ -221,7 +221,7 @@ def test_install_dsh_plugin(tmp_path):
     (tmp_path / "node_modules" / "@deepseek-ai" / "dsh-tools").mkdir(parents=True)
     assert main(["install-dsh-plugin", str(tmp_path)]) == 0
     text = (tmp_path / "plugins" / "llama-mcp-router.mjs").read_text()
-    assert "agent/pre-step" in text and "find_tools" in text and "/router/select" in text
+    assert "system-prompt/assemble" in text and "find_tools" in text and "/router/select" in text
 
 
 def sid_of(r):
