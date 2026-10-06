@@ -486,6 +486,13 @@ works better.
 offset>`) and its Stop button sends `DELETE /v1/stream`. The router now implements these for agent turns: a turn keeps running when the browser
 drops the connection and can be reattached; Stop cancels it (`session/cancel`). A cancelled agent start no longer leaves its process behind.
 
+**Tokens and speed for agent answers (v0.9.1).** The Web UI shows prompt processing, token counts, time and tokens/s from the `timings`
+(and `prompt_progress`) llama-server puts in its stream; agent answers are written by the router, so they had none. Point the agent's model
+provider at the router instead of llama-server — `baseURL: http://127.0.0.1:<router port>/agent/llm/{session}/v1` (`{session}` is filled in per
+session, see [examples/agent-dsh.json](examples/agent-dsh.json)). That path passes requests to llama-server unchanged, except that streams ask for
+per-token timings and prompt progress; the router sums the timings of all model calls of a turn and sends them with the agent's answer (live,
+and the totals in the last chunk, as llama-server does), plus `usage` for non-streamed answers. No tool routing happens on this path.
+
 ## Development
 
 ```bash
