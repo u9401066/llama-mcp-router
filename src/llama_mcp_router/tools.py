@@ -100,6 +100,128 @@ def sanitize_tool(t: Tool) -> Tool:
     return {"type": "function", "function": dict(f, parameters=clean)}
 
 
+_NOISE_KEYS = ("title", "examples", "$comment", "pattern", "minLength", "maxLength", "readOnly", "writeOnly", "deprecated",
+               "discriminator", "contentMediaType", "contentEncoding", "contentSchema")
+_DECORATION = re.compile(r"[═─━]{4,}|[=\-_*~#]{8,}")
+
+
+def compact_text(text: str, limit: Optional[int] = None) -> str:
+    """A tool / parameter description with less layout: common indentation, decoration-only lines (``═══``), trailing
+    blanks and runs of empty lines removed; cut at a line boundary after ``limit`` characters (with "…")."""
+    lines = []
+    for ln in str(text or "").expandtabs(4).splitlines():
+        if _DECORATION.search(ln):
+            body = " ".join(_DECORATION.sub(" ", ln).split())
+            if not body:
+                continue
+            ln = ln[: len(ln) - len(ln.lstrip())] + body
+        lines.append(ln.rstrip())
+    indents = [len(ln) - len(ln.lstrip()) for ln in lines[1:] if ln.strip()]
+    cut = min(indents) if indents else 0
+    lines = [lines[0].strip()] + [ln[cut:] for ln in lines[1:]] if lines else []
+    out: List[str] = []
+    for ln in lines:
+        if not ln.strip() and (not out or not out[-1].strip()):
+            continue
+        out.append(ln)
+    s = "\n".join(out).strip()
+    if limit and len(s) > limit:
+        head = s[:limit]
+        nl = head.rfind("\n")
+        s = (head[:nl] if nl > limit // 2 else head).rstrip() + "\n…"
+    return s
+
+
+def _is_null(o: Any) -> bool:
+    return isinstance(o, dict) and o.get("type") == "null" and len(o) == 1
+
+
+def _is_free_string(o: Any) -> bool:
+    return isinstance(o, dict) and o.get("type") == "string" and not (set(o) - {"type", "description"})
+
+
+def _encoded_alternative(o: Any) -> bool:
+    """A string branch that only re-encodes a structured branch (JSON text, a fenced JSON block...)."""
+    return isinstance(o, dict) and o.get("type") == "string" and any(
+        k in ("contentSchema", "contentMediaType", "contentEncoding") or k.startswith("x-") for k in o)
+
+
+def _structured(o: Any) -> bool:
+    return isinstance(o, dict) and (o.get("type") in ("object", "array") or any(k in o for k in ("$ref", "oneOf", "anyOf", "properties")))
+
+
+def _union(branches: List[Any]) -> List[Any]:
+    """Simplify anyOf/oneOf branches: drop ``null`` (the parameter can be left out), drop free-form string branches
+    next to constants or typed scalars (alternative spellings: ``{"const": "x"} | {"type": "string", "pattern": "(?i)x"}``,
+    ``{"type": "integer"} | {"type": "string", "description": "decimal integer"}``) and fold several constants into one
+    enum. Every call valid for the result is valid for the original."""
+    out = [b for b in branches if not _is_null(b)]
+    if any(isinstance(b, dict) and ("const" in b or "enum" in b or b.get("type") in ("integer", "number", "boolean")) for b in out):
+        out = [b for b in out if not _is_free_string(b)]  # "or the same value as text": the typed branch is enough
+    consts = [b for b in out if isinstance(b, dict) and "const" in b and not (set(b) - {"const", "type", "description"})]
+    if len(consts) > 1 and len(consts) == len(out):
+        values = [b["const"] for b in consts]
+        merged: Dict[str, Any] = {"enum": values}
+        if all(isinstance(v, str) for v in values):
+            merged["type"] = "string"
+        out = [merged]
+    return out or branches
+
+
+def compact_schema(schema: Any, description_limit: Optional[int] = 300) -> Any:
+    """A smaller JSON schema for the model's prompt (tool schemas are a large share of an agent's prompt: the pubmed MCP's
+    41 tools are ~60k tokens). Drops what does not help the model pick values -- titles, examples, regex patterns,
+    string length limits, ``"default": null`` -- simplifies Optional/alias unions (see ``_union``) and shortens
+    property descriptions. Types, enums, consts, required, defaults, numeric ranges and ``$ref``/``$defs`` are kept,
+    so the schema stays valid; it only enforces less (the MCP server still validates the call)."""
+
+    def walk(o: Any) -> Any:
+        if isinstance(o, list):
+            return [walk(v) for v in o]
+        if not isinstance(o, dict):
+            return o
+        for u in ("anyOf", "oneOf"):
+            if isinstance(o.get(u), list) and any(_structured(b) for b in o[u]):
+                o = dict(o, **{u: [b for b in o[u] if not _encoded_alternative(b)]})
+        out: Dict[str, Any] = {}
+        for k, v in o.items():
+            if k in _NOISE_KEYS or k.startswith("x-"):
+                continue
+            if k == "default" and v is None:
+                continue
+            if k == "description" and isinstance(v, str):
+                v = compact_text(v, description_limit)
+                if not v:
+                    continue
+                out[k] = v
+                continue
+            if k in ("properties", "$defs", "definitions") and isinstance(v, dict):
+                out[k] = {name: walk(sub) for name, sub in v.items()}
+                continue
+            out[k] = walk(v)
+        for u in ("anyOf", "oneOf"):
+            if isinstance(out.get(u), list):
+                branches = _union(out[u])
+                if len(branches) == 1 and isinstance(branches[0], dict):
+                    rest = {k: v for k, v in out.items() if k != u}
+                    out = dict(branches[0], **rest)
+                else:
+                    out[u] = branches
+        return out
+
+    return walk(schema)
+
+
+def compact_tool(t: Tool, description_limit: Optional[int] = None, property_limit: Optional[int] = 300) -> Tool:
+    """``compact_schema`` for the parameters plus ``compact_text`` for the tool's description (no length limit by
+    default: MCP servers often document their parameters there)."""
+    f = normalize_tool(t)["function"]
+    out = dict(f, description=compact_text(f.get("description") or "", description_limit))
+    if isinstance(f.get("parameters"), dict):
+        out["parameters"] = compact_schema(f["parameters"], property_limit)
+    return {"type": "function", "function": out}
+
+
 def tool_name(t: Tool) -> str:
     return normalize_tool(t)["function"]["name"]
 

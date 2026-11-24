@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 from llama_mcp_router import AllSelector, BM25Selector, LayaSelector, NoneSelector, UnionSelector  # noqa: E402
 from llama_mcp_router.selectors import build_groups, load_groups_config  # noqa: E402
 from llama_mcp_router.proxy import META_TOOL, add_hint, arrange, catalog_tool, expand_tools, requested_tools  # noqa: E402
-from llama_mcp_router.tools import tool_name  # noqa: E402
+from llama_mcp_router.tools import compact_tool, tool_name  # noqa: E402
 
 SYSTEM = ("You are a biomedical literature research assistant with access to tools. "
           "Always handle the user's request by calling the single most appropriate tool right away. "
@@ -134,11 +134,18 @@ async def phase1(selectors, tools, queries):
     return out
 
 
+COMPACT = False  # --compact
+
+
+def wire(tools):
+    return [compact_tool(t) for t in tools] if COMPACT else tools
+
+
 async def ask(client, url, q, tools, effort, max_tokens, hint=""):
     body = {"model": "m", "messages": add_hint([{"role": "system", "content": SYSTEM}, {"role": "user", "content": q["query"]}], hint),
             "temperature": 0, "max_tokens": max_tokens, "chat_template_kwargs": {"reasoning_effort": effort}}
     if tools:
-        body["tools"] = tools
+        body["tools"] = wire(tools)
     t0 = time.perf_counter()
     r = await client.post(url + "/v1/chat/completions", json=body)
     dt = time.perf_counter() - t0
@@ -198,7 +205,7 @@ async def prefill_one(client, url, q, tools, cold):
     body = {"model": "m", "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": q["query"]}],
             "temperature": 0, "max_tokens": 1, "cache_prompt": not cold}
     if tools:
-        body["tools"] = tools
+        body["tools"] = wire(tools)
     t0 = time.perf_counter()
     d = (await client.post(url + "/v1/chat/completions", json=body)).json()
     wall = (time.perf_counter() - t0) * 1000
@@ -286,9 +293,12 @@ async def main():
     ap.add_argument("--sample", type=int, help="evenly sample this many queries")
     ap.add_argument("--only", help="comma-separated selector names")
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--compact", action="store_true", help="send the LLM compacted tool schemas (tools.compact_tool, as the agent's compact_tools)")
     ap.add_argument("--out", default=str(ROOT / "results"))
     a = ap.parse_args()
     Path(a.out).mkdir(parents=True, exist_ok=True)
+    global COMPACT
+    COMPACT = a.compact
 
     tools = json.load(open(a.tools))
     queries = [json.loads(l) for l in open(a.queries) if l.strip()][: a.limit]

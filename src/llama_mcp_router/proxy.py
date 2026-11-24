@@ -22,7 +22,8 @@ from starlette.routing import Route
 
 from .agent import AcpError, AgentConfig, AgentManager
 from .selectors import AllSelector, Selector
-from .tools import ServerToolSource, Tool, exclude_tools, first_sentence, normalize_tool, sanitize_tool, tool_description, tool_name
+from .tools import (ServerToolSource, Tool, compact_tool, exclude_tools, first_sentence, normalize_tool, sanitize_tool, tool_description,
+                    tool_name)
 
 log = logging.getLogger("llama_mcp_router")
 
@@ -233,6 +234,31 @@ def _msg_text(m: Dict[str, Any]) -> str:
     if isinstance(c, list):
         return "\n".join(p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text")
     return ""
+
+
+def _is_compaction(messages: List[Any]) -> bool:
+    """An agent's context-compaction request: DSH's compaction-basic ends with a user message saying the model is "now
+    acting as a compaction engine"."""
+    last = messages[-1] if messages else None
+    if not isinstance(last, dict) or last.get("role") != "user":
+        return False
+    c = last.get("content")
+    if isinstance(c, list):
+        c = " ".join(p.get("text", "") for p in c if isinstance(p, dict))
+    return isinstance(c, str) and "acting as a compaction engine" in c[:200]
+
+
+def _requested_effort(body: Dict[str, Any]) -> Optional[str]:
+    """The reasoning effort a chat request asks for: ``reasoning_effort`` (top level or in ``chat_template_kwargs``), or
+    "none" for ``enable_thinking: false`` (the Web UI's "Off"); None when it leaves the choice to the server."""
+    kw = body.get("chat_template_kwargs")
+    kw = kw if isinstance(kw, dict) else {}
+    effort = body.get("reasoning_effort") or kw.get("reasoning_effort")
+    if isinstance(effort, str) and effort.strip() and effort.strip().lower() != "default":
+        return effort.strip()
+    if kw.get("enable_thinking") is False:
+        return "none"
+    return None
 
 
 def _strip_prefix(messages: List[Dict[str, Any]], prefixes: Sequence[str]) -> None:
@@ -466,6 +492,20 @@ class Router:
                 if len(self._clean) > 5000:
                     self._clean.clear()
                 self._clean[key] = sanitize_tool(t)
+            out.append(self._clean[key])
+        return out
+
+    def _compacted(self, tools: Sequence[Any]) -> List[Any]:
+        out = []
+        for t in tools:
+            key = "compact:" + json.dumps(t, sort_keys=True)
+            if key not in self._clean:
+                if len(self._clean) > 5000:
+                    self._clean.clear()
+                try:
+                    self._clean[key] = compact_tool(t)
+                except (ValueError, TypeError, AttributeError):
+                    self._clean[key] = t  # not an OpenAI/MCP tool: pass it on as it is
             out.append(self._clean[key])
         return out
 
@@ -703,7 +743,7 @@ class Router:
                 yield {"type": "message", "text": "Send a task after `%s`, e.g. `%s write a script that ...`." % (trigger or "/agent", trigger or "/agent")}
                 return
             try:
-                async for ev in self.agents.turn(key, text, owner):  # type: ignore[union-attr]
+                async for ev in self.agents.turn(key, text, owner, effort=_requested_effort(body)):  # type: ignore[union-attr]
                     yield ev
             except (AcpError, OSError, RuntimeError, asyncio.TimeoutError) as e:
                 log.warning("agent turn failed: %s: %s", type(e).__name__, e)
@@ -791,7 +831,8 @@ class Router:
         """/agent/llm/<session>/<path>: the agent's own model requests (point its provider's base URL here). Passed to
         llama-server unchanged, except that streams ask for per-token timings and prompt progress; timings are summed per turn
         and sent along with the agent's answer (progress as it happens), so the Web UI shows prompt processing, tokens, time
-        and speed for agent turns as it does for plain chats."""
+        and speed for agent turns as it does for plain chats. Requests without a reasoning effort get the turn's (the chat's
+        thinking level or AgentConfig.reasoning_effort); with AgentConfig.compact_tools their tool schemas are compacted."""
         s = self.agents.live_session(request.path_params["sid"]) if self.agents else None
         if s is None:
             return JSONResponse({"error": {"message": "no running agent session with this id", "type": "not_found_error"}}, status_code=404)
@@ -803,11 +844,24 @@ class Router:
                 data = json.loads(body)
             except ValueError:
                 data = None
-            if isinstance(data, dict) and data.get("stream"):
-                streaming = True
-                data["timings_per_token"] = True
-                data["return_progress"] = True
-                body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            if isinstance(data, dict) and isinstance(data.get("messages"), list):
+                changed = False
+                if self.cfg.agent and self.cfg.agent.compaction_effort and _is_compaction(data["messages"]):
+                    data["reasoning_effort"] = self.cfg.agent.compaction_effort
+                    changed = True
+                elif s.effort and _requested_effort(data) is None:
+                    data["reasoning_effort"] = s.effort
+                    changed = True
+                if self.cfg.agent and self.cfg.agent.compact_tools and isinstance(data.get("tools"), list) and data["tools"]:
+                    data["tools"] = self._compacted(data["tools"])
+                    changed = True
+                if data.get("stream"):
+                    streaming = True
+                    data["timings_per_token"] = True
+                    data["return_progress"] = True
+                    changed = True
+                if changed:
+                    body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         headers = dict(_forward_headers(request), **{"accept-encoding": "identity"})
         r = await self.client.send(self.client.build_request(request.method, url, content=body, headers=headers), stream=True)
         out = {k: v for k, v in r.headers.items() if k.lower() not in _HOP and k.lower() != "content-encoding"}

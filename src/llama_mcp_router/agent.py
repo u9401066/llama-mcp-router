@@ -62,6 +62,16 @@ class AgentConfig:
     sandbox_ro: List[str] = field(default_factory=list)
     sandbox_hide: List[str] = field(default_factory=lambda: ["~", "/run", "/tmp"])
     sandbox_network: bool = True
+    # The agent's model requests (/agent/llm/...) that set no reasoning effort get the chat's own (the Web UI's thinking
+    # level: reasoning_effort, or "none" for enable_thinking=false) or else this default (None: llama-server's default).
+    reasoning_effort: Optional[str] = None
+    # Reasoning effort for the agent's context-compaction requests (DSH: the last user message says it is "acting as a
+    # compaction engine"), overriding the turn's: summarising needs little thinking, and at "max" each one took 1-2
+    # minutes of decoding. None: same as the other requests.
+    compaction_effort: Optional[str] = None
+    # Send the agent's tool schemas compacted (tools.compact_tool): no titles, regex patterns, alias/Optional unions or
+    # layout -- typically half the tokens, a smaller prompt prefix to process whenever the tool list changes.
+    compact_tools: bool = False
 
     def __post_init__(self) -> None:
         if self.users_file:
@@ -267,6 +277,7 @@ class AgentSession:
     done_timings: List[Dict[str, Any]] = field(default_factory=list)
     inflight: Dict[int, Dict[str, Any]] = field(default_factory=dict)
     notify: Optional[Callable[[Optional[Dict[str, Any]]], None]] = None  # (prompt_progress or None) -> event for the turn
+    effort: Optional[str] = None  # reasoning effort for the current turn's model requests (AgentConfig.reasoning_effort)
     _rid: int = 0
     _notified: float = 0.0
     _progressed: float = 0.0
@@ -471,12 +482,14 @@ class AgentManager:
                 await s.conn.close()
 
     # ------------------------------------------------------------------ a turn
-    async def turn(self, key: str, text: str, owner: str = "anonymous") -> AsyncIterator[Dict[str, Any]]:
-        """Yield events: {"type": "thought"|"message"|"tool"|"plan"|"permission"|"done", ...}."""
+    async def turn(self, key: str, text: str, owner: str = "anonymous", effort: Optional[str] = None) -> AsyncIterator[Dict[str, Any]]:
+        """Yield events: {"type": "thought"|"message"|"tool"|"plan"|"permission"|"done", ...}. ``effort``: the chat's
+        reasoning effort, used for this turn's model requests that set none (default: AgentConfig.reasoning_effort)."""
         s = await self.get(key, owner, text)
         assert s.lock is not None
         async with s.lock:
             s.last_used = time.time()
+            s.effort = effort or self.cfg.reasoning_effort
             if s.conn is None or not s.conn.alive:
                 yield {"type": "status", "text": "starting agent"}
                 await self._connect(s)

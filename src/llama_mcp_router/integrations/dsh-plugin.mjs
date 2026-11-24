@@ -12,6 +12,10 @@
 //                 for more) changes the list.
 //       'grow':   route every user turn and add the new picks (the list only grows).
 //       'turn':   route every user turn and replace the list (smallest prompt, re-processes the conversation each turn).
+//       'all':    no routing: every MCP tool (minus `hide`) from the first request on, no `find_tools`. The tool list
+//                 never changes, and on templates that put the tools before the system prompt (Inkling) it is the same
+//                 prefix for every session, so llama-server reuses it across sessions. Pair with the router's
+//                 `compact_tools` to keep that prefix small.
 //   * startup: MCP servers connect asynchronously; a session's first request waits for them (`servers`,
 //     `startupWaitMs`) so the first turn has its tools and later turns do not change the prompt prefix.
 //   * always: MCP tool names that stay visible whatever the routing picks (e.g. the server's main search tool).
@@ -134,6 +138,7 @@ export function apply(ctx, config) {
   function catalog(server) {
     const tools = ctx.tools.schemas().filter((t) => t.name.startsWith(`${cfg.prefix}${server}__`) && !hide.has(t.name))
     if (!tools.length) return ''
+    if (cfg.policy === 'all') return ''  // every tool is loaded with its full description
     const lines = tools.map((t) => `- ${t.name.slice(cfg.prefix.length + server.length + 2)}: ${firstSentence(t.description, cfg.catalogChars)}`)
     return `Tools of this server (only some are loaded; call find_tools to load others):\n${lines.join('\n')}`
   }
@@ -155,7 +160,7 @@ export function apply(ctx, config) {
   async function shape(out, st) {
     let tools = hide.size ? out.tools.filter((t) => !hide.has(t.name)) : out.tools
     const mcp = tools.filter((t) => t.name.startsWith(cfg.prefix))
-    if (mcp.length && st.query !== undefined && (cfg.policy !== 'session' || st.keep === undefined)) {
+    if (cfg.policy !== 'all' && mcp.length && st.query !== undefined && (cfg.policy !== 'session' || st.keep === undefined)) {
       const query = st.query
       st.query = undefined
       try {
@@ -192,7 +197,7 @@ export function apply(ctx, config) {
     return shape(await next(), st)
   })
 
-  ctx.tools.register(defineTool({
+  if (cfg.policy !== 'all') ctx.tools.register(defineTool({
     name: 'find_tools',
     description:
       'Only the MCP tools most likely needed are loaded. If none of your tools fits, call this first with a short description ' +

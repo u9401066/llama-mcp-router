@@ -119,3 +119,25 @@ def test_sanitize_schema_inlines_nested_defs_and_drops_huge_limits():
     t = mk("x", "y")
     assert sanitize_tool(t) == t  # untouched when nothing to fix
     assert sanitize_schema({"$ref": "#/$defs/Missing", "description": "z"}) == {"description": "z"}
+
+
+def test_compact_schema_keeps_types_and_values_but_drops_prompt_noise():
+    from llama_mcp_router.tools import compact_schema, compact_text
+    req = {"oneOf": [{"$ref": "#/$defs/A"}]}
+    schema = {"type": "object", "title": "Args", "properties": {
+        "request": {"anyOf": [req, {"type": "string", "contentMediaType": "application/json", "contentSchema": req},
+                              {"type": "string", "x-encoding": "fenced-json"}], "discriminator": {"propertyName": "action"}},
+        "pattern": {"type": "string", "pattern": "^a+$", "maxLength": 5, "examples": ["aa"], "description": "  regex\n  text  "},
+        "kind": {"anyOf": [{"const": "a"}, {"const": "b"}, {"type": "string", "pattern": "(?i)a|b"}], "default": "a"},
+        "ids": {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}, {"type": "null"}], "default": None},
+        "flag": {"anyOf": [{"type": "boolean"}, {"type": "string", "description": "true/false as text"}], "default": False}},
+        "$defs": {"A": {"type": "object", "properties": {"action": {"const": "x", "title": "Action"}}, "required": ["action"]}}}
+    assert compact_schema(schema) == {"type": "object", "properties": {
+        "request": {"$ref": "#/$defs/A"},
+        "pattern": {"type": "string", "description": "regex\ntext"},
+        "kind": {"enum": ["a", "b"], "type": "string", "default": "a"},
+        "ids": {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}]},
+        "flag": {"type": "boolean", "default": False}},
+        "$defs": {"A": {"type": "object", "properties": {"action": {"const": "x"}}, "required": ["action"]}}}
+    assert compact_text("Title\n\n    ═══════\n    Body line\n\n\n      indented\n") == "Title\n\nBody line\n\n  indented"
+    assert compact_text("one\ntwo\nthree", limit=9) == "one\ntwo\n…"

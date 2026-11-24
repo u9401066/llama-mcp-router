@@ -110,6 +110,16 @@ const out = {}
   f.claim(agent, 'get_gene')
   out.turnPolicy = names(await f.assemble({ agent }))
 }
+// all policy: every MCP tool, no routing, no find_tools, no catalog
+{
+  const f = fake({ policy: 'all', instructions: 'tool' })
+  const agent = {}
+  const n0 = queries.length
+  f.claim(agent, 'unified_search'); out.all1 = names(await f.assemble({ agent }))
+  f.claim(agent, 'get_gene'); out.all2 = names(await f.assemble({ agent }))
+  out.allSection = (await f.assemble({ agent })).sections.find((s) => s.name === 'mcp:pubmed').text
+  out.allQueries = queries.slice(n0)
+}
 // router down: fail open
 {
   const f = fake({ routerUrl: 'http://127.0.0.1:9', timeoutMs: 1000 })
@@ -135,7 +145,7 @@ def test_dsh_plugin_routes_on_the_step_being_assembled(tmp_path):
     assert p.returncode == 0, p.stderr
     out = json.loads(p.stdout.strip().splitlines()[-1])
 
-    for k in ("step1", "step2", "reminder", "turn2", "afterFind", "other", "turnPolicy", "down", "session1", "session2", "session3"):
+    for k in ("step1", "step2", "reminder", "turn2", "afterFind", "other", "turnPolicy", "down", "session1", "session2", "session3", "all1", "all2"):
         out[k] = sorted(out[k])
     base = ["bash", "find_tools", "mcp_server_guide"]
     # first request of the session waited for the MCP server, then carried only the selected MCP tool; 'workflow' hidden
@@ -153,3 +163,5 @@ def test_dsh_plugin_routes_on_the_step_being_assembled(tmp_path):
     assert out["session1"] == out["session2"] == sorted(["bash", "find_tools", "workflow", "mcp__pubmed__unified_search"])
     assert out["session3"] == sorted(out["session1"] + ["mcp__pubmed__get_gene"])
     assert out["sessionQueries"] == ["unified_search", "get_gene"]  # turn 1 routed, turn 2 not; then find_tools
+    assert out["all1"] == out["all2"] == sorted(["bash", "mcp_server_guide", "workflow"] + ["mcp__pubmed__unified_search", "mcp__pubmed__get_gene", "mcp__pubmed__save_pipeline"])
+    assert out["allQueries"] == [] and "Tools of this server" not in out["allSection"] and "Use unified_search first." in out["allSection"]

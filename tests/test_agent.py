@@ -474,3 +474,40 @@ def test_agent_stream_shows_tokens_and_speed(tmp_path):
         d = r2.json()
         assert d["timings"]["predicted_n"] == 60 and d["usage"] == {"prompt_tokens": 2000, "completion_tokens": 60, "total_tokens": 2060}
         assert httpx.post(base + "/agent/llm/%s/v1/chat/completions" % ("0" * 32), json={}).status_code == 404
+
+
+def test_agent_llm_requests_get_the_chats_effort_and_compact_tools(tmp_path):
+    seen = []
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    tool = {"type": "function", "function": {"name": "mcp__x__find", "description": "Find.\n    ═════════\n    Details.", "parameters": {
+        "type": "object", "title": "findArguments", "required": ["mode"], "properties": {
+            "mode": {"title": "Mode", "anyOf": [{"const": "fast", "type": "string"}, {"type": "string", "pattern": "^(?i:fast)$"}]},
+            "limit": {"title": "Limit", "default": None, "anyOf": [{"type": "integer", "maximum": 9}, {"type": "null"}]}}}}}
+    app = live_app(tmp_path, backend=timing_backend(seen), default=True, reasoning_effort="high", compact_tools=True,
+                   compaction_effort="low", env={"FAKE_LLM_CALLS": "1", "FAKE_LLM_TOOLS": json.dumps([tool]),
+                        "FAKE_LLM_URL": "http://127.0.0.1:%d/agent/llm/{session}/v1/chat/completions" % port})
+    conv = {"X-Conversation-Id": "effort-c::agent"}
+    with live(app, port=port) as base:
+        r = httpx.post(base + "/v1/chat/completions", json={"messages": [{"role": "user", "content": "go"}], "reasoning_effort": "max"},
+                       headers=conv, timeout=30)
+        assert r.status_code == 200
+        r = httpx.post(base + "/v1/chat/completions", json={"messages": [{"role": "user", "content": "go"}, {"role": "assistant", "content": "x"},
+                                                                         {"role": "user", "content": "more"}]}, headers=conv, timeout=30)
+        assert r.status_code == 200
+        r = httpx.post(base + "/v1/chat/completions", json={"messages": [{"role": "user", "content": "go"}, {"role": "assistant", "content": "x"},
+                                                                         {"role": "user", "content": "off"}],
+                                                            "chat_template_kwargs": {"enable_thinking": False}}, headers=conv, timeout=30)
+        assert r.status_code == 200
+        r = httpx.post(base + "/v1/chat/completions", json={"messages": [{"role": "user", "content": "go"}, {"role": "assistant", "content": "x"},
+                                                                         {"role": "user", "content": "You are now acting as a compaction engine."}],
+                                                            "reasoning_effort": "max"}, headers=conv, timeout=30)
+        assert r.status_code == 200
+    # the chat's level, else the configured default; compaction requests get compaction_effort
+    assert [b.get("reasoning_effort") for b in seen] == ["max", "high", "none", "low"]
+    f = seen[0]["tools"][0]["function"]
+    assert f["description"] == "Find.\nDetails."
+    assert f["parameters"] == {"type": "object", "required": ["mode"], "properties": {
+        "mode": {"const": "fast", "type": "string"}, "limit": {"type": "integer", "maximum": 9}}}

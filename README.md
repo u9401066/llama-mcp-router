@@ -473,7 +473,7 @@ Result on the same three turns ("what are the settings?" → "find a 2024 remima
 itself with `find_tools` when it needed it. Unchanged prefix ⇒ a new turn costs < 1 s of prefill.
 
 Plugin options (`config:` of the plugin entry, see [examples/agent-dsh.json](examples/agent-dsh.json)): `routerUrl`, `policy`
-(`session` | `grow` | `turn`), `servers` + `startupWaitMs`, `always` (MCP tools always visible), `hide`, `instructions`
+(`session` | `grow` | `turn` | `all`, v0.13), `servers` + `startupWaitMs`, `always` (MCP tools always visible), `hide`, `instructions`
 (`keep` | `tool` | `drop`), `instructionsChars`, `catalogChars`, `searchK`, `timeoutMs`, `log`.
 
 **Laya's "no tool needed" option does not help here**: on agent-style turns ("what are the settings?", "write a Python script", "write it to
@@ -527,6 +527,27 @@ services. Example ([examples/routes.json](examples/routes.json)):
 
 The step-checked reasoning service that was briefly part of this router (v0.11.0) is now its own project,
 **[llama-cot-sentinel](https://github.com/u9401066/llama-cot-sentinel)**; route `med:` chats to it as above.
+
+## v0.13: long agent runs at high reasoning effort – what made them slow
+
+A recorded DeepSeek Harness run at the Web UI's highest thinking level (Inkling 2 Mini, 41 PubMed MCP tools, 131k context; captured
+with medqa-bench's `agent_capture_proxy.py`, replayed with `agent_replay.py`) spent 1,278 s in 24 model requests and had not finished:
+682 s re-processing prompts, 589 s generating. Four causes were on the agent side:
+
+| what was wrong | effect in the recorded run | v0.13 |
+|---|---|---|
+| agent turns ignored the chat's thinking level | the agent's model requests carried no `reasoning_effort`, so llama-server used its default | the chat's level (`reasoning_effort`, or `enable_thinking: false` → `none`) is sent with every model request of the turn; `AgentConfig.reasoning_effort` is the default |
+| tool schemas as MCP servers write them (titles, `anyOf` aliases, regex patterns, layout) | 41 PubMed tools = 64.6k tokens of the prompt | `AgentConfig.compact_tools: true` (`tools.compact_tool`): 30.8k tokens (−52%); first tool call unchanged: 47/52 vs 47/52 held-out, 66/110 vs 68/110 hard (p = 0.50), valid arguments 51 vs 51 / 81 vs 80 |
+| `find_tools` changing the tool list mid-task | the list sits before the history: 35.6k and 53.5k tokens re-processed | plugin `policy: all`: every MCP tool from the first request on, no `find_tools`; the list never changes and (Inkling's template puts tools first) is the same prefix for every session |
+| DSH's automatic compaction thresholds | threshold = min(0.8 × 131,072, 131,072 − 16,384 − 65,536 headroom) = 49,152 tokens, but tools + system prompt + the retained 18k already exceed it: 7 compactions in 24 requests, each re-processing 26–30k tokens and thinking for 45–120 s (542 s) | set in the DSH patch: `compaction-basic` with `headroomTokens: 8192, thresholdRatio: 0.7, maxTokens: 16384` → threshold 91,750; and `AgentConfig.compaction_effort` (e.g. `low`) for the compaction requests (one: 1,592 → 1,153 tokens) |
+
+```json
+{ "reasoning_effort": "max", "compaction_effort": "low", "compact_tools": true, "files": { "agent.patch.yml": "… - id: compaction-basic\n  config:\n    headroomTokens: 8192\n    thresholdRatio: 0.7\n    maxTokens: 16384\n … policy: all …" } }
+```
+
+A compaction request is recognised by DSH's prompt (the last user message says the model is "acting as a compaction engine").
+`benchmarks/run_bench.py --compact` measures the compacted schemas. The engine side (llama.cpp build, layout, batch sizes) of the
+same investigation is in [medqa-bench/reports/inkling2mini/AGENT-SPEED.md](https://github.com/u9401066/medqa-bench/blob/main/reports/inkling2mini/AGENT-SPEED.md).
 
 ## Development
 
