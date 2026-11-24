@@ -511,3 +511,33 @@ def test_agent_llm_requests_get_the_chats_effort_and_compact_tools(tmp_path):
     assert f["description"] == "Find.\nDetails."
     assert f["parameters"] == {"type": "object", "required": ["mode"], "properties": {
         "mode": {"const": "fast", "type": "string"}, "limit": {"type": "integer", "maximum": 9}}}
+
+
+def test_stable_prefix_moves_the_session_lines_after_the_system_prompt(tmp_path):
+    seen = []
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    app = live_app(tmp_path, backend=timing_backend(seen), default=True, stable_prefix=True,
+                   env={"FAKE_LLM_CALLS": "1", "FAKE_LLM_SYSTEM": "You are an agent.\n\nYour working directory is {cwd}.",
+                        "FAKE_LLM_URL": "http://127.0.0.1:%d/agent/llm/{session}/v1/chat/completions" % port})
+    with live(app, port=port) as base:
+        for conv in ("prefix-a::agent", "prefix-b::agent", "prefix-a::agent"):
+            r = httpx.post(base + "/v1/chat/completions", json={"messages": [{"role": "user", "content": "go"}]},
+                           headers={"X-Conversation-Id": conv}, timeout=30)
+            assert r.status_code == 200
+    systems = [b["messages"][0] for b in seen]
+    assert systems == [{"role": "system", "content": "You are an agent."}] * 3  # the same tokens for every session
+    firsts = [b["messages"][1]["content"] for b in seen]
+    assert all(f.startswith("Your working directory is " + str(tmp_path / "sessions")) and f.endswith("/workspace.\n\ngo") for f in firsts)
+    assert firsts[0] == firsts[2] != firsts[1]  # deterministic per session, still tells each agent its own directory
+
+
+def test_stable_prefix_inserts_a_user_message_when_none_follows():
+    from llama_mcp_router.proxy import _stable_prefix
+    msgs = [{"role": "system", "content": "A\nwork in /s/abc/ws\nB"}, {"role": "assistant", "content": "x"}]
+    assert _stable_prefix(msgs, ["/s/abc"])
+    assert msgs == [{"role": "system", "content": "A\nB"}, {"role": "user", "content": "work in /s/abc/ws"}, {"role": "assistant", "content": "x"}]
+    unchanged = [{"role": "system", "content": "A"}, {"role": "user", "content": "q"}]
+    assert not _stable_prefix(unchanged, ["/s/abc"]) and unchanged[1]["content"] == "q"

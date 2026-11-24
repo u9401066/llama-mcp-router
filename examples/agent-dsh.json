@@ -21,6 +21,7 @@
   "reasoning_effort": "max",
   "compaction_effort": "low",
   "compact_tools": true,
+  "stable_prefix": true,
   "triggers": [
     "/agent",
     "@agent",

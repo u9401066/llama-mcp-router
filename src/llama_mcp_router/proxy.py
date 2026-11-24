@@ -248,6 +248,34 @@ def _is_compaction(messages: List[Any]) -> bool:
     return isinstance(c, str) and "acting as a compaction engine" in c[:200]
 
 
+def _stable_prefix(messages: List[Any], markers: Sequence[str]) -> bool:
+    """Move the lines of the leading system messages that contain one of ``markers`` (the session's directory or id) to
+    the start of the first message after them (a new user message unless that one is a user message with text), so
+    prompts of different sessions share every token up to there (see AgentConfig.stable_prefix). Deterministic: every
+    request of a session is rewritten the same way. Returns whether anything moved."""
+    markers = [m for m in markers if m]
+    moved: List[str] = []
+    i = 0
+    while i < len(messages) and isinstance(messages[i], dict) and messages[i].get("role") in ("system", "developer"):
+        c = messages[i].get("content")
+        if isinstance(c, str) and markers:
+            keep: List[str] = []
+            for line in c.split("\n"):
+                (moved if any(m in line for m in markers) else keep).append(line)
+            if len(keep) != len(c.split("\n")):
+                messages[i] = dict(messages[i], content="\n".join(keep).rstrip())
+        i += 1
+    if not moved:
+        return False
+    text = "\n".join(moved)
+    nxt = messages[i] if i < len(messages) else None
+    if isinstance(nxt, dict) and nxt.get("role") == "user" and isinstance(nxt.get("content"), str):
+        messages[i] = dict(nxt, content=text + "\n\n" + nxt["content"])
+    else:
+        messages.insert(i, {"role": "user", "content": text})
+    return True
+
+
 def _requested_effort(body: Dict[str, Any]) -> Optional[str]:
     """The reasoning effort a chat request asks for: ``reasoning_effort`` (top level or in ``chat_template_kwargs``), or
     "none" for ``enable_thinking: false`` (the Web UI's "Off"); None when it leaves the choice to the server."""
@@ -832,7 +860,8 @@ class Router:
         llama-server unchanged, except that streams ask for per-token timings and prompt progress; timings are summed per turn
         and sent along with the agent's answer (progress as it happens), so the Web UI shows prompt processing, tokens, time
         and speed for agent turns as it does for plain chats. Requests without a reasoning effort get the turn's (the chat's
-        thinking level or AgentConfig.reasoning_effort); with AgentConfig.compact_tools their tool schemas are compacted."""
+        thinking level or AgentConfig.reasoning_effort); with AgentConfig.compact_tools their tool schemas are compacted, with
+        AgentConfig.stable_prefix the session-specific lines of their system prompt move after it."""
         s = self.agents.live_session(request.path_params["sid"]) if self.agents else None
         if s is None:
             return JSONResponse({"error": {"message": "no running agent session with this id", "type": "not_found_error"}}, status_code=404)
@@ -854,6 +883,8 @@ class Router:
                     changed = True
                 if self.cfg.agent and self.cfg.agent.compact_tools and isinstance(data.get("tools"), list) and data["tools"]:
                     data["tools"] = self._compacted(data["tools"])
+                    changed = True
+                if self.cfg.agent and self.cfg.agent.stable_prefix and _stable_prefix(data["messages"], [s.dir, s.id]):
                     changed = True
                 if data.get("stream"):
                     streaming = True

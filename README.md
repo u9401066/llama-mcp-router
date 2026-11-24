@@ -452,6 +452,8 @@ opened with "hi" shared one workspace. Now:
 * **`max_processes`** (default 4) caps live agent processes: a new session stops the least-recently-used idle agent first (its workspace stays;
   it resumes on the next message); if every slot is busy the request gets an error instead of exhausting RAM/VRAM. Size it to your memory:
   one DSH session with the PubMed MCP server measured ~290 MB RSS (DSH 184 MB + MCP 109 MB); all of them share the one llama-server, whose `--parallel` slots bound concurrent generation.
+* **`stable_prefix`** (default false) moves the session-specific lines of the agent's system prompt (its working directory) after it, so
+  llama-server reuses the tools + system prompt across sessions – see [v0.14](#v014-one-shared-prompt-prefix-for-all-agent-sessions).
 
 ## v0.9: where an agent turn's time goes, and what fixed it
 
@@ -548,6 +550,26 @@ with medqa-bench's `agent_capture_proxy.py`, replayed with `agent_replay.py`) sp
 A compaction request is recognised by DSH's prompt (the last user message says the model is "acting as a compaction engine").
 `benchmarks/run_bench.py --compact` measures the compacted schemas. The engine side (llama.cpp build, layout, batch sizes) of the
 same investigation is in [medqa-bench/reports/inkling2mini/AGENT-SPEED.md](https://github.com/u9401066/medqa-bench/blob/main/reports/inkling2mini/AGENT-SPEED.md).
+
+## v0.14: one shared prompt prefix for all agent sessions
+
+With v0.13 every session sends the same tools and the same system prompt – except its last line, DSH's `Your working directory is
+<root>/<user>/<session-id>/workspace.` Inkling 2 Mini (like Gemma) has sliding-window attention: llama-server cannot cut its cache at an
+arbitrary token, only roll back to a *context checkpoint*, and it makes one where the first user message starts. Two sessions differed
+~20 tokens before that point, so the checkpoint never applied and every new session – and every slot that switched from one session to
+another – re-processed the whole 35k-token prefix (~17 s at 2,000 tokens/s; production log: 35k, 45k, 67k, 85k-token re-processings).
+
+`AgentConfig.stable_prefix: true` moves the system-prompt lines that contain the session's directory or id to the start of the first
+message after it (the agent still gets its working directory; every request of a session is rewritten the same way). Measured on the live
+server (b12651, recorded first request, two sessions on the same slot, 17,256 tokens):
+
+| second session | re-processed | taken from the cache | prompt time |
+|---|---:|---:|---:|
+| as the agent sends it | 17,256 | 0 | 6.8 s |
+| `stable_prefix` | 542 | 16,714 (up to the first user message) | 0.44 s |
+
+Full-attention models gain too (llama-server reuses any common prefix; it now ends at the first user message instead of inside the
+system prompt).
 
 ## Development
 

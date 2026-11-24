@@ -72,6 +72,12 @@ class AgentConfig:
     # Send the agent's tool schemas compacted (tools.compact_tool): no titles, regex patterns, alias/Optional unions or
     # layout -- typically half the tokens, a smaller prompt prefix to process whenever the tool list changes.
     compact_tools: bool = False
+    # Move the lines of the agent's system prompt that name its session (DSH: "Your working directory is <session
+    # workspace>.") to the start of the first message after it, so all sessions send the same tokens up to their first
+    # user message. llama-server can then reuse that shared prefix (tools + system prompt) across sessions: with SWA
+    # models (Inkling, Gemma) it restores the context checkpoint it made at the first user message, which it cannot use
+    # when the prompts differ a few tokens earlier, so a new session (or a slot switching sessions) re-processed it all.
+    stable_prefix: bool = False
 
     def __post_init__(self) -> None:
         if self.users_file:
