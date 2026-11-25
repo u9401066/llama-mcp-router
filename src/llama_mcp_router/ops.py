@@ -202,7 +202,7 @@ def _num(v: float) -> str:
 class Warmup:
     """Keeps llama-server's slots holding the agents' shared prompt prefix (tools + system prompt).
 
-    The first model request of every agent session is remembered (``record``: the request without its user message, in
+    The first model request of every agent session is remembered (``record``: the request without its user messages, in
     ``<agent root>/warmup.json``). A watcher polls llama-server's /slots; a slot that is idle and has never processed a
     prompt (llama-server just started) gets that prefix with a one-word user message and max_tokens 1, pinned with
     ``id_slot``. The next agent session then finds the ~35k-token prefix cached instead of paying for it (~14 s on llm01).
@@ -221,9 +221,10 @@ class Warmup:
             pass
 
     def record(self, body: Dict[str, Any]) -> bool:
-        """Remember ``body`` (an agent model request about to be sent) when it is a session's first request."""
+        """Remember ``body`` (an agent model request about to be sent) when it is a session's first request: a system
+        message followed only by user messages (DSH sends the task, a runtime-context snapshot and the skill list)."""
         msgs = body.get("messages") or []
-        if len(msgs) != 2 or msgs[0].get("role") != "system" or msgs[1].get("role") != "user":
+        if len(msgs) < 2 or msgs[0].get("role") != "system" or any(m.get("role") != "user" for m in msgs[1:]):
             return False
         tmpl = {k: v for k, v in body.items() if k not in ("messages", "stream", "stream_options", "timings_per_token", "return_progress")}
         tmpl["messages"] = [msgs[0]]

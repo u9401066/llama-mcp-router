@@ -10,6 +10,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from conftest import FakeBackend
+from llama_mcp_router import __version__
 from llama_mcp_router.agent import AgentConfig, AgentManager, bwrap_argv
 from llama_mcp_router.ops import BACKGROUND, INTERACTIVE, Metrics, QueueFull, SlotGate, Warmup
 from llama_mcp_router.proxy import RouterConfig, _cap_tool_results, create_app
@@ -121,7 +122,8 @@ def test_warmup_records_the_first_request_and_fills_only_never_used_slots(tmp_pa
             w = Warmup(client, str(tmp_path / "warmup.json"), SlotGate(2), Metrics())
             assert await w.run_once() == []  # nothing recorded yet
             first = {"model": "m", "stream": True, "timings_per_token": True, "tools": [{"t": 1}], "reasoning_effort": "max",
-                     "messages": [{"role": "system", "content": "S"}, {"role": "user", "content": "task"}]}
+                     "messages": [{"role": "system", "content": "S"}, {"role": "user", "content": "task"},
+                                  {"role": "user", "content": "runtime context"}, {"role": "user", "content": "skills"}]}
             assert w.record(first) and not w.record(dict(first))  # unchanged prefix: no rewrite
             later = dict(first, messages=first["messages"] + [{"role": "assistant", "content": "x"}])
             assert not w.record(later)
@@ -162,7 +164,7 @@ def test_drain_refuses_new_agent_turns_and_full_queue_refuses_new_work(tmp_path)
     with c:
         router = c.app.state.router
         h = c.get("/router/health").json()
-        assert h["version"] == "0.15.0" and h["draining"] is False and h["agents"] == {"sessions": 0, "live": 0, "running_turns": 0}
+        assert h["version"] == __version__ and h["draining"] is False and h["agents"] == {"sessions": 0, "live": 0, "running_turns": 0}
         assert c.post("/router/drain").json()["draining"] is True
         r = c.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "/agent do it"}]})
         assert r.status_code == 503 and r.headers["retry-after"] == "60"
