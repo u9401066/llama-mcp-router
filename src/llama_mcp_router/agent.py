@@ -23,7 +23,7 @@ import shutil
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Sequence, Tuple
 
 log = logging.getLogger("llama_mcp_router.agent")
 
@@ -78,7 +78,26 @@ class AgentConfig:
     # models (Inkling, Gemma) it restores the context checkpoint it made at the first user message, which it cannot use
     # when the prompts differ a few tokens earlier, so a new session (or a slot switching sessions) re-processed it all.
     stable_prefix: bool = False
-
+    # Fill llama-server's idle, never-used slots (it has just started) with the prompt prefix all agent sessions share
+    # (tools + system prompt, recorded from the latest session's first model request in <root>/warmup.json), so the
+    # first sessions after a restart do not pay for it. Slots that hold any prompt are never touched.
+    warmup: bool = False
+    warmup_interval: float = 30.0  # seconds between /slots checks
+    # Delete session directories (workspace included) whose last turn is older than this many days; None keeps them.
+    # Sessions with a running agent process are kept. Checked hourly.
+    retention_days: Optional[float] = None
+    # Per-user notes shared by all of that user's sessions: the directory <root>/<user>/memory (MEMORY.md and whatever
+    # else the agent keeps there), mounted (bwrap) or linked at memory_dir in each workspace and kept out of the
+    # workspace's git. A directory, not a single file: editors save by writing a temporary file and renaming it over the
+    # target, which fails on a single-file bind mount (EBUSY). It is not put into the prompt, so the shared prompt prefix
+    # stays the same; a skill tells the agent when to read and update it. Without a users map every chat is "anonymous"
+    # and shares one directory.
+    memory: bool = False
+    memory_dir: str = ".agents/memory"
+    # Tool results in the agent's model requests longer than this many characters are cut in the middle, with a note
+    # telling the model how much is missing and to read in smaller pages. Applied the same way to every request, so the
+    # prompt cache is unaffected. None: pass tool results unchanged.
+    tool_result_max_chars: Optional[int] = None
     def __post_init__(self) -> None:
         if self.users_file:
             with open(os.path.expanduser(self.users_file), encoding="utf-8") as f:
@@ -95,8 +114,9 @@ class AgentConfig:
         return cls(**known)
 
 
-def bwrap_argv(cfg: "AgentConfig", session_dir: str, workspace: str) -> List[str]:
-    """bubblewrap prefix confining an agent process to its session (see AgentConfig.sandbox)."""
+def bwrap_argv(cfg: "AgentConfig", session_dir: str, workspace: str, binds: Sequence[Tuple[str, str]] = ()) -> List[str]:
+    """bubblewrap prefix confining an agent process to its session (see AgentConfig.sandbox). ``binds``: extra
+    (source, destination) read-write mounts, e.g. the user's memory directory into the workspace."""
     argv = ["bwrap", "--ro-bind", "/", "/"]
     for h in cfg.sandbox_hide:
         path = os.path.abspath(os.path.expanduser(h))
@@ -107,7 +127,10 @@ def bwrap_argv(cfg: "AgentConfig", session_dir: str, workspace: str) -> List[str
         path = os.path.abspath(os.path.expanduser(ro))
         if os.path.exists(path):
             argv += ["--ro-bind", path, path]
-    argv += ["--bind", session_dir, session_dir, "--dev", "/dev", "--proc", "/proc", "--unshare-pid", "--die-with-parent", "--chdir", workspace]
+    argv += ["--bind", session_dir, session_dir]
+    for src, dst in binds:
+        argv += ["--bind", src, dst]
+    argv += ["--dev", "/dev", "--proc", "/proc", "--unshare-pid", "--die-with-parent", "--chdir", workspace]
     if not cfg.sandbox_network:
         argv.append("--unshare-net")
     return argv
@@ -118,6 +141,10 @@ class AcpError(RuntimeError):
 
 
 _TIMINGS = object()  # queue marker: the session's model timings changed
+_STATUS = object()  # queue marker: a status line for the user (e.g. waiting for a model slot)
+_STAT_KEYS = ("requests", "compactions", "prompt_n", "cache_n", "predicted_n", "prompt_ms", "predicted_ms", "tool_calls", "tool_s")
+MEMORY_HEADER = ("# Memory\n\nDurable notes about this user, shared by all of their agent sessions. Keep entries short and dated;\n"
+                 "remove ones that are no longer true.\n")
 
 
 def safe_owner(owner: str) -> str:
@@ -284,6 +311,8 @@ class AgentSession:
     inflight: Dict[int, Dict[str, Any]] = field(default_factory=dict)
     notify: Optional[Callable[[Optional[Dict[str, Any]]], None]] = None  # (prompt_progress or None) -> event for the turn
     effort: Optional[str] = None  # reasoning effort for the current turn's model requests (AgentConfig.reasoning_effort)
+    status: Optional[Callable[[str], None]] = None  # status line -> event for the turn (set while a turn runs)
+    stats: Dict[str, float] = field(default_factory=lambda: {k: 0 for k in _STAT_KEYS})  # totals over the session's life
     _rid: int = 0
     _notified: float = 0.0
     _progressed: float = 0.0
@@ -303,10 +332,14 @@ class AgentSession:
             self._notified = now
             self.notify(None)
 
-    def end_request(self, rid: int, timings: Optional[Dict[str, Any]]) -> None:
+    def end_request(self, rid: int, timings: Optional[Dict[str, Any]], compaction: bool = False) -> None:
         self.inflight.pop(rid, None)
+        self.stats["requests"] += 1
+        self.stats["compactions"] += int(compaction)
         if timings:
             self.done_timings.append(timings)
+            for k in ("prompt_n", "cache_n", "predicted_n", "prompt_ms", "predicted_ms"):
+                self.stats[k] += float(timings.get(k) or 0)
         if self.notify:
             self._notified = time.monotonic()
             self.notify(None)
@@ -341,6 +374,17 @@ class AgentManager:
         self._create_lock: Optional[asyncio.Lock] = None  # created inside the running loop (Python 3.9)
         self._reaper: Optional[asyncio.Task] = None
         self._starting = 0  # agent processes being started (not yet in a session's conn)
+        self._pruned_at = 0.0
+        self.on_tool: Optional[Callable[[str, float], None]] = None  # (status, seconds) per finished tool call
+
+    def running_turns(self) -> int:
+        return sum(1 for s in self.sessions.values() if s.lock and s.lock.locked())
+
+    def live_processes(self) -> int:
+        return sum(1 for s in self.sessions.values() if s.conn and s.conn.alive)
+
+    def summary(self) -> Dict[str, int]:
+        return {"sessions": len(self._index), "live": self.live_processes(), "running_turns": self.running_turns()}
 
     # ------------------------------------------------------------------ persistence
     def _save_index(self) -> None:
@@ -391,6 +435,51 @@ class AgentManager:
                 f.write("# Agent workspace\n\nFiles created in this chat session. Every turn is a git commit.\n")
             await _git(s.workspace, "add", "-A")
             await _git(s.workspace, "commit", "-q", "-m", "session start")
+        if self.cfg.memory:
+            self._link_memory(s)
+
+    def memory_path(self, owner: str) -> str:
+        """The owner's memory directory (shared by all of their sessions)."""
+        return os.path.join(self.root, safe_owner(owner), "memory")
+
+    def _memory_rel(self) -> str:
+        rel = os.path.normpath(self.cfg.memory_dir.strip("/"))
+        if rel in ("", ".") or rel.split(os.sep)[0] == "..":
+            raise ValueError("memory_dir must be a directory inside the workspace, got %r" % self.cfg.memory_dir)
+        return rel
+
+    def _link_memory(self, s: AgentSession) -> None:
+        """Make the owner's memory directory appear at memory_dir in the workspace (bwrap: a bind mount over an empty
+        directory, set up in _spawn; otherwise a symlink) and keep that path out of the workspace's git."""
+        mem = self.memory_path(s.owner)
+        os.makedirs(mem, exist_ok=True)
+        if not os.path.exists(os.path.join(mem, "MEMORY.md")):
+            with open(os.path.join(mem, "MEMORY.md"), "w", encoding="utf-8") as f:
+                f.write(MEMORY_HEADER)
+        rel = self._memory_rel()
+        target = os.path.join(s.workspace, rel)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        if os.path.islink(target) and (self.cfg.sandbox == "bwrap" or os.path.realpath(target) != os.path.realpath(mem)):
+            os.unlink(target)
+        if self.cfg.sandbox == "bwrap":
+            os.makedirs(target, exist_ok=True)
+        else:
+            if os.path.isdir(target) and not os.path.islink(target) and not os.listdir(target):
+                os.rmdir(target)  # the empty mount point left by a bwrap configuration
+            if not os.path.lexists(target):
+                os.symlink(mem, target)
+            elif not os.path.islink(target):
+                log.warning("session %s: %s exists in the workspace; memory not linked", s.id, rel)
+        exclude = os.path.join(s.workspace, ".git", "info", "exclude")
+        line = "/" + rel + "\n"  # no trailing slash: also matches the symlink
+        try:
+            with open(exclude, encoding="utf-8") as f:
+                present = line in f.read()
+        except OSError:
+            present = False
+        if not present and os.path.isdir(os.path.dirname(exclude)):
+            with open(exclude, "a", encoding="utf-8") as f:
+                f.write(line)
 
     async def _make_room(self) -> None:
         live = [x for x in self.sessions.values() if x.conn and x.conn.alive]
@@ -421,7 +510,8 @@ class AgentManager:
         env = dict(os.environ)
         env.update({k: _subst(v, ph) for k, v in self.cfg.env.items()})
         if self.cfg.sandbox == "bwrap":
-            argv = bwrap_argv(self.cfg, s.dir, s.workspace) + argv
+            binds = [(self.memory_path(s.owner), os.path.join(s.workspace, self._memory_rel()))] if self.cfg.memory else []
+            argv = bwrap_argv(self.cfg, s.dir, s.workspace, binds) + argv
             if "HOME" not in self.cfg.env:
                 env["HOME"] = s.home  # the real home is hidden inside the sandbox
         elif self.cfg.sandbox:
@@ -464,6 +554,7 @@ class AgentManager:
                 d = self._dir(meta)
                 s = AgentSession(meta["id"], key, meta.get("owner", "anonymous"), d, os.path.join(d, "workspace"), os.path.join(d, "home"),
                                  meta.get("acp_session"), turns=meta.get("turns", 0), lock=asyncio.Lock())
+                s.stats.update({k: v for k, v in (meta.get("stats") or {}).items() if k in s.stats})
                 await self._prepare_dirs(s)
                 self.sessions[key] = s
             if self._reaper is None:
@@ -479,6 +570,41 @@ class AgentManager:
                     log.info("agent session %s idle, stopping its process", s.id)
                     await s.conn.close()
                     s.conn = None
+            if self.cfg.retention_days and now - self._pruned_at >= 3600:
+                self._pruned_at = now
+                self.prune(now)
+
+    def _last_activity(self, meta: Dict[str, Any]) -> float:
+        if meta.get("last_used"):
+            return float(meta["last_used"])
+        try:  # sessions from before v0.15 have no last_used: the workspace's last commit touched .git/index
+            return os.path.getmtime(os.path.join(self._dir(meta), "workspace", ".git", "index"))
+        except OSError:
+            return float(meta.get("created") or 0)
+
+    def prune(self, now: Optional[float] = None) -> List[str]:
+        """Delete sessions idle for more than retention_days (directory and index entry); returns their ids."""
+        if not self.cfg.retention_days:
+            return []
+        cutoff = (now or time.time()) - self.cfg.retention_days * 86400
+        root = os.path.realpath(self.root) + os.sep
+        removed = []
+        for key, meta in list(self._index.items()):
+            if self._last_activity(meta) >= cutoff:
+                continue
+            s = self.sessions.get(key)
+            if s is not None and ((s.conn and s.conn.alive) or (s.lock and s.lock.locked())):
+                continue
+            d = os.path.realpath(self._dir(meta))
+            if d.startswith(root):
+                shutil.rmtree(d, ignore_errors=True)
+            self._index.pop(key, None)
+            self.sessions.pop(key, None)
+            removed.append(meta.get("id"))
+        if removed:
+            self._save_index()
+            log.info("retention (%s days): removed %d sessions", self.cfg.retention_days, len(removed))
+        return removed
 
     async def aclose(self) -> None:
         if self._reaper:
@@ -503,9 +629,11 @@ class AgentManager:
             s.conn.listener = queue.put_nowait  # type: ignore[union-attr]
             s.done_timings, s.inflight = [], {}
             s.notify = lambda progress=None: queue.put_nowait((_TIMINGS, progress))
+            s.status = lambda text: queue.put_nowait((_STATUS, text))
             prompt = asyncio.ensure_future(s.conn.request(  # type: ignore[union-attr]
                 "session/prompt", {"sessionId": s.acp_session, "prompt": [{"type": "text", "text": text}]}, self.cfg.prompt_timeout))
             finished = False
+            tool_t0: Dict[str, float] = {}
             try:
                 while True:
                     getter = asyncio.ensure_future(queue.get())
@@ -513,6 +641,7 @@ class AgentManager:
                     if getter in done:
                         ev = self._timings_event(s, getter.result()) or _event(getter.result())
                         if ev and ev["type"] != "none":
+                            self._track_tool(s, ev, tool_t0)
                             yield ev
                         continue
                     getter.cancel()
@@ -520,6 +649,7 @@ class AgentManager:
                         msg = queue.get_nowait()
                         ev = self._timings_event(s, msg) or _event(msg)
                         if ev and ev["type"] != "none":
+                            self._track_tool(s, ev, tool_t0)
                             yield ev
                     res = prompt.result()  # raises AcpError on failure
                     finished = True
@@ -534,12 +664,31 @@ class AgentManager:
             finally:
                 s.conn.listener = None  # type: ignore[union-attr]
                 s.notify = None
+                s.status = None
+                if s.key in self._index:
+                    self._index[s.key].update(last_used=time.time(), stats={k: round(v, 3) for k, v in s.stats.items()})
+                    self._save_index()
                 if not finished and not prompt.done():
                     await s.conn.notify("session/cancel", {"sessionId": s.acp_session})  # type: ignore[union-attr]
                     prompt.cancel()
 
+    def _track_tool(self, s: AgentSession, ev: Dict[str, Any], started: Dict[str, float]) -> None:
+        """Count finished tool calls and their duration (session stats and AgentManager.on_tool)."""
+        if ev.get("type") != "tool" or not ev.get("id"):
+            return
+        if ev.get("new"):
+            started.setdefault(ev["id"], time.monotonic())
+        elif ev.get("status") in ("completed", "failed") and ev["id"] in started:
+            dur = time.monotonic() - started.pop(ev["id"])
+            s.stats["tool_calls"] += 1
+            s.stats["tool_s"] += dur
+            if self.on_tool:
+                self.on_tool(ev["status"], dur)
+
     @staticmethod
     def _timings_event(s: AgentSession, msg: Any) -> Optional[Dict[str, Any]]:
+        if isinstance(msg, tuple) and msg and msg[0] is _STATUS:
+            return {"type": "status", "text": msg[1]}
         if not (isinstance(msg, tuple) and msg and msg[0] is _TIMINGS):
             return None
         t, p = s.timings(), msg[1]
@@ -580,7 +729,10 @@ class AgentManager:
             return None
         files = [f for f in (await _git(ws, "ls-files")).splitlines() if f]
         logs = [dict(zip(("commit", "date", "subject"), l.split("\t", 2))) for l in (await _git(ws, "log", "--format=%h\t%cI\t%s", "-n", "50")).splitlines()]
-        return {"session": sid, "files": files, "log": logs}
+        meta = self.by_id(sid) or {}
+        live = self.live_session(sid)
+        stats = dict(live.stats) if live else meta.get("stats")
+        return {"session": sid, "files": files, "log": logs, "turns": meta.get("turns", 0), "stats": stats}
 
     async def archive(self, sid: str) -> Optional[bytes]:
         ws = self.workspace_of(sid)

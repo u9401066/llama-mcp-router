@@ -103,6 +103,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--no-server-tools", action="store_true", help="only route tools the client sends, ignore llama-server's /tools")
     s.add_argument("--sticky", action="store_true", help="keep each conversation's tool list append-only so llama-server's prompt cache can hit on follow-up turns (helps on-topic chats, hurts topic-hopping ones; see README)")
     s.add_argument("--fallback", choices=["all", "none"], default=_env("FALLBACK", "all"), help="if the selector fails")
+    s.add_argument("--slots", type=int, default=int(_env("SLOTS", "0")), help="llama-server's parallel slots (-np): queue chat requests in the router "
+                   "beyond that, agent steps before compaction, and tell agents their place in the queue (0: off)")
+    s.add_argument("--max-queue", type=int, default=int(_env("MAX_QUEUE", "0")), help="with --slots: refuse new chats and agent turns "
+                   "(429 + Retry-After) while this many requests wait (0: never)")
     s.add_argument("--log-level", default=_env("LOG_LEVEL", "info"))
     _add_selector_args(s)
 
@@ -192,6 +196,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         sanitize=not a.no_sanitize,
         agent=AgentConfig.load(a.agent_config) if a.agent_config else None,
         routes=load_routes(a.routes) if a.routes else [],
+        slots=a.slots,
+        max_queue=a.max_queue,
     )
     uvicorn.run(create_app(cfg), host=a.host, port=a.port, log_level=a.log_level.lower())
     return 0

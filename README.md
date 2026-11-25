@@ -166,14 +166,15 @@ names = (await sel.select("export these to bibtex", tools)).names
 ## CLI
 
 ```
-llama-mcp-router serve  --backend URL --port 8090 --selector laya+bm25|none --groups FILE [--escalate] [--agent-config FILE] [--mode inject|agent] [--apply select|reorder|all] [--max-tools 12] [--always a,b] [--exclude 'fs_*']
+llama-mcp-router serve  --backend URL --port 8090 --selector laya+bm25|none --groups FILE [--escalate] [--agent-config FILE] [--mode inject|agent] [--apply select|reorder|all] [--max-tools 12] [--always a,b] [--exclude 'fs_*'] [--slots N] [--max-queue M]
 llama-mcp-router select "query" --backend URL --groups FILE      # what would be sent
 llama-mcp-router tools  --backend URL [--json]                   # tools + schema size
 llama-mcp-router install-dsh-plugin DSH_DIR                     # copy the DSH tool-routing plugin into a dsh install
 ```
 
 Every option also reads an environment variable `LLAMA_ROUTER_<NAME>` (e.g. `LLAMA_ROUTER_BACKEND`, `LLAMA_ROUTER_LAYA_URL`).
-`POST /router/select {"query": "..."}` returns the selection over HTTP; `GET /router/health` shows the config.
+`POST /router/select {"query": "..."}` returns the selection over HTTP; `GET /router/health` shows the config and state,
+`GET /router/metrics` Prometheus metrics, `POST/DELETE /router/drain` stops/resumes accepting new agent turns (v0.15).
 
 ## Compatibility
 
@@ -570,6 +571,29 @@ server (b12651, recorded first request, two sessions on the same slot, 17,256 to
 
 Full-attention models gain too (llama-server reuses any common prefix; it now ends at the first user message instead of inside the
 system prompt).
+
+## v0.15: running it for several people – slot queue, metrics, drain, warm-up, tool-result cap, memory
+
+What a shared server with 2 llama-server slots and long agent runs needed; everything is off unless configured, except the
+`/router/metrics` and `/router/drain` endpoints and the extra `/router/health` fields.
+
+| | how | why |
+|---|---|---|
+| **slot queue** | `--slots N` (= llama-server's `--parallel`), `--max-queue M` (0 = unlimited) | a 3rd request used to wait blindly inside llama-server. The router now holds it: agent steps and chats go before compaction requests (background), the agent's chat shows `waiting for a free model slot (#k in the queue)`, and with a full queue new requests get **429 + `Retry-After`** (estimated from recent request times). A slot held over an hour without being released (a client that vanished) is reclaimed |
+| **metrics** | `GET /router/metrics` (Prometheus text; `/metrics` stays llama-server's) | `llama_mcp_router_` + `requests_total{path}`, `prompt/cache/predicted_tokens_total{kind=agent_llm\|compaction}`, `prompt/predicted_seconds_total`, `compactions_total`, `agent_turns_total{result}`, `agent_turn_seconds`, `tool_calls_total{status}`, `tool_seconds`, `queue_wait_seconds`, `rejected_total{reason}`, gauges `slots_active`, `queue_waiting`, `chats_in_progress`, `agent_sessions`, `agent_processes`, `agent_turns_running`, `draining`, `uptime_seconds`. Per session: `GET /agent/sessions/<id>` has `stats` (requests, prompt/cache/predicted tokens, compactions, tool calls), kept across restarts |
+| **drain** | `POST /router/drain` (from the router's own machine), `DELETE` to undo | restarting the router stops every agent process and with it the running turns. While draining, new agent turns get **503 + `Retry-After: 60`**; running turns and plain chats continue. Wait until `/router/health` shows `agents.running_turns == 0` and `chats == 0`, then restart |
+| **warm-up** | `AgentConfig.warmup: true` (`warmup_interval`, default 30 s) | the first agent request after a llama-server restart re-processes the 35k-token shared prefix. The router records the first request of a session (`<root>/warmup.json`: tools + system prompt, after `stable_prefix`) and sends it (`max_tokens: 1`, `id_slot`) to every slot that has never been used (`n_prompt_tokens == 0` in `/slots`), one at a time as a background request, checking each slot again right before; it never overwrites a slot that holds a session |
+| **tool-result cap** | `AgentConfig.tool_result_max_chars: N` | an agent can read a whole full text in one tool call (seen: two `read_session` results of 48k and 39k characters → 46k → 90k tokens → compaction). Longer tool results keep their start and end with a note in the middle: `[router: K of these L characters were left out here … call the tool again for at most N characters (e.g. a smaller max_chars with an offset, or fewer sections).]`. The cut is deterministic, so every later request repeats it and the prompt cache still matches |
+| **retention** | `AgentConfig.retention_days: N` | sessions idle for more than N days (last turn, else last commit) are deleted hourly – directory and index entry; never a running one |
+| **memory** | `AgentConfig.memory: true` (`memory_dir`, default `.agents/memory`) | one directory per user (`<root>/<user>/memory/`, starting with `MEMORY.md`) appears in every workspace of that user (symlink, or a bind mount with `sandbox: bwrap`) and is excluded from the workspace's git. A directory rather than a single file because editors save by renaming a temporary file over the target, which a single-file bind mount refuses (EBUSY). Pair it with a skill that says when to read and update it – [examples/skills/memory](examples/skills/memory/SKILL.md). Only useful with a `users` map: without one everyone is `anonymous` and shares the directory |
+
+`/router/health` now also has `version`, `uptime_s`, `draining`, `chats`, `queue` (capacity, active, waiting, retry_after_s, …),
+`agents` (sessions, live processes, running turns) and `warmup` (last run).
+
+Why no memory *library* (mem0, LightRAG, …) and no masking of old tool outputs: the agent already has its whole workspace (files,
+git history, notes it writes), and anything that rewrites earlier messages each turn invalidates the prompt cache – at 131k context
+that costs more than it saves. Compaction requests in a recorded run re-processed only 1,454 of 43,465 prompt tokens (the rest came from
+the cache), so masking at compaction time would not save prefill either.
 
 ## Development
 

@@ -49,11 +49,13 @@ while True:
         st["turns"] += 1
         text = p["prompt"][0]["text"]
         update(sid, {"sessionUpdate": "agent_thought_chunk", "content": {"type": "text", "text": "thinking about: " + text}})
-        for _ in range(int(os.environ.get("FAKE_LLM_CALLS", "0"))):  # model calls through the router's /agent/llm proxy
+        for call in range(int(os.environ.get("FAKE_LLM_CALLS", "0"))):  # model calls through the router's /agent/llm proxy
             import urllib.request
             llm_body = {"stream": True, "messages": [{"role": "user", "content": text}]}
             if os.environ.get("FAKE_LLM_SYSTEM"):
                 llm_body["messages"].insert(0, {"role": "system", "content": os.environ["FAKE_LLM_SYSTEM"].replace("{cwd}", st["cwd"])})
+            if os.environ.get("FAKE_LLM_EXTRA") and call > 0:  # later calls carry the tool calls and results so far
+                llm_body["messages"] += json.loads(os.environ["FAKE_LLM_EXTRA"])
             if os.environ.get("FAKE_LLM_TOOLS"):
                 llm_body["tools"] = json.loads(os.environ["FAKE_LLM_TOOLS"])
             req = urllib.request.Request(os.environ["FAKE_LLM_URL"], data=json.dumps(llm_body).encode(),

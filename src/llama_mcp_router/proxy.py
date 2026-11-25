@@ -20,7 +20,9 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
+from . import __version__
 from .agent import AcpError, AgentConfig, AgentManager
+from .ops import BACKGROUND, INTERACTIVE, Metrics, QueueFull, SlotGate, Warmup
 from .selectors import AllSelector, Selector
 from .tools import (ServerToolSource, Tool, compact_tool, exclude_tools, first_sentence, normalize_tool, sanitize_tool, tool_description,
                     tool_name)
@@ -81,7 +83,13 @@ class RouterConfig:
     sticky_conversations: int = 512  # how many conversations to remember
     tools_ttl: float = 60.0
     request_timeout: float = 600.0
-
+    # llama-server's parallel slots (its -np). With slots > 0 the router lets at most that many chat requests through at
+    # once and queues the rest itself: chats and agent steps before context compaction and warm-up, the agent told its
+    # position. 0: no queue here (llama-server queues on its own, first come first served).
+    slots: int = 0
+    # With slots: refuse new chats and new agent turns (429 + Retry-After) while this many requests are already
+    # waiting. Requests of agent turns already running are always queued. 0: never refuse.
+    max_queue: int = 0
 
 def last_user_query(messages: Sequence[Dict[str, Any]]) -> str:
     """Text the selector sees: the last user turn (plus the one before it if that is very short)."""
@@ -276,6 +284,28 @@ def _stable_prefix(messages: List[Any], markers: Sequence[str]) -> bool:
     return True
 
 
+def _cap_tool_results(messages: List[Any], limit: int) -> bool:
+    """Cut tool results longer than ``limit`` characters in the middle, saying so. Deterministic, so a conversation's
+    earlier requests and later ones carry the same text and llama-server's prompt cache keeps matching."""
+    changed = False
+    tail = min(800, limit // 8)
+    for m in messages:
+        if not isinstance(m, dict) or m.get("role") != "tool":
+            continue
+        c = m.get("content")
+        if isinstance(c, list) and not all(isinstance(p, dict) and p.get("type") == "text" for p in c):
+            continue  # keep images and other parts as they are
+        text = c if isinstance(c, str) else _msg_text(m) if isinstance(c, list) else None
+        if text is None or len(text) <= limit:
+            continue
+        omitted = len(text) - limit
+        m["content"] = (text[: limit - tail] + "\n\n[router: %d of these %d characters were left out here to keep the context small. "
+                        "To read them, call the tool again for at most %d characters (e.g. a smaller max_chars with an offset, "
+                        "or fewer sections).]\n\n" % (omitted, len(text), limit) + text[-tail:])
+        changed = True
+    return changed
+
+
 def _requested_effort(body: Dict[str, Any]) -> Optional[str]:
     """The reasoning effort a chat request asks for: ``reasoning_effort`` (top level or in ``chat_template_kwargs``), or
     "none" for ``enable_thinking: false`` (the Web UI's "Off"); None when it leaves the choice to the server."""
@@ -395,8 +425,20 @@ class Router:
         self.agents: Optional[AgentManager] = AgentManager(config.agent) if config.agent else None
         self.streams: "OrderedDict[str, AgentStream]" = OrderedDict()
         self.upstreams = [(u, httpx.AsyncClient(base_url=u.url.rstrip("/"), timeout=config.request_timeout, transport=u.transport)) for u in config.routes]
+        self.gate = SlotGate(config.slots, config.max_queue)
+        self.metrics = Metrics()
+        self.started = time.time()
+        self.draining = False
+        self.chats = 0  # plain chat responses in progress (a restart after draining waits for them too)
+        self.warmup: Optional[Warmup] = None
+        if self.agents and config.agent and config.agent.warmup:
+            self.warmup = Warmup(self.client, os.path.join(self.agents.root, "warmup.json"), self.gate, self.metrics, config.agent.warmup_interval)
+        if self.agents:
+            self.agents.on_tool = lambda status, dur: (self.metrics.inc("tool_calls_total", status=status), self.metrics.observe("tool_seconds", dur))
 
     async def aclose(self) -> None:
+        if self.warmup:
+            await self.warmup.stop()
         for st in self.streams.values():
             if st.task and not st.task.done():
                 st.task.cancel()
@@ -461,6 +503,10 @@ class Router:
             return await self._to_upstream(route, body, request)
         if self.agents and self._agent_trigger(body) is not None:
             return await self._agent_chat(body, request)
+        refused = self._refusal(agent_turn=False)
+        if refused is not None:
+            return refused
+        self.metrics.inc("requests_total", path="chat")
         if self.agents and self.cfg.agent and self.cfg.agent.default:
             _strip_prefix(body.get("messages") or [], self.cfg.agent.optout)
         bypass = request.headers.get("x-router-bypass") or body.pop("router", None) is False
@@ -564,6 +610,13 @@ class Router:
         return out, found
 
     async def _escalating_json(self, body: Dict[str, Any], headers: Dict[str, str], meta: Dict[str, str], pool: Sequence[Tool]) -> Response:
+        end = await self._acquire()
+        try:
+            return await self._escalating_json_held(body, headers, meta, pool)
+        finally:
+            end()
+
+    async def _escalating_json_held(self, body: Dict[str, Any], headers: Dict[str, str], meta: Dict[str, str], pool: Sequence[Tool]) -> Response:
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         loaded: List[str] = []
         for rnd in range(self.cfg.max_escalations + 1):
@@ -590,6 +643,14 @@ class Router:
         and if the model called the meta-tool, swallow that round's tail and stream a rerun instead."""
 
         async def gen():
+            end = await self._acquire()
+            try:
+                async for piece in rounds():
+                    yield piece
+            finally:
+                end()
+
+        async def rounds():
             nonlocal body
             for rnd in range(self.cfg.max_escalations + 1):
                 last = rnd == self.cfg.max_escalations
@@ -630,12 +691,65 @@ class Router:
 
         return StreamingResponse(gen(), media_type="text/event-stream", headers=meta)
 
+    # ------------------------------------------------------------------ queue, drain
+    def _refusal(self, agent_turn: bool) -> Optional[Response]:
+        """503 for new agent turns while draining for a restart; 429 for new work while the slot queue is full."""
+        if agent_turn and self.draining:
+            self.metrics.inc("rejected_total", reason="draining")
+            return JSONResponse({"error": {"message": "The agent service is restarting; please send this again in a minute.",
+                                           "type": "service_unavailable"}}, status_code=503, headers={"retry-after": "60"})
+        try:
+            self.gate.check_admission()
+        except QueueFull as e:
+            self.metrics.inc("rejected_total", reason="queue_full")
+            return JSONResponse({"error": {"message": "%s; please retry in about %d s." % (e, e.retry_after), "type": "rate_limit_error"}},
+                                status_code=429, headers={"retry-after": str(e.retry_after)})
+        return None
+
+    async def _acquire(self, priority: int = INTERACTIVE, on_wait: Any = None, chat: bool = True) -> Any:
+        """A model slot from the gate (see RouterConfig.slots); returns an idempotent release function."""
+        t0 = time.monotonic()
+        release = await self.gate.acquire(priority, on_wait)
+        if self.gate.capacity:
+            self.metrics.observe("queue_wait_seconds", time.monotonic() - t0)
+        if not chat:
+            return release
+        self.chats += 1
+        done = False
+
+        def end() -> None:
+            nonlocal done
+            if not done:
+                done = True
+                self.chats -= 1
+                release()
+
+        return end
+
     async def _relay(self, body: Dict[str, Any], headers: Dict[str, str], meta: Optional[Dict[str, str]] = None) -> Response:
-        req = self.client.build_request("POST", "/v1/chat/completions", json=body, headers=headers)
-        r = await self.client.send(req, stream=True)
+        end = await self._acquire()
+        try:
+            req = self.client.build_request("POST", "/v1/chat/completions", json=body, headers=headers)
+            r = await self.client.send(req, stream=True)
+        except BaseException:
+            end()
+            raise
         out = {k: v for k, v in r.headers.items() if k.lower() not in _HOP}
         out.update(meta or {})
-        return StreamingResponse(r.aiter_raw(), status_code=r.status_code, headers=out, background=BackgroundTask(r.aclose))
+
+        async def relay() -> AsyncIterator[bytes]:
+            try:
+                async for piece in r.aiter_raw():
+                    yield piece
+            finally:
+                await r.aclose()
+                end()
+
+        async def cleanup() -> None:  # also when the body was never iterated (client gone before the response started)
+            await r.aclose()
+            end()
+
+        return StreamingResponse(relay(), status_code=r.status_code, headers=out, background=BackgroundTask(cleanup))
 
     async def _agent(self, body: Dict[str, Any], headers: Dict[str, str], server_names: Set[str], meta: Dict[str, str], choice: Dict[str, Any], pool: Sequence[Tool] = ()) -> Response:
         want_stream = bool(body.pop("stream", False))
@@ -646,7 +760,11 @@ class Router:
         iterations = 0
         escalations = 0
         for iterations in range(1, self.cfg.max_iterations + 1):
-            r = await self.client.post("/v1/chat/completions", json={**body, "messages": messages}, headers=headers)
+            end = await self._acquire()
+            try:
+                r = await self.client.post("/v1/chat/completions", json={**body, "messages": messages}, headers=headers)
+            finally:
+                end()
             if r.status_code != 200:
                 return Response(r.content, status_code=r.status_code, media_type=r.headers.get("content-type"))
             data = r.json()
@@ -750,6 +868,12 @@ class Router:
         text = _msg_text(users[-1]) if users else ""
         if trigger and text.lstrip().lower().startswith(trigger.lower()):
             text = text.lstrip()[len(trigger):].strip()
+        if text:
+            refused = self._refusal(agent_turn=True)
+            if refused is not None:
+                self.metrics.inc("agent_turns_total", result="rejected")
+                return refused
+            self.metrics.inc("requests_total", path="agent_turn")
         conv = self._conversation_id(request)
         key = "agent:%s:%s" % (owner, ("c:" + conv) if conv else ("h:" + (conversation_key(messages) or "default")))
         model = body.get("model") or self.cfg.agent.model_id
@@ -770,12 +894,20 @@ class Router:
             if not text:
                 yield {"type": "message", "text": "Send a task after `%s`, e.g. `%s write a script that ...`." % (trigger or "/agent", trigger or "/agent")}
                 return
+            t0, result = time.monotonic(), "ok"
             try:
                 async for ev in self.agents.turn(key, text, owner, effort=_requested_effort(body)):  # type: ignore[union-attr]
                     yield ev
             except (AcpError, OSError, RuntimeError, asyncio.TimeoutError) as e:
+                result = "error"
                 log.warning("agent turn failed: %s: %s", type(e).__name__, e)
                 yield {"type": "message", "text": "\n\n**Agent error:** %s" % e}
+            except (asyncio.CancelledError, GeneratorExit):
+                result = "cancelled"
+                raise
+            finally:
+                self.metrics.inc("agent_turns_total", result=result)
+                self.metrics.observe("agent_turn_seconds", time.monotonic() - t0)
 
         def render(ev: Dict[str, Any]) -> Dict[str, Any]:
             t = ev["type"]
@@ -868,14 +1000,17 @@ class Router:
         url = "/" + request.path_params["path"] + (("?" + request.url.query) if request.url.query else "")
         body = await request.body()
         streaming = False
+        gated = compaction = False
         if request.method == "POST" and body:
             try:
                 data = json.loads(body)
             except ValueError:
                 data = None
             if isinstance(data, dict) and isinstance(data.get("messages"), list):
+                gated = True
+                compaction = _is_compaction(data["messages"])
                 changed = False
-                if self.cfg.agent and self.cfg.agent.compaction_effort and _is_compaction(data["messages"]):
+                if self.cfg.agent and self.cfg.agent.compaction_effort and compaction:
                     data["reasoning_effort"] = self.cfg.agent.compaction_effort
                     changed = True
                 elif s.effort and _requested_effort(data) is None:
@@ -886,6 +1021,13 @@ class Router:
                     changed = True
                 if self.cfg.agent and self.cfg.agent.stable_prefix and _stable_prefix(data["messages"], [s.dir, s.id]):
                     changed = True
+                if self.cfg.agent and self.cfg.agent.tool_result_max_chars and _cap_tool_results(data["messages"], self.cfg.agent.tool_result_max_chars):
+                    changed = True
+                if self.warmup and not compaction:
+                    try:
+                        self.warmup.record(data)
+                    except OSError as e:
+                        log.warning("could not record the warm-up prefix: %s", e)
                 if data.get("stream"):
                     streaming = True
                     data["timings_per_token"] = True
@@ -894,17 +1036,48 @@ class Router:
                 if changed:
                     body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         headers = dict(_forward_headers(request), **{"accept-encoding": "identity"})
-        r = await self.client.send(self.client.build_request(request.method, url, content=body, headers=headers), stream=True)
+        release: Any = lambda: None
+        if gated:
+            def on_wait(pos: int) -> None:
+                if s.status:
+                    s.status("waiting for a free model slot (%s in the queue)" % ("next" if pos <= 1 else "#%d" % pos))
+
+            release = await self._acquire(BACKGROUND if compaction else INTERACTIVE, on_wait, chat=False)
+            self.metrics.inc("requests_total", path="compaction" if compaction else "agent_llm")
+            if compaction:
+                self.metrics.inc("compactions_total")
+        try:
+            r = await self.client.send(self.client.build_request(request.method, url, content=body, headers=headers), stream=True)
+        except BaseException:
+            release()
+            raise
         out = {k: v for k, v in r.headers.items() if k.lower() not in _HOP and k.lower() != "content-encoding"}
         rid = s.begin_request()
+        ended = False
+
+        def finish(t: Optional[Dict[str, Any]]) -> None:
+            nonlocal ended
+            if ended:
+                return
+            ended = True
+            release()
+            if gated:
+                s.end_request(rid, t, compaction)
+                self.metrics.add_timings(t, compaction)
+            else:
+                s.inflight.pop(rid, None)
+
         if not streaming or "text/event-stream" not in r.headers.get("content-type", ""):
-            content = await r.aread()
-            await r.aclose()
+            try:
+                content = await r.aread()
+            finally:
+                await r.aclose()
+                release()
             try:
                 t = json.loads(content).get("timings")
             except (ValueError, AttributeError):
                 t = None
-            s.end_request(rid, t if isinstance(t, dict) else None)
+            finish(t if isinstance(t, dict) else None)
             return Response(content, status_code=r.status_code, headers=out)
 
         async def relay() -> AsyncIterator[bytes]:
@@ -926,9 +1099,13 @@ class Router:
                             s.update_request(rid, t, pp if isinstance(pp, dict) else None)
             finally:
                 await r.aclose()
-                s.end_request(rid, last)
+                finish(last)
 
-        return StreamingResponse(relay(), status_code=r.status_code, headers=out)
+        async def cleanup() -> None:  # also when the body was never iterated (client gone before the response started)
+            await r.aclose()
+            finish(None)
+
+        return StreamingResponse(relay(), status_code=r.status_code, headers=out, background=BackgroundTask(cleanup))
 
     @staticmethod
     def _stream_id(request: Request) -> Optional[str]:
@@ -1048,7 +1225,36 @@ class Router:
         return JSONResponse({"selected": [tool_name(t) for t in choice["tools"]], "pool": choice["pool"], "select_ms": choice["ms"], "info": choice["info"]})
 
     async def health(self, request: Request) -> Response:
-        return JSONResponse({"status": "ok", "selector": self.cfg.selector.name, "mode": self.cfg.mode, "backend": self.cfg.backend})
+        out: Dict[str, Any] = {"status": "ok", "version": __version__, "selector": self.cfg.selector.name, "mode": self.cfg.mode,
+                               "backend": self.cfg.backend, "uptime_s": round(time.time() - self.started), "draining": self.draining,
+                               "chats": self.chats, "queue": self.gate.info()}
+        if self.agents:
+            out["agents"] = self.agents.summary()
+        if self.warmup:
+            out["warmup"] = self.warmup.last or {"at": None}
+        return JSONResponse(out)
+
+    async def metrics_endpoint(self, request: Request) -> Response:
+        """GET /router/metrics: Prometheus text format."""
+        q = self.gate.info()
+        gauges: Dict[str, float] = {"uptime_seconds": round(time.time() - self.started), "draining": int(self.draining),
+                                    "chats_in_progress": self.chats, "slots_capacity": q["capacity"], "slots_active": q["active"],
+                                    "queue_waiting": q["waiting"]}
+        if self.agents:
+            a = self.agents.summary()
+            gauges.update(agent_sessions=a["sessions"], agent_processes=a["live"], agent_turns_running=a["running_turns"])
+        return Response(self.metrics.render(gauges), media_type="text/plain; version=0.0.4; charset=utf-8")
+
+    async def drain(self, request: Request) -> Response:
+        """POST /router/drain: refuse new agent turns (503 + Retry-After) so running ones can finish before a restart;
+        DELETE /router/drain: accept them again. Only from this machine. Poll /router/health until agents.running_turns
+        and chats are 0 (see scripts/router_restart.sh in llmapi_server)."""
+        host = request.client.host if request.client else ""
+        if host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+            return JSONResponse({"error": "drain is only accepted from the router's own machine"}, status_code=403)
+        self.draining = request.method == "POST"
+        log.warning("drain %s", "started: new agent turns are refused" if self.draining else "cancelled")
+        return await self.health(request)
 
     async def passthrough(self, request: Request) -> Response:
         url = request.url.path + (("?" + request.url.query) if request.url.query else "")
@@ -1063,6 +1269,8 @@ def create_app(config: RouterConfig, transport: Optional[httpx.AsyncBaseTranspor
 
     @asynccontextmanager
     async def lifespan(app: Starlette):
+        if router.warmup:
+            router.warmup.start()
         yield
         await router.aclose()
 
@@ -1074,6 +1282,8 @@ def create_app(config: RouterConfig, transport: Optional[httpx.AsyncBaseTranspor
             Route("/v1/chat/completions", router.chat, methods=["POST"]),
             Route("/router/select", router.select_endpoint, methods=["POST"]),
             Route("/router/health", router.health, methods=["GET"]),
+            Route("/router/metrics", router.metrics_endpoint, methods=["GET"]),
+            Route("/router/drain", router.drain, methods=["POST", "DELETE"]),
             Route("/agent/sessions", router.agent_sessions, methods=["GET"]),
             Route("/agent/sessions/{sid}", router.agent_session, methods=["GET"]),
             Route("/agent/sessions/{sid}/archive.zip", router.agent_archive, methods=["GET"]),
