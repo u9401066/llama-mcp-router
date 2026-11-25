@@ -161,10 +161,13 @@ import pytest  # noqa: E402
 
 @pytest.mark.skipif(not shutil.which("bwrap") or subprocess.run(["bwrap", "--ro-bind", "/", "/", "true"]).returncode != 0, reason="bubblewrap not usable here")
 def python_mounts():
-    """Directories the test interpreter needs, including every hop of a symlinked (venv / uv-managed) python."""
+    """Directories the test interpreter needs, including every hop of a symlinked (venv / uv-managed) python. Each hop's
+    install root (the parent of its bin/) too: uv's minor-version alias (cpython-3.12-linux-…) is a symlinked
+    directory, and a python started through it looks for lib/ next to that bin/."""
     dirs, p = [sys.prefix, sys.base_prefix], sys.executable
     for _ in range(10):
         dirs.append(os.path.dirname(os.path.abspath(p)))
+        dirs.append(os.path.dirname(os.path.dirname(os.path.abspath(p))))
         if not os.path.islink(p):
             break
         p = os.path.join(os.path.dirname(p), os.readlink(p))
