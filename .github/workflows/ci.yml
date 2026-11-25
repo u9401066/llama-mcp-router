@@ -12,12 +12,13 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # uv installs any CPython (actions/setup-python has no 3.9 for the current ubuntu-latest)
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: bubblewrap for the agent sandbox test
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q bubblewrap
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
-      - run: pip install -e ".[test]"
-      - run: pytest -q
+      - run: uv pip install -e ".[test]"
+      - run: python -m pytest -q
