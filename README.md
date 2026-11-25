@@ -595,6 +595,37 @@ git history, notes it writes), and anything that rewrites earlier messages each 
 that costs more than it saves. Compaction requests in a recorded run re-processed only 1,454 of 43,465 prompt tokens (the rest came from
 the cache), so masking at compaction time would not save prefill either.
 
+## v0.16: agent text as the model writes it (`live_stream`)
+
+Plain chats always streamed token by token, but in agent chats the reasoning and the answer each arrived as **one block, after the
+model had finished** (measured: a short turn sent nothing for 5.8 s, then both at once; at high effort this means minutes of an empty
+chat). The cause is DSH's ACP bridge (`@deepseek-ai/dsh-acp`, 0.2.0-rc.2): it turns only *committed* assistant messages into
+`agent_thought_chunk` / `agent_message_chunk` updates. DSH does stream tokens internally (`agent/assistant-stream` frames, which its own
+Web UI and headless mode use), but ACP never sees them. The router's rendering and any proxy in front of it were not the problem.
+
+`AgentConfig.live_stream: true` takes the text from where the router already sees it – the agent's own model stream through
+`/agent/llm/<session>/`:
+
+* each SSE piece is parsed before it goes on to the agent; `reasoning_content` is sent to the chat as reasoning, `content` as the
+  answer, collected for about 0.1 s per chunk (a few chunks a second instead of one per token, which keeps reattachable streams small);
+* only the **main agent's requests of the current turn** are shown: they carry tools and contain the user's message. Compaction
+  requests, DSH's title request (no tools) and subagents (they get their own task; DSH gives them the same system prompt, so that
+  cannot tell them apart) stay hidden, as before;
+* when the agent later sends its own copy of a message, it is dropped if it repeats text already shown (compared without whitespace,
+  since DSH trims it). The text is recorded before the agent can receive it, so its copy cannot arrive first. A copy that does not
+  match is passed on: at worst text appears twice, it is never lost.
+
+Measured with DSH and Inkling 2 Mini (test router, `stream: true`):
+
+| turn | before (v0.15.2) | with `live_stream` |
+|---|---|---|
+| `ls -la` via bash, then two sentences (effort medium, 5.6 s) | reasoning + answer in one block each at the end | first reasoning at 2.8 s, 13 reasoning + 12 answer chunks, text in 5 of 6 seconds, both model calls (before and after the tool) shown |
+| write and run `hello.py` (effort high, 11.3 s, second turn of the conversation, `X-Conversation-Id`) | same | 58 reasoning chunks, text in 11 of 12 seconds |
+| delegate to a subagent (10.2 s) | same | main agent's reasoning and answer live; the subagent's 5.7 s show only `▶ subagent` … `✓ tool` |
+
+No repeated text in any of them. Leave it off for agents that already stream tokens over ACP, or the text appears twice.
+Known limit: a model request that fails half-way and is retried shows its partial text before the retry's.
+
 ## Development
 
 ```bash

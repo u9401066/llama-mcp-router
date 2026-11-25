@@ -98,6 +98,14 @@ class AgentConfig:
     # telling the model how much is missing and to read in smaller pages. Applied the same way to every request, so the
     # prompt cache is unaffected. None: pass tool results unchanged.
     tool_result_max_chars: Optional[int] = None
+    # Show the agent's reasoning and answer while the model generates them. Some agents (DSH's ACP bridge) send each
+    # model message only once it is complete, so a chat saw nothing for minutes and then the whole text at once. With
+    # this the router takes the text from the agent's model stream (/agent/llm) as it passes, sends it to the chat and
+    # drops the agent's later copy of the same text. Only the main agent's requests of the current turn are shown (they
+    # carry tools and the user's message); compaction, title and subagent requests are not. Leave it off for agents that
+    # already stream over ACP, or the text appears twice.
+    live_stream: bool = False
+
     def __post_init__(self) -> None:
         if self.users_file:
             with open(os.path.expanduser(self.users_file), encoding="utf-8") as f:
@@ -142,6 +150,7 @@ class AcpError(RuntimeError):
 
 _TIMINGS = object()  # queue marker: the session's model timings changed
 _STATUS = object()  # queue marker: a status line for the user (e.g. waiting for a model slot)
+_LIVE = object()  # queue marker: model text as it is generated (AgentConfig.live_stream)
 _STAT_KEYS = ("requests", "compactions", "prompt_n", "cache_n", "predicted_n", "prompt_ms", "predicted_ms", "tool_calls", "tool_s")
 MEMORY_HEADER = ("# Memory\n\nDurable notes about this user, shared by all of their agent sessions. Keep entries short and dated;\n"
                  "remove ones that are no longer true.\n")
@@ -313,6 +322,10 @@ class AgentSession:
     effort: Optional[str] = None  # reasoning effort for the current turn's model requests (AgentConfig.reasoning_effort)
     status: Optional[Callable[[str], None]] = None  # status line -> event for the turn (set while a turn runs)
     stats: Dict[str, float] = field(default_factory=lambda: {k: 0 for k in _STAT_KEYS})  # totals over the session's life
+    live: Optional[Callable[[str, str], None]] = None  # ("thought"|"message", text) -> event for the turn (live_stream)
+    anchor: str = ""  # start of the current turn's prompt, whitespace collapsed: marks the main agent's model requests
+    # Text shown live per model request, without whitespace, until the agent's own copy of it arrives and is dropped
+    live_pending: List[Dict[str, Any]] = field(default_factory=list)
     _rid: int = 0
     _notified: float = 0.0
     _progressed: float = 0.0
@@ -331,6 +344,39 @@ class AgentSession:
         elif timings is not None and self.notify and now - self._notified >= 0.25:  # live speed while the model generates
             self._notified = now
             self.notify(None)
+
+    def live_request(self) -> Dict[str, Any]:
+        """Start recording the text of one model request that is shown live (see live_copy); live_end when it is over."""
+        e: Dict[str, Any] = {"thought": "", "message": "", "open": True}
+        self.live_pending = self.live_pending[-7:] + [e]
+        return e
+
+    def live_add(self, e: Dict[str, Any], kind: str, text: str) -> None:
+        e[kind] += _squash(text)
+
+    def live_end(self, e: Dict[str, Any]) -> None:
+        e["open"] = False
+        self._live_prune()
+
+    def _live_prune(self) -> None:
+        self.live_pending = [x for x in self.live_pending if x["open"] or x["thought"] or x["message"]]
+
+    def live_copy(self, ev: Dict[str, Any]) -> bool:
+        """True if ``ev``, a thought or message from the agent, repeats text already shown live (that part is used up).
+        Compared without whitespace, as agents may trim it; text that does not match is passed on (shown twice rather
+        than lost)."""
+        kind = ev.get("type")
+        if kind not in ("thought", "message") or ev.get("live") or not self.live_pending:
+            return False
+        n = _squash(ev.get("text") or "")
+        if not n:
+            return False
+        for e in self.live_pending:
+            if e[kind].startswith(n):
+                e[kind] = e[kind][len(n):]
+                self._live_prune()
+                return True
+        return False
 
     def end_request(self, rid: int, timings: Optional[Dict[str, Any]], compaction: bool = False) -> None:
         self.inflight.pop(rid, None)
@@ -630,6 +676,10 @@ class AgentManager:
             s.done_timings, s.inflight = [], {}
             s.notify = lambda progress=None: queue.put_nowait((_TIMINGS, progress))
             s.status = lambda text: queue.put_nowait((_STATUS, text))
+            s.live_pending = []
+            if self.cfg.live_stream:
+                s.anchor = " ".join(text.split())[:200]
+                s.live = lambda kind, t: queue.put_nowait((_LIVE, kind, t))
             prompt = asyncio.ensure_future(s.conn.request(  # type: ignore[union-attr]
                 "session/prompt", {"sessionId": s.acp_session, "prompt": [{"type": "text", "text": text}]}, self.cfg.prompt_timeout))
             finished = False
@@ -640,7 +690,7 @@ class AgentManager:
                     done, _ = await asyncio.wait({getter, prompt}, return_when=asyncio.FIRST_COMPLETED)
                     if getter in done:
                         ev = self._timings_event(s, getter.result()) or _event(getter.result())
-                        if ev and ev["type"] != "none":
+                        if ev and ev["type"] != "none" and not s.live_copy(ev):
                             self._track_tool(s, ev, tool_t0)
                             yield ev
                         continue
@@ -648,7 +698,7 @@ class AgentManager:
                     while not queue.empty():
                         msg = queue.get_nowait()
                         ev = self._timings_event(s, msg) or _event(msg)
-                        if ev and ev["type"] != "none":
+                        if ev and ev["type"] != "none" and not s.live_copy(ev):
                             self._track_tool(s, ev, tool_t0)
                             yield ev
                     res = prompt.result()  # raises AcpError on failure
@@ -665,6 +715,8 @@ class AgentManager:
                 s.conn.listener = None  # type: ignore[union-attr]
                 s.notify = None
                 s.status = None
+                s.live = None
+                s.anchor = ""
                 if s.key in self._index:
                     self._index[s.key].update(last_used=time.time(), stats={k: round(v, 3) for k, v in s.stats.items()})
                     self._save_index()
@@ -689,6 +741,8 @@ class AgentManager:
     def _timings_event(s: AgentSession, msg: Any) -> Optional[Dict[str, Any]]:
         if isinstance(msg, tuple) and msg and msg[0] is _STATUS:
             return {"type": "status", "text": msg[1]}
+        if isinstance(msg, tuple) and msg and msg[0] is _LIVE:
+            return {"type": msg[1], "text": msg[2], "live": True}
         if not (isinstance(msg, tuple) and msg and msg[0] is _TIMINGS):
             return None
         t, p = s.timings(), msg[1]
@@ -750,6 +804,10 @@ class AgentManager:
         if not full.startswith(os.path.realpath(ws) + os.sep) or "/.git/" in full + "/" or not os.path.isfile(full):
             return None
         return full
+
+
+def _squash(text: str) -> str:
+    return "".join(text.split())
 
 
 def _text(content: Any) -> str:

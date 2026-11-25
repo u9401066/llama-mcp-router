@@ -256,6 +256,21 @@ def _is_compaction(messages: List[Any]) -> bool:
     return isinstance(c, str) and "acting as a compaction engine" in c[:200]
 
 
+def _mentions(messages: List[Any], anchor: str) -> bool:
+    """Some user message contains ``anchor`` (whitespace collapsed): the current turn's prompt marks the main agent's
+    requests (a subagent gets its own task; a forked one only the finished turns)."""
+    return any(isinstance(m, dict) and m.get("role") == "user" and anchor in " ".join(_msg_text(m).split()) for m in messages)
+
+
+def _stream_text(d: Dict[str, Any]) -> Tuple[str, str, bool]:
+    """(reasoning, answer text, finished) of one streamed chat-completion chunk."""
+    ch = d.get("choices")
+    c = ch[0] if isinstance(ch, list) and ch and isinstance(ch[0], dict) else {}
+    delta = c.get("delta") if isinstance(c.get("delta"), dict) else {}
+    r, t = delta.get("reasoning_content"), delta.get("content")
+    return r if isinstance(r, str) else "", t if isinstance(t, str) else "", bool(c.get("finish_reason"))
+
+
 def _stable_prefix(messages: List[Any], markers: Sequence[str]) -> bool:
     """Move the lines of the leading system messages that contain one of ``markers`` (the session's directory or id) to
     the start of the first message after them (a new user message unless that one is a user message with text), so
@@ -1001,6 +1016,7 @@ class Router:
         body = await request.body()
         streaming = False
         gated = compaction = False
+        live: Optional[Dict[str, Any]] = None
         if request.method == "POST" and body:
             try:
                 data = json.loads(body)
@@ -1033,6 +1049,8 @@ class Router:
                     data["timings_per_token"] = True
                     data["return_progress"] = True
                     changed = True
+                    if s.live and s.anchor and not compaction and data.get("tools") and _mentions(data["messages"], s.anchor):
+                        live = s.live_request()
                 if changed:
                     body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         headers = dict(_forward_headers(request), **{"accept-encoding": "identity"})
@@ -1050,6 +1068,8 @@ class Router:
             r = await self.client.send(self.client.build_request(request.method, url, content=body, headers=headers), stream=True)
         except BaseException:
             release()
+            if live is not None:
+                s.live_end(live)
             raise
         out = {k: v for k, v in r.headers.items() if k.lower() not in _HOP and k.lower() != "content-encoding"}
         rid = s.begin_request()
@@ -1061,6 +1081,8 @@ class Router:
                 return
             ended = True
             release()
+            if live is not None:
+                s.live_end(live)
             if gated:
                 s.end_request(rid, t, compaction)
                 self.metrics.add_timings(t, compaction)
@@ -1081,23 +1103,54 @@ class Router:
             return Response(content, status_code=r.status_code, headers=out)
 
         async def relay() -> AsyncIterator[bytes]:
+            # With live text (AgentConfig.live_stream) each piece is read before it goes on to the agent, so the text is
+            # recorded before the agent can have it, and the rest is sent to the chat when the model finishes: the
+            # agent's own copy of it can then always be recognised and dropped (AgentSession.live_copy).
             buf, last = b"", None
+            kind, text, sent = "", "", time.monotonic()  # live text not yet sent to the chat: sent about every 0.1 s
+
+            def flush() -> None:
+                nonlocal kind, text, sent
+                if text and s.live:
+                    s.live(kind, text)
+                kind, text, sent = "", "", time.monotonic()
+
             try:
                 async for piece in r.aiter_raw():
-                    yield piece
+                    if live is None:
+                        yield piece
                     buf += piece
+                    end = False
                     while b"\n" in buf:
                         line, buf = buf.split(b"\n", 1)
-                        if line.startswith(b"data: {") and (b'"timings"' in line or b'"prompt_progress"' in line):
-                            try:
-                                d = json.loads(line[6:])
-                            except ValueError:
-                                continue
-                            t, pp = d.get("timings"), d.get("prompt_progress")
-                            t = t if isinstance(t, dict) else None
-                            last = t or last
+                        if live is not None and line.startswith(b"data: [DONE]"):
+                            end = True
+                        if not line.startswith(b"data: {") or (live is None and b'"timings"' not in line and b'"prompt_progress"' not in line):
+                            continue
+                        try:
+                            d = json.loads(line[6:])
+                        except ValueError:
+                            continue
+                        if live is not None:
+                            thought, message, fin = _stream_text(d)
+                            for k, piece_text in (("thought", thought), ("message", message)):
+                                if piece_text:
+                                    s.live_add(live, k, piece_text)
+                                    if kind and kind != k:
+                                        flush()
+                                    kind, text = k, text + piece_text
+                            end = end or fin
+                        t, pp = d.get("timings"), d.get("prompt_progress")
+                        t = t if isinstance(t, dict) else None
+                        last = t or last
+                        if t is not None or isinstance(pp, dict):
                             s.update_request(rid, t, pp if isinstance(pp, dict) else None)
+                    if live is not None:
+                        if text and (end or time.monotonic() - sent >= 0.1):
+                            flush()
+                        yield piece
             finally:
+                flush()
                 await r.aclose()
                 finish(last)
 

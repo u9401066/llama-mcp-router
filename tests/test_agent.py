@@ -479,6 +479,72 @@ def test_agent_stream_shows_tokens_and_speed(tmp_path):
         assert httpx.post(base + "/agent/llm/%s/v1/chat/completions" % ("0" * 32), json={}).status_code == 404
 
 
+def text_backend(ended):
+    """llama-server stand-in that streams reasoning and then an answer, a token at a time (``ended``: when the main
+    agent's request finished). Subagent and compaction requests (FAKE_LLM_SIDE) get SIDE text."""
+    from starlette.applications import Starlette
+    from starlette.responses import StreamingResponse
+    from starlette.routing import Route
+
+    async def chat(request):
+        body = await request.json()
+        last = body["messages"][-1]["content"]
+        side = "compaction engine" in last or last == "look it up"
+
+        async def gen():
+            parts = [("reasoning_content", "SIDE-THOUGHT"), ("content", "SIDE-ANSWER")] if side else \
+                [("reasoning_content", w) for w in ("Let ", "me ", "think ", "it ", "over.\n")] + [("content", w) for w in ("\nHello ", "world.")]
+            for k, v in parts:
+                yield "data: %s\n\n" % json.dumps({"choices": [{"index": 0, "delta": {k: v}, "finish_reason": None}]})
+                await asyncio.sleep(0.15)
+            if not side:
+                ended.append(time.monotonic())
+            yield "data: %s\n\n" % json.dumps({"choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                                                "timings": {"predicted_n": 7, "predicted_ms": 700.0}})
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(gen(), media_type="text/event-stream")
+
+    return Starlette(routes=[Route("/v1/chat/completions", chat, methods=["POST"])])
+
+
+@pytest.mark.parametrize("live_stream", [True, False])
+def test_agent_text_is_shown_as_the_model_writes_it_and_only_once(tmp_path, live_stream):
+    ended = []
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    env = {"FAKE_LLM_CALLS": "1", "FAKE_LLM_COMMIT": "1", "FAKE_LLM_URL": "http://127.0.0.1:%d/agent/llm/{session}/v1/chat/completions" % port,
+           "FAKE_LLM_TOOLS": json.dumps([{"type": "function", "function": {"name": "noop", "parameters": {"type": "object", "properties": {}}}}]),
+           "FAKE_LLM_SIDE": json.dumps([[{"role": "user", "content": "look it up"}],
+                                        [{"role": "user", "content": "{text}"}, {"role": "user", "content": "You are now acting as a compaction engine."}]])}
+    conv = {"X-Conversation-Id": "live-c::agent"}
+    with live(text_backend(ended)) as llm:
+        cfg = RouterConfig(backend=llm, selector=NoTools(), agent=agent_cfg(tmp_path, default=True, live_stream=live_stream, env=env))
+        with live(create_app(cfg), port=port) as base:
+            seen = []  # (arrival time, delta)
+            with httpx.stream("POST", base + "/v1/chat/completions", json={"stream": True, "messages": [{"role": "user", "content": "explain the plan"}]},
+                              headers=conv, timeout=30) as r:
+                for line in r.iter_lines():
+                    if line.startswith("data: {"):
+                        seen.append((time.monotonic(), json.loads(line[6:])["choices"][0]["delta"]))
+            reasoning = "".join(d.get("reasoning_content") or "" for _, d in seen)
+            content = "".join(d.get("content") or "" for _, d in seen)
+            assert reasoning.count("Let me think it over.") == 1 and content.count("Hello world.") == 1  # the agent's copy is dropped
+            assert "SIDE" not in reasoning + content and "thinking about: explain the plan" in reasoning
+            first = next(t for t, d in seen if "Let" in (d.get("reasoning_content") or ""))
+            parts = [d for _, d in seen if any(w in (d.get("reasoning_content") or "") for w in ("Let", "over."))]
+            if live_stream:
+                assert first < ended[0] and len(parts) >= 2  # piece by piece, while the model is still writing
+            else:
+                assert first > ended[0] and len(parts) == 1  # the agent's whole message, once it is complete
+            r2 = httpx.post(base + "/v1/chat/completions", json={"messages": [{"role": "user", "content": "explain the plan"}, {"role": "assistant", "content": "x"},
+                                                                              {"role": "user", "content": "again"}]}, headers=conv, timeout=30)
+            msg = r2.json()["choices"][0]["message"]
+            assert msg["content"].count("Hello world.") == 1 and msg["reasoning_content"].count("Let me think it over.") == 1
+
+
 def test_agent_llm_requests_get_the_chats_effort_and_compact_tools(tmp_path):
     seen = []
     sock = socket.socket()

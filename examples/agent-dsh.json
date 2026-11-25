@@ -22,6 +22,7 @@
   "compaction_effort": "low",
   "compact_tools": true,
   "stable_prefix": true,
+  "live_stream": true,
   "triggers": [
     "/agent",
     "@agent",

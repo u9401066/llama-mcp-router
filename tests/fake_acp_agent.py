@@ -61,6 +61,24 @@ while True:
             req = urllib.request.Request(os.environ["FAKE_LLM_URL"], data=json.dumps(llm_body).encode(),
                                          headers={"content-type": "application/json"})
             with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read().decode()
+            if os.environ.get("FAKE_LLM_COMMIT"):  # like DSH's ACP bridge: the model's text, trimmed, once it is complete
+                said = {"reasoning_content": "", "content": ""}
+                for line in raw.splitlines():
+                    if line.startswith("data: {"):
+                        delta = (json.loads(line[6:]).get("choices") or [{}])[0].get("delta") or {}
+                        for k in said:
+                            said[k] += delta.get(k) or ""
+                if said["reasoning_content"].strip():
+                    update(sid, {"sessionUpdate": "agent_thought_chunk", "content": {"type": "text", "text": said["reasoning_content"].strip()}})
+                if said["content"].strip():
+                    update(sid, {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": said["content"].strip()}})
+        for extra in json.loads(os.environ.get("FAKE_LLM_SIDE", "[]")):  # other model calls (subagent, compaction): not committed
+            import urllib.request
+            side = {"stream": True, "tools": json.loads(os.environ.get("FAKE_LLM_TOOLS", "[]")),
+                    "messages": [dict(m, content=m["content"].replace("{text}", text)) for m in extra]}
+            req = urllib.request.Request(os.environ["FAKE_LLM_URL"], data=json.dumps(side).encode(), headers={"content-type": "application/json"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
         if "slow" in text:  # a long turn that can be cancelled (session/cancel) while it works
             cancelled, t0 = False, time.time()
