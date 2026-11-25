@@ -122,6 +122,7 @@ def test_warmup_records_the_first_request_and_fills_only_never_used_slots(tmp_pa
             w = Warmup(client, str(tmp_path / "warmup.json"), SlotGate(2), Metrics())
             assert await w.run_once() == []  # nothing recorded yet
             first = {"model": "m", "stream": True, "timings_per_token": True, "tools": [{"t": 1}], "reasoning_effort": "max",
+                     "max_completion_tokens": 16384,
                      "messages": [{"role": "system", "content": "S"}, {"role": "user", "content": "task"},
                                   {"role": "user", "content": "runtime context"}, {"role": "user", "content": "skills"}]}
             assert w.record(first) and not w.record(dict(first))  # unchanged prefix: no rewrite
@@ -134,7 +135,8 @@ def test_warmup_records_the_first_request_and_fills_only_never_used_slots(tmp_pa
 
     done, w = asyncio.run(main())
     assert [d["slot"] for d in done] == [0] and done[0]["prompt_n"] == 35000 and w.last["slots"] == done
-    assert posted == [{"model": "m", "tools": [{"t": 1}], "reasoning_effort": "max", "max_tokens": 1, "stream": False, "id_slot": 0,
+    assert posted == [{"model": "m", "tools": [{"t": 1}], "reasoning_effort": "max", "max_tokens": 1, "max_completion_tokens": 1,
+                       "stream": False, "id_slot": 0,
                        "cache_prompt": True, "messages": [{"role": "system", "content": "S"}, {"role": "user", "content": "ok"}]}]
 
 

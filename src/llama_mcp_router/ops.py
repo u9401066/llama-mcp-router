@@ -256,8 +256,11 @@ class Warmup:
 
     async def warm(self, slot: int, tmpl: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Fill ``slot`` with the prefix, unless it took a request while this waited for a router slot (None)."""
-        body = dict(tmpl, messages=tmpl["messages"] + [{"role": "user", "content": "ok"}], max_tokens=1, stream=False,
-                    id_slot=slot, cache_prompt=True)
+        # llama-server reads n_predict, then max_completion_tokens, then max_tokens: the agent's own limit (DSH sends
+        # max_completion_tokens 16384) must not stay, or the warm-up decodes thousands of tokens
+        body = {k: v for k, v in tmpl.items() if k not in ("max_completion_tokens", "n_predict")}
+        body.update(messages=tmpl["messages"] + [{"role": "user", "content": "ok"}], max_tokens=1, max_completion_tokens=1,
+                    stream=False, id_slot=slot, cache_prompt=True)
         t0 = time.monotonic()
         async with self.gate.slot(BACKGROUND):
             # checked again now: a request pinned to a busy slot would wait for it (holding the router slot) and then
